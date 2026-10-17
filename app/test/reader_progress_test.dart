@@ -30,11 +30,19 @@ void main() {
     expect(reachedEnd(0, 0, viewport), isFalse); // no layout yet
   });
 
-  test('shouldAutoNext: last page bottom past 65% viewport (doc 10 §6)', () {
-    const viewport = 500.0;
-    // Total height 600; last bottom 600 < 0.65*500 + offset until offset ≥ 275.
-    expect(shouldAutoNext(offsets, heights, 200, viewport), isFalse);
-    expect(shouldAutoNext(offsets, heights, 275, viewport), isTrue);
-    expect(shouldAutoNext(const [], const [], 500, viewport), isFalse);
+  test('shouldAutoNext: end window + last page top above 65% (doc 10 §6)',
+      () {
+    // Realistic chapter: slots 800/900/950, viewport 800 → total 2650,
+    // max extent 1850, end window opens at 1570 (max − 0.35·vh).
+    const heights = [800.0, 900.0, 950.0];
+    const offsets = [0.0, 800.0, 1700.0];
+    const viewport = 800.0;
+    expect(shouldAutoNext(offsets, heights, 1300, viewport), isFalse);
+    expect(shouldAutoNext(offsets, heights, 1560, viewport), isFalse);
+    expect(shouldAutoNext(offsets, heights, 1600, viewport), isTrue);
+    expect(shouldAutoNext(offsets, heights, 1850, viewport), isTrue);
+    // Short content (total ≤ viewport → no scrolling): arm at 0.
+    expect(shouldAutoNext([100.0], [100.0], 0, 500), isTrue);
+    expect(shouldAutoNext(const [], const [], 500, 800), isFalse);
   });
 }

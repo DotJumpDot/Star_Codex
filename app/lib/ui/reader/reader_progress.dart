@@ -36,8 +36,11 @@ bool reachedEnd(
   return scrollOffset >= maxExtent - viewportHeight;
 }
 
-/// Auto-next fires when the LAST page's bottom has passed 65% of the
-/// viewport height above the scroll position (doc 10 §6).
+/// Auto-next fires inside the END window (within 35% of a viewport from
+/// max extent) once the LAST page's top has risen above the 65% viewport
+/// line (doc 10 §6). The doc's literal "bottom passes 65%" assumed
+/// over-scroll physics; Android clamping pins the bottom edge at the
+/// screen bottom, making it unreachable (found on-device QA 2026-10-18).
 bool shouldAutoNext(
   List<double> offsets,
   List<double> heights,
@@ -45,6 +48,11 @@ bool shouldAutoNext(
   double viewportHeight,
 ) {
   if (heights.isEmpty) return false;
-  final lastBottom = offsets.last + heights.last;
-  return scrollOffset + viewportHeight * 0.65 >= lastBottom;
+  final lastTop = offsets.last;
+  if (viewportHeight <= 0) return false;
+  final max = offsets.last + heights.last - viewportHeight;
+  if (max > 0 && scrollOffset < max - viewportHeight * 0.35) {
+    return false; // not inside the end window yet
+  }
+  return scrollOffset + viewportHeight * 0.65 >= lastTop;
 }

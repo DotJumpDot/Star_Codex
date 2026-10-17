@@ -46,6 +46,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   DateTime _lastSave = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime _lastAutoNextCheck = DateTime.fromMillisecondsSinceEpoch(0);
 
+  /// Scroll events stop right after the clamp settles (the ballistic's
+  /// final delta never re-fires) — on-device QA 2026-10-18 showed the
+  /// end never reaching the auto-next check when the user STOPS at the
+  /// bottom. This low-rate poller re-runs the check while parked.
+  Timer? _edgePoller;
+
   final _scroll = ScrollController();
 
   /// In-flight page futures for THIS chapter. Without the memo, the
@@ -121,6 +127,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         }
       });
       _seedPrefetch();
+      _edgePoller?.cancel();
+      _edgePoller = Timer.periodic(const Duration(milliseconds: 300), (_) {
+        if (!mounted || _loaded == null || !_scroll.hasClients) return;
+        _maybeAutoNext(
+            slotOffsets(_heights), _scroll.position.viewportDimension,
+            DateTime.now());
+      });
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -284,6 +297,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   @override
   void dispose() {
     _countdown?.cancel();
+    _edgePoller?.cancel();
     _scroll.dispose();
     _setImmersive(false);
     _setAwake(false);
