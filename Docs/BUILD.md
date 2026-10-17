@@ -44,7 +44,7 @@ Check: `flutter devices` must list the phone.
 ## 2. Build the release APK
 
 ```powershell
-cd C:\Code\Manga_Reader\app
+cd C:\Code\StarCodex\app
 flutter pub get
 flutter build apk --release
 ```
@@ -74,7 +74,7 @@ db `version`, not the app version (see Plan/02).
 - **Java version flapping**: if `flutter doctor` complains about JDK, set
   `JAVA_HOME` to Android Studio's bundled jbr (e.g.
   `C:\Program Files\Android\Android Studio\jbr`).
-- **Long paths on Windows**: keep the project at `C:\Code\Manga_Reader`
+- **Long paths on Windows**: keep the project at `C:\Code\StarCodex`
   (short path) — already the case.
 - **Gradle first build is slow** (5–15 min, downloads). Later builds ~1 min.
 - **Antivirus can lock `build\`**: if a build fails weirdly, delete

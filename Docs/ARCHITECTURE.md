@@ -12,7 +12,7 @@ would. The PC is only used to compile the APK.
 ## Workspace tree
 
 ```
-Manga_Reader/
+StarCodex/
 ├── Docs/                        this folder
 │   └── Plan/                    16-doc build plan (00–15)
 ├── app/                         the Flutter project (created in Plan Phase 1)

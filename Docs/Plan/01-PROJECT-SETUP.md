@@ -1,13 +1,13 @@
 # 01 — Project Setup
 
-Create the Flutter project and all foundation code. Target: `C:\Code\Manga_Reader\app\`
-(the repo root stays `C:\Code\Manga_Reader\` with `Docs/` beside `app/` — the
+Create the Flutter project and all foundation code. Target: `C:\Code\StarCodex\app\`
+(the repo root stays `C:\Code\StarCodex\` with `Docs/` beside `app/` — the
 repo is github.com/DotJumpDot/Star_Codex, decision D7).
 
 ## 1. Create project
 
 ```powershell
-cd C:\Code\Manga_Reader
+cd C:\Code\StarCodex
 flutter create --org com.jamej --project-name star_codex --platforms android app
 cd app
 ```

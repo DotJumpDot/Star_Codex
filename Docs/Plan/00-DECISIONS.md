@@ -14,7 +14,7 @@ here requires asking the user in chat.
 | D4 | **Thai-first UI**, English toggle. Dark theme default, Material 3. |
 | D5 | **No backend, no server, no cloud, no login, no telemetry.** The app talks directly from the phone to the websites. The PC is only used to compile the APK. |
 | D6 | **Personal local use only.** No sharing/export of content, no public deployment. (User's legal stance: private offline reading.) |
-| D7 | **App name: Star Codex.** Repo: https://github.com/DotJumpDot/Star_Codex — `C:\Code\Manga_Reader\` IS the repo root (Docs/, app/, .gitignore). Every plan phase ends with a detailed checklist-style commit + push (see 15 §rules). Android applicationId: `com.jamej.starcodex`. |
+| D7 | **App name: Star Codex.** Repo: https://github.com/DotJumpDot/Star_Codex — the local repo root is `C:\Code\StarCodex\` (renamed from Manga_Reader on 2026-10-17; Docs/, app/, .gitignore). Every plan phase ends with a detailed checklist-style commit + push (see 15 §rules). Android applicationId: `com.jamej.starcodex`. |
 
 ## Navigation & tabs (user-confirmed)
 

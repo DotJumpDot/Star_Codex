@@ -3,7 +3,7 @@
 ## Run on the phone with hot reload
 
 ```powershell
-cd C:\Code\Manga_Reader\app
+cd C:\Code\StarCodex\app
 flutter pub get
 flutter run              # picks the connected phone; r = hot reload, R = restart
 ```
@@ -16,7 +16,7 @@ image scrolling feel and storage behave differently on emulators.
 After Phase 3 of the build order, sources can be tested from the CLI:
 
 ```powershell
-cd C:\Code\Manga_Reader\app
+cd C:\Code\StarCodex\app
 dart run tool/verify_sources.dart --source slow-manga
 dart run tool/verify_sources.dart --source go-manga
 dart run tool/verify_sources.dart --source up-manga
