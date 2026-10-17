@@ -5,8 +5,10 @@ import 'package:star_codex/data/dao/chapters_dao.dart';
 import 'package:star_codex/data/dao/library_dao.dart';
 import 'package:star_codex/data/dao/search_history_dao.dart';
 import 'package:star_codex/data/dao/series_dao.dart';
+import 'package:star_codex/data/dao/settings_dao.dart';
 import 'package:star_codex/data/dao/tags_dao.dart';
 import 'package:star_codex/data/repo/browse_repo.dart';
+import 'package:star_codex/data/repo/series_repo.dart';
 import 'package:star_codex/data/sources/source_api.dart';
 import 'package:star_codex/ui/browse/browse_controller.dart';
 
@@ -18,31 +20,41 @@ void main() {
 
   setUp(() async {
     final db = await openTestDb();
-    repo = BrowseRepo(
-      sources: [
-        FakeSource('slow-manga',
-            latestResults: const [
+    final sources = [
+      FakeSource('slow-manga',
+          latestResults: const [
+            SourceSeries(url: 'https://a/one/', title: 'Alpha'),
+          ],
+          searchResults: const {
+            'alpha': [SourceSeries(url: 'https://a/one/', title: 'Alpha')],
+          },
+          genreResults: const {
+            'action': [
               SourceSeries(url: 'https://a/one/', title: 'Alpha'),
             ],
-            searchResults: const {
-              'alpha': [SourceSeries(url: 'https://a/one/', title: 'Alpha')],
-            },
-            genreResults: const {
-              'action': [
-                SourceSeries(url: 'https://a/one/', title: 'Alpha'),
-              ],
-            }),
-        FakeSource('go-manga',
-            latestResults: const [
-              SourceSeries(url: 'https://b/one/', title: 'Beta'),
-            ],
-            error: null),
-      ],
+          }),
+      FakeSource('go-manga',
+          latestResults: const [
+            SourceSeries(url: 'https://b/one/', title: 'Beta'),
+          ],
+          error: null),
+    ];
+    repo = BrowseRepo(
+      sources: sources,
       seriesDao: SeriesDao(db),
       chaptersDao: ChaptersDao(db),
       libraryDao: LibraryDao(db),
       tagsDao: TagsDao(db),
       historyDao: SearchHistoryDao(db),
+      seriesRepo: SeriesRepo(
+        sources: sources,
+        seriesDao: SeriesDao(db),
+        chaptersDao: ChaptersDao(db),
+        tagsDao: TagsDao(db),
+        libraryDao: LibraryDao(db),
+        downloadsDao: DownloadsDao(db),
+        settingsDao: SettingsDao(db),
+      ),
     );
   });
 

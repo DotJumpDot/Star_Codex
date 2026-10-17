@@ -218,9 +218,11 @@ class SeriesDao {
         conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
+  /// Insertion order (rowid) — the first link is the source the series was
+  /// opened/added from; the detail screen uses it for tab order and chips.
   Future<List<SeriesSource>> sourcesOf(int seriesId) async {
     final rows = await db.query('series_sources',
-        where: 'series_id = ?', whereArgs: [seriesId]);
+        where: 'series_id = ?', whereArgs: [seriesId], orderBy: 'rowid');
     return rows.map(SeriesSource.fromRow).toList(growable: false);
   }
 

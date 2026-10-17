@@ -55,3 +55,15 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   3-source cards), filters + genre browsing verified via adb; fixed
   genre-href ArgumentError, unbounded DNS lookup, persisted language not
   applied at startup.
+- 2026-10-17 — Phase 6: Series detail (Plan/09 + per-chapter chips
+  addendum) — SeriesRepo (stale-tab 12h refresh, incremental L7 metadata
+  union, §3.2 re-probe, shared upsertFromDetail now powering add-to-
+  library AND browse-card open), detail screen (L5 dual titles, type/
+  origin/status chips, source badges, collapsible description with source
+  caption, tag chips → browse pre-filter), source tabs (07 §4 primary,
+  green "N ตอน" banner on bigger tabs), chapter list (old→new default
+  persisted per series, search-in-chapters, relative Thai dates,
+  read/unread + downloaded marks), per-chapter colored source dots +
+  "อ่านจากเว็บไหน" picker, long-press sheet (mark read/unread instant,
+  download queue row), continue button (last read → first unread → ch 1),
+  reader router + mode stubs. 105 tests green, analyze clean.

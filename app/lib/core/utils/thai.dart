@@ -18,6 +18,10 @@ double? parseChapterNumber(String raw) {
   return standalone != null ? double.tryParse(standalone.group(1)!) : null;
 }
 
+/// `920.0` → `920`, `155.5` → `155.5` — display form for chapter numbers.
+String formatChapterNumber(double n) =>
+    n == n.roundToDouble() ? n.toInt().toString() : '$n';
+
 const _thaiMonths = {
   'มกราคม': 1, 'กุมภาพันธ์': 2, 'มีนาคม': 3, 'เมษายน': 4,
   'พฤษภาคม': 5, 'มิถุนายน': 6, 'กรกฎาคม': 7, 'สิงหาคม': 8,

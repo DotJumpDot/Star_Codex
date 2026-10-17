@@ -1,12 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sqflite/sqflite.dart' show Database;
 
 import 'package:star_codex/core/utils/title_match.dart';
 import 'package:star_codex/data/dao/chapters_dao.dart';
 import 'package:star_codex/data/dao/library_dao.dart';
 import 'package:star_codex/data/dao/search_history_dao.dart';
 import 'package:star_codex/data/dao/series_dao.dart';
+import 'package:star_codex/data/dao/settings_dao.dart';
 import 'package:star_codex/data/dao/tags_dao.dart';
 import 'package:star_codex/data/repo/browse_repo.dart';
+import 'package:star_codex/data/repo/series_repo.dart';
 import 'package:star_codex/data/sources/source_api.dart';
 
 import 'fake_source.dart';
@@ -106,6 +109,7 @@ void main() {
   });
 
   group('BrowseRepo', () {
+    late Database db;
     late SeriesDao seriesDao;
     late ChaptersDao chaptersDao;
     late LibraryDao libraryDao;
@@ -113,7 +117,7 @@ void main() {
     late SearchHistoryDao historyDao;
 
     setUp(() async {
-      final db = await openTestDb();
+      db = await openTestDb();
       seriesDao = SeriesDao(db);
       chaptersDao = ChaptersDao(db);
       libraryDao = LibraryDao(db);
@@ -128,6 +132,15 @@ void main() {
           libraryDao: libraryDao,
           tagsDao: tagsDao,
           historyDao: historyDao,
+          seriesRepo: SeriesRepo(
+            sources: sources,
+            seriesDao: seriesDao,
+            chaptersDao: chaptersDao,
+            tagsDao: tagsDao,
+            libraryDao: libraryDao,
+            downloadsDao: DownloadsDao(db),
+            settingsDao: SettingsDao(db),
+          ),
         );
 
     test('search groups across sources and records history', () async {

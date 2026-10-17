@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/i18n/i18n.dart';
+import '../../core/providers.dart';
 import '../browse/browse_screen.dart';
 import '../downloads/offline_screen.dart';
 import '../library/history_screen.dart';
@@ -9,16 +10,11 @@ import '../library/library_screen.dart';
 import '../settings/settings_screen.dart';
 
 /// Bottom navigation shell — exactly 5 tabs (decision 00 §Navigation):
-/// Browse / Library / History / Offline / Settings.
-class NavigationShell extends ConsumerStatefulWidget {
+/// Browse / Library / History / Offline / Settings. The index lives in
+/// [tabIndexProvider] so pushed screens can jump to a tab (detail tag
+/// chips → browse, Plan/09 §4).
+class NavigationShell extends ConsumerWidget {
   const NavigationShell({super.key});
-
-  @override
-  ConsumerState<NavigationShell> createState() => _NavigationShellState();
-}
-
-class _NavigationShellState extends ConsumerState<NavigationShell> {
-  int _index = 0;
 
   static const _pages = <Widget>[
     BrowseScreen(),
@@ -29,12 +25,14 @@ class _NavigationShellState extends ConsumerState<NavigationShell> {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final index = ref.watch(tabIndexProvider);
     return Scaffold(
-      body: IndexedStack(index: _index, children: _pages),
+      body: IndexedStack(index: index, children: _pages),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        selectedIndex: index,
+        onDestinationSelected: (i) =>
+            ref.read(tabIndexProvider.notifier).state = i,
         destinations: [
           NavigationDestination(
             icon: const Icon(Icons.search_outlined),

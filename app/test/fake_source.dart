@@ -27,6 +27,7 @@ class FakeSource implements Source {
   final Object? error;
 
   int searchCalls = 0;
+  int detailCalls = 0;
   List<String> searchedQueries = [];
 
   @override
@@ -66,6 +67,7 @@ class FakeSource implements Source {
 
   @override
   Future<SourceSeriesDetail> detail(String sourceUrl) async {
+    detailCalls++;
     if (error != null) throw error!;
     return details[sourceUrl] ??
         const SourceSeriesDetail(title: 'detail?', chapters: []);

@@ -14,3 +14,19 @@ const _palette = <Color>[
 ];
 
 Color sourceDotColor(int index) => _palette[index % _palette.length];
+
+/// The little colored identity dot used on browse badges, detail source
+/// rows and per-chapter source chips (doc 09 addendum).
+class SourceDot extends StatelessWidget {
+  const SourceDot({super.key, required this.color, this.size = 9});
+
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      );
+}

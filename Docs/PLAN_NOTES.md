@@ -213,3 +213,24 @@ Also this pass:
 - adb gotcha for DB checks: `input tap` coords from a uiautomator dump
   of a PREVIOUS sheet/layout are stale — dump and tap in the same
   session (cost one false-negative live check this pass).
+
+## Phase 6 (2026-10-17) — series detail
+
+- **แชร์ลิงก์ → คัดลอกลิงก์.** Doc 09's ⋯ menu lists "share link"; the
+  allowed dependency table has no share plugin (`share_plus` would need a
+  rule-5 note for a 2-line feature). Clipboard copy ships instead — revisit
+  if a share dep ever gets approved.
+- **ผสานเรื่อง (manual merge) deferred to Phase 9** per its own doc (12 §4);
+  the menu item is not shown yet.
+- **Series-row creation is now shared.** BrowseRepo.addToLibrary and the
+  browse-card → detail open both go through `SeriesRepo.upsertFromDetail`
+  (identity order: (source,url) link → title-norm → `raw:` escape). Semantics
+  unchanged; existing browse_repo tests still pass.
+- **Widget-test ffi drains:** any detail action that writes through
+  sqflite_common_ffi (mark read, openReader's byId) needs
+  `tester.runAsync(() => Future.delayed(...))` before asserting — same rule
+  as the Phase 5 history write.
+- **Tab index moved to `tabIndexProvider`** so detail tag chips can pop to
+  the root and switch to Browse (doc 09 §4). Browse filters remain
+  session-only; tag enforcement on listings is still an honest no-op until
+  listing data carries tags.

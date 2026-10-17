@@ -205,6 +205,13 @@ class BrowseController extends StateNotifier<BrowseState> {
   void setFilters(BrowseFilters filters) =>
       state = state.copyWith(filters: filters);
 
+  /// Tag chip on the detail screen (Plan/09 §4): pre-filter browse,
+  /// session-only. Listings carry no tags yet, so enforcement stays an
+  /// honest no-op until a detail fetch lands tags — same policy as the
+  /// filter sheet.
+  void applyTagFilter(String tag) =>
+      state = state.copyWith(filters: state.filters.copyWith(tags: {tag}));
+
   /// Infinite scroll: one more page per source per batch (Plan/08).
   Future<void> loadMore() async {
     if (state.loading || state.loadingMore || state.endReached) return;

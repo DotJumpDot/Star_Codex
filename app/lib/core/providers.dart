@@ -12,6 +12,7 @@ import '../data/dao/series_dao.dart';
 import '../data/dao/settings_dao.dart';
 import '../data/dao/tags_dao.dart';
 import '../data/repo/browse_repo.dart';
+import '../data/repo/series_repo.dart';
 import '../data/sources/source_api.dart';
 import '../data/storage/blob_store.dart';
 import '../data/storage/cache_janitor.dart';
@@ -38,6 +39,9 @@ final settingsDaoProvider =
 final tagsDaoProvider = Provider((ref) => TagsDao(ref.watch(dbProvider)));
 final searchHistoryDaoProvider =
     Provider((ref) => SearchHistoryDao(ref.watch(dbProvider)));
+final downloadsDaoProvider =
+    Provider((ref) => DownloadsDao(ref.watch(dbProvider)));
+final historyDaoProvider = Provider((ref) => HistoryDao(ref.watch(dbProvider)));
 
 /// Live enabled Source instances in sort order — loaded in `main()` via
 /// `loadSources(db, http)` and overridden here (sync access for repos).
@@ -74,6 +78,19 @@ final cacheJanitorProvider = Provider((ref) => CacheJanitor(
       settings: ref.watch(settingsDaoProvider),
     ));
 
+/// Detail-side orchestration (Plan/09): stale refresh, metadata union,
+/// cross-source probe, series materialization from a browse card.
+final seriesRepoProvider = Provider((ref) => SeriesRepo(
+      sources: ref.watch(sourcesProvider),
+      seriesDao: ref.watch(seriesDaoProvider),
+      chaptersDao: ref.watch(chaptersDaoProvider),
+      tagsDao: ref.watch(tagsDaoProvider),
+      libraryDao: ref.watch(libraryDaoProvider),
+      downloadsDao: ref.watch(downloadsDaoProvider),
+      settingsDao: ref.watch(settingsDaoProvider),
+      pipeline: ref.watch(imagePipelineProvider),
+    ));
+
 /// Browse orchestration (Plan/07): source adapters → normalize → group.
 final browseRepoProvider = Provider((ref) => BrowseRepo(
       sources: ref.watch(sourcesProvider),
@@ -83,7 +100,12 @@ final browseRepoProvider = Provider((ref) => BrowseRepo(
       tagsDao: ref.watch(tagsDaoProvider),
       historyDao: ref.watch(searchHistoryDaoProvider),
       pipeline: ref.watch(imagePipelineProvider),
+      seriesRepo: ref.watch(seriesRepoProvider),
     ));
+
+/// Bottom-nav tab index — shared so detail screens can jump to Browse
+/// (tag chip tap, doc 09 §4) without lifting shell state.
+final tabIndexProvider = StateProvider<int>((ref) => 0);
 
 /// Resolves the real library dir (Plan/03: getApplicationSupportDirectory()/
 /// manga_library). Called in main() before runApp.

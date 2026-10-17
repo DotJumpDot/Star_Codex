@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/i18n/i18n.dart';
 import '../../core/providers.dart';
 import '../../data/repo/browse_repo.dart';
+import '../detail/detail_controller.dart' show detailGroupProvider;
 import '../detail/detail_screen.dart';
 import 'browse_controller.dart';
 import 'filter_sheet.dart';
@@ -164,8 +165,18 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                                 sources: sources,
                                 onTap: () =>
                                     Navigator.of(context).push(MaterialPageRoute(
-                                  builder: (_) => DetailScreen(
-                                      title: visible[i].displayTitle),
+                                  // Nested scope overrides the family
+                                  // group provider for this route only
+                                  // (doc 09: detail opens from browse too;
+                                  // the series row materializes on load).
+                                  builder: (_) => ProviderScope(
+                                    overrides: [
+                                      detailGroupProvider(-1)
+                                          .overrideWithValue(visible[i]),
+                                    ],
+                                    child:
+                                        DetailScreen.fromGroup(visible[i]),
+                                  ),
                                 )),
                                 onLongPress: () =>
                                     _quickActions(context, visible[i]),

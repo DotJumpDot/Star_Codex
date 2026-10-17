@@ -62,6 +62,12 @@ class LibraryDao {
           .map(LibraryEntry.fromRow)
           .toList(growable: false);
 
+  Future<LibraryEntry?> entry(int seriesId) async {
+    final rows = await db.query('library',
+        where: 'series_id = ?', whereArgs: [seriesId], limit: 1);
+    return rows.isEmpty ? null : LibraryEntry.fromRow(rows.first);
+  }
+
   Future<void> markRead(int seriesId, int chapterId, int atMs) =>
       db.update(
         'library',
@@ -175,6 +181,16 @@ class DownloadsDao {
         whereArgs: [chapterId, 'done'],
         limit: 1);
     return rows.isNotEmpty;
+  }
+
+  /// Chapter ids in `done` state for one series (detail-screen ⬇ marks).
+  Future<Set<int>> downloadedForSeries(int seriesId) async {
+    final rows = await db.rawQuery('''
+      SELECT d.chapter_id FROM downloads d
+      JOIN chapters c ON c.id = d.chapter_id
+      WHERE c.series_id = ? AND d.state = ?
+    ''', [seriesId, 'done']);
+    return {for (final r in rows) r['chapter_id'] as int};
   }
 
   Future<List<Map<String, Object?>>> byState(String state) => db.query(

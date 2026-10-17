@@ -18,6 +18,12 @@ class SettingsDao {
       db.insert('settings', {'key': key, 'value': value},
           conflictAlgorithm: ConflictAlgorithm.replace);
 
+  Future<String?> get(String key) async {
+    final rows = await db.query('settings',
+        columns: ['value'], where: 'key = ?', whereArgs: [key], limit: 1);
+    return rows.isEmpty ? null : rows.first['value'] as String?;
+  }
+
   // --- search history ---
 
   Future<void> recordSearch(String query, int atMs) =>

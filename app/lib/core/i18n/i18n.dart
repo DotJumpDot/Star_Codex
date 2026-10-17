@@ -44,6 +44,14 @@ class I18nService {
 /// Doc signature: `t(context, 'browse.title')`.
 String t(BuildContext _, String key) => I18nService.translate(key);
 
+/// Like [t] but substitutes `{name}` placeholders:
+/// `tFmt(context, 'relative.days', {'n': '3'})` → "3 วันที่แล้ว".
+String tFmt(BuildContext _, String key, Map<String, String> params) {
+  var s = I18nService.translate(key);
+  params.forEach((name, value) => s = s.replaceAll('{$name}', value));
+  return s;
+}
+
 /// Current UI language ('th' | 'en'), persisted to the settings table.
 class LanguageController extends StateNotifier<String> {
   LanguageController(String initial, this._settingsDao)

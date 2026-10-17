@@ -159,6 +159,17 @@ class ChaptersDao {
     return rows.isEmpty ? null : Chapter.fromRow(rows.first);
   }
 
+  /// Whether ANY chapter rows exist for one source link — the detail load
+  /// refreshes sources that have no chapters yet (Plan/09 §Data flow).
+  Future<bool> hasForSource(int seriesId, String sourceId) async {
+    final rows = await db.query('chapters',
+        columns: ['id'],
+        where: 'series_id = ? AND source_id = ?',
+        whereArgs: [seriesId, sourceId],
+        limit: 1);
+    return rows.isNotEmpty;
+  }
+
   /// Newest first (display order for the detail screen).
   Future<List<Chapter>> listForSeries(int seriesId) async {
     final rows = await db.query('chapters',
@@ -248,4 +259,28 @@ class ChaptersDao {
       readAt: r['read_at'] as int?,
     );
   }
+
+  /// Progress rows for a whole series (detail screen marks — Plan/09),
+  /// keyed by chapter id.
+  Future<Map<int, ({int pageIndex, bool completed, int? readAt})>>
+      progressForSeries(int seriesId) async {
+    final rows = await db.rawQuery('''
+      SELECT rp.chapter_id, rp.page_index, rp.completed, rp.read_at
+      FROM read_progress rp
+      JOIN chapters c ON c.id = rp.chapter_id
+      WHERE c.series_id = ?
+    ''', [seriesId]);
+    return {
+      for (final r in rows)
+        r['chapter_id'] as int: (
+          pageIndex: r['page_index'] as int,
+          completed: (r['completed'] as int) == 1,
+          readAt: r['read_at'] as int?,
+        ),
+    };
+  }
+
+  /// "ทำเครื่องหมายว่ายังไม่อ่าน" — an unread chapter has NO row.
+  Future<void> clearProgress(int chapterId) =>
+      db.delete('read_progress', where: 'chapter_id = ?', whereArgs: [chapterId]);
 }

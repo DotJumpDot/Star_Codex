@@ -10,6 +10,7 @@ import '../dao/tags_dao.dart';
 import '../sources/source_api.dart';
 import '../storage/image_pipeline.dart';
 import 'browse_merge.dart';
+import 'series_repo.dart';
 
 export 'browse_merge.dart';
 
@@ -23,6 +24,8 @@ class _SourceResult {
 
 /// Orchestrates source adapters → normalize → group (Plan/07 §3) for the
 /// Browse screen. Adapters stay dumb; this is the only merge point.
+/// Series-row creation/merge lives in [SeriesRepo] (shared with the detail
+/// screen) — this class owns listing/search/group only.
 class BrowseRepo {
   BrowseRepo({
     required this.sources,
@@ -31,6 +34,7 @@ class BrowseRepo {
     required this.libraryDao,
     required this.tagsDao,
     required this.historyDao,
+    required this.seriesRepo,
     this.pipeline,
   });
 
@@ -40,6 +44,7 @@ class BrowseRepo {
   final LibraryDao libraryDao;
   final TagsDao tagsDao;
   final SearchHistoryDao historyDao;
+  final SeriesRepo seriesRepo;
 
   /// Null in unit tests that don't exercise cover downloads.
   final ImagePipeline? pipeline;
@@ -126,9 +131,9 @@ class BrowseRepo {
       ];
 
   /// Long-press quick action (Plan/08): fetch the primary source's detail,
-  /// create/merge the series row (Plan/07 §4), save chapters + source link
-  /// + tags, then best-effort cross-probe other sources (§3.2) and insert
-  /// the library row. Returns the series id. Idempotent.
+  /// create/merge the series row (Plan/07 §4 — shared [SeriesRepo] logic),
+  /// then best-effort cross-probe other sources (§3.2) and insert the
+  /// library row. Returns the series id. Idempotent.
   Future<int> addToLibrary(SearchGroup group) async {
     final primary = group.primary;
     final source = sourceById(primary.sourceId);
@@ -136,157 +141,35 @@ class BrowseRepo {
       throw StateError('unknown source: ${primary.sourceId}');
     }
     final detail = await source.detail(primary.url);
-    final now = DateTime.now().millisecondsSinceEpoch;
-
-    // Identity order: an existing (source, url) link IS this series —
-    // stronger than any title match (titles drift between listings).
-    // Without it, re-adding under a drifted title would create a second
-    // series row for the same page.
-    final existingId =
-        await seriesDao.findSeriesIdBySourceLink(source.id, primary.url);
-
-    var title = group.displayTitle;
-    var norm = normalizeTitle(title);
-    if (norm.isEmpty) {
-      // Pure-noise titles ('มังงะ') normalize to '' — the unique index on
-      // title_norm would then fuse unrelated series onto one row. Fall
-      // back to the richer detail-page title, then to a per-page escape
-      // key (same-URL re-adds are already caught by the link check above,
-      // so distinct URLs must stay distinct rows).
-      title = detail.title;
-      norm = normalizeTitle(title);
-      if (norm.isEmpty) norm = 'raw:${primary.url}';
-    }
-
-    // original_title (L5 order 2): first majority-Latin alt whose norm
-    // differs; ts pages carry no alt titles → often null (subtitle hidden).
-    String? originalTitle;
-    for (final alt in detail.altTitles) {
-      final altNorm = normalizeTitle(alt);
-      if (isMostlyLatin(alt) && altNorm.isNotEmpty && altNorm != norm) {
-        originalTitle = alt;
-        break;
-      }
-    }
-
-    final type = detail.type ?? group.type;
-
-    String? coverHash;
-    final coverUrl = detail.coverUrl ?? primary.coverUrl;
-    final pipe = pipeline;
-    if (coverUrl != null && pipe != null) {
-      try {
-        coverHash =
-            (await pipe.fetchAndStore(coverUrl, referer: source.referer)).hash;
-      } catch (_) {
-        // Cover is optional; series row still created.
-      }
-    }
-
-    final seriesId = existingId ??
-        await seriesDao.upsertByTitleNorm(Series(
-          title: title,
-          titleNorm: norm,
-          originalTitle: originalTitle,
-          coverHash: coverHash,
-          type: type,
-          origin: originForType(type),
-          status: detail.status,
-          description: detail.description,
-          createdAt: now,
-          updatedAt: now,
-        ));
-
-    // One transaction: a 900-chapter series must not land half-written.
-    await chaptersDao.upsertAll([
-      for (final ch in detail.chapters)
-        Chapter(
-          seriesId: seriesId,
-          sourceId: source.id,
-          number: ch.number,
-          title: ch.title,
-          url: ch.url,
-          uploadedAt: ch.uploadedAt,
-          fetchedAt: now,
-        ),
-    ]);
-
-    await seriesDao.upsertSource(SeriesSource(
-      seriesId: seriesId,
-      sourceId: source.id,
+    final seriesId = await seriesRepo.upsertFromDetail(
+      source: source,
       sourceUrl: primary.url,
-      sourceTitle: detail.title,
-      altTitles: detail.altTitles,
-      coverUrl: coverUrl,
-      lastChapterNumber:
-          detail.chapters.isEmpty ? null : detail.chapters.last.number,
-      lastUpdatedAt:
-          detail.chapters.isEmpty ? null : detail.chapters.last.uploadedAt,
-      fetchedAt: now,
-    ));
-    if (detail.tags.isNotEmpty) {
-      await tagsDao.setForSeries(seriesId, detail.tags);
-    }
-
-    await _crossProbe(seriesId, group, title, norm, detail.altTitles);
-    await libraryDao.add(seriesId, now);
+      fallbackTitle: group.displayTitle,
+      fallbackCoverUrl: primary.coverUrl,
+      fallbackType: group.type,
+      detail: detail,
+    );
+    final seriesRow = (await seriesDao.byId(seriesId))!;
+    await seriesRepo.probeOtherSources(
+      seriesId,
+      candidate: TitleCandidate(
+        norm: seriesRow.titleNorm,
+        altNorms: [
+          for (final a in detail.altTitles) normalizeTitle(a),
+          for (final m in group.members) normalizeTitle(m.title),
+        ],
+      ),
+      queries: <String>{
+        group.displayTitle,
+        group.primary.title,
+        for (final m in group.members) m.title,
+      }.toList(),
+    );
+    await libraryDao.add(seriesId, DateTime.now().millisecondsSinceEpoch);
     return seriesId;
   }
 
-  /// Plan/07 §3.2: probe other enabled sources with exact title queries;
-  /// any merge-hit gets a series_sources row (lazy detail later). Blocked
-  /// (Cloudflare) or erroring sources are skipped silently — this is a
-  /// best-effort enrichment, never a failure. A (source, url) already
-  /// linked to another series is never re-linked.
-  Future<void> _crossProbe(int seriesId, SearchGroup group, String title,
-      String titleNorm, List<String> altTitles) async {
-    final groupCand = TitleCandidate(
-      norm: titleNorm,
-      altNorms: [
-        for (final a in altTitles) normalizeTitle(a),
-        for (final m in group.members) normalizeTitle(m.title),
-      ],
-    );
-    final queries = <String>{
-      title,
-      group.primary.title,
-      for (final m in group.members) m.title,
-    }.toList();
-
-    for (final other in sources) {
-      if (other.id == group.primary.sourceId) continue;
-      var linked = false;
-      for (final q in queries.take(3)) {
-        try {
-          final items = await other.search(q);
-          for (final item in items) {
-            if (!merges(matchTitles(
-                groupCand, TitleCandidate.fromRaw(item.title)))) {
-              continue;
-            }
-            final owner =
-                await seriesDao.findSeriesIdBySourceLink(other.id, item.url);
-            if (owner != null && owner != seriesId) {
-              linked = true; // already on another series — leave it there
-              break;
-            }
-            await seriesDao.upsertSource(SeriesSource(
-              seriesId: seriesId,
-              sourceId: other.id,
-              sourceUrl: item.url,
-              sourceTitle: item.title,
-              coverUrl: item.coverUrl,
-              lastChapterNumber: item.chapterCountHint?.toDouble(),
-              fetchedAt: DateTime.now().millisecondsSinceEpoch,
-            ));
-            linked = true;
-            break;
-          }
-        } catch (_) {
-          break; // source unreachable/blocked — skip it
-        }
-        if (linked) break;
-      }
-    }
-  }
+  /// Browse card tap (Plan/09): resolve/materialize the series id, then
+  /// open the detail screen on it.
+  Future<int> ensureSeries(SearchGroup group) => seriesRepo.ensureSeries(group);
 }
