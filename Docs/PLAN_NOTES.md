@@ -31,3 +31,25 @@ Flutter stable resolved to **3.47.7 / Dart 3.13.5**. On this SDK:
   (input/screencap/uiautomator) for per-phase UI verification.
 - Phone-in-hand remains the judge for performance DoDs (cold-open timing,
   RAM) — emulator numbers are approximate.
+
+## Source framework notes (Phase 3, 2026-10-17)
+
+- **All 4 sites are MangaStream-family ("ts") themes, NOT Madara.** Full
+  drift record + verified selector table lives at the top of
+  [`Plan/05-SOURCE-MADARA.md`](Plan/05-SOURCE-MADARA.md). The file is named
+  "madara" for history; the adapter (`MadaraSource`) speaks ts-theme markup.
+- up-manga & dark-manga: `?s=` search endpoint returns Cloudflare 403;
+  `searchSupported: false` in configs, browse still works via `latest()`.
+- Chapter rows are `div.eph-num` (sometimes li) → parser matches `.eph-num a`;
+  fragment-only template links (`#/chapter-{{number}}`) are filtered by
+  same-host + non-empty-path checks (safe_http caught the first attempt).
+- Status `<i>` is often empty on these sites → `status` stays null
+  (best-effort per spec); type falls back to the listing tile badge at merge
+  time (Phase 5).
+- CLI console shows mojibake for Thai on Windows (codepage only — data is
+  correct UTF-8; the app renders it properly).
+- 05 DoD bullet "fetch one image through pipeline 03 → WebP ~40%" is
+  exercised in Phase 4 when the BlobStore/ImagePipeline exist.
+- Retry tests use an injected fetcher (loopback servers are forbidden by the
+  security rule itself); redirect-to-private rejection is enforced by
+  re-validating every hop through the same `_validate` covered by unit tests.

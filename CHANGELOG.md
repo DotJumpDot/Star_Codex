@@ -26,4 +26,12 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   main() opens DB before runApp. `flutter test` green (13 tests: schema,
   seed, unique-index, DAO round-trip, cascade delete), analyze clean,
   on-device launch verified (manga_reader.db created, no crashes).
+- 2026-10-17 — Phase 3: network + sources — safe_http (scheme/host
+  validation, per-hop redirect re-validation, 50 MB cap, retries w/
+  Retry-After), per-host rate limiter (2/700 ms strict, 4/200 ms image
+  CDNs), Cloudflare detection, Source interface + ts-theme adapter for all
+  4 sites (theme drift discovered & recorded in Plan/05), chapter-number +
+  Thai-date parsing, tool/verify_sources.dart — live-verified latest/search/
+  detail/chapters/images on all 4 sites. 29 tests green, analyze clean,
+  Dio only in safe_http (grep).
 
