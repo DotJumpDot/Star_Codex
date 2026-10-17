@@ -1,5 +1,40 @@
 # 05 — Madara Adapter (go-manga, slow-manga, up-manga, dark-manga)
 
+> ## ⚠ DRIFT RECORD — 2026-10-17 (live re-verification during Phase 3)
+>
+> The four sites do **NOT run the Madara theme**. Theme paths probed live:
+>
+> | site | wp-content/themes/ |
+> |---|---|
+> | slow-manga.net | `slowmanga` (+ `slowmanga-child`) — custom |
+> | go-manga.com | `mangareader` |
+> | up-manga.com | `mangareader` |
+> | dark-manga.com | `mangareader` |
+>
+> They are **MangaStream-family ("ts") themes**. Marker counts on live detail
+> pages: Madara selectors (`wp-manga-chapter`, `page-item-detail`, `post-title`,
+> `genres-content`, `manga-chapters-holder`) = **0 matches**; ts markers
+> (`eph-num`, `chbox`, `entry-title`, `mgen`) = **222–234 matches**. §1 URL
+> shapes and §5 ts_reader remain correct (re-verified). The selectors in
+> §2–§4 below are **superseded** by this table:
+>
+> | purpose | verified selector (2026-10-17) |
+> |---|---|
+> | listing/search tiles | `.listupd .bsx` → `a[href]` (series URL), `a[title]` (title), `img src` (cover), `span.typename` (type) |
+> | listing URL | `{base}/manga/?order=update&page={n}` — verified paginates |
+> | search URL | `{base}/?s={q}&post_type=wp-manga` — works on slow-manga & go-manga; **up-manga & dark-manga return Cloudflare 403 "Just a moment..." on the search endpoint only** (listings fine) → set `searchSupported: false` for those two configs; handle 403 as `SourceException.cloudflare` (04 §3) |
+> | detail title | `h1.entry-title` |
+> | detail cover | `.thumb img` `src` |
+> | detail status/type | `.tsinfo .imptdt` — text before `<i>`/`<a>` is the label ("Status"/"Type"), inner element text is the value ("Ongoing", "Manhwa") |
+> | detail genres | `.mgen a` |
+> | detail description | `.entry-content-single[itemprop=description]` (may be empty; `รายละเอียด` section follows) |
+> | alt titles | NOT present on ts detail pages probed — leave empty (best-effort per original spec) |
+> | chapter list | `li.eph-num > a` → `href` = chapter URL; `span.chapternum` = title text ("ตอนที่ 112"); `span.chapterdate` = Thai date ("มิถุนายน 8, 2026") → parse Thai months |
+> | chapter images | `ts_reader.run({... "images":[...]})` — §5 unchanged; image host may be the site itself (`www.go-manga.com/wp-content/uploads/...`) or a CDN (`img3.flash-manga.com`) — never hardcode hosts |
+> | AJAX chapter variant | NOT observed — ts themes print chapters server-side (no `manga-chapters-holder`); drop the admin-ajax fallback |
+>
+> Original (pre-drift) doc preserved below for audit trail.
+
 All four sites run WordPress + the **Madara** theme. One adapter, four config
 entries. Everything below marked **[PROBED]** was verified live on 2026-10-17;
 anything else must be verified with the given curl command before coding that
