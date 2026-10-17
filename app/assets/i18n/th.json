@@ -24,6 +24,7 @@
   "browse.filter.off": "ทั้งหมด",
   "browse.filter.type": "ประเภท",
   "browse.filter.status": "สถานะ",
+  "browse.filter.status_hint": "ใช้กรองเมื่อข้อมูลเรื่องถูกโหลดแล้ว",
   "browse.filter.min_chapters": "จำนวนตอนขั้นต่ำ",
   "browse.filter.hide_oneshot": "ซ่อนเรื่องสั้น/oneshot",
   "browse.filter.tags": "แท็ก",

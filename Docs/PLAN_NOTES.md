@@ -166,3 +166,50 @@ Improvements:
   ChoiceChip has no long-press (wrapped in GestureDetector); EN-flip via
   `run-as com.jamej.starcodex sqlite3 files/manga_reader.db "UPDATE
   settings SET value='en' WHERE key='language';"` + app restart.
+
+## Post-Phase-5 review pass (big model, 2026-10-17)
+
+Findings & fixes (commit "Fix: post-Phase-5 review pass"):
+
+1. **Duplicate-series hole in addToLibrary (serious).** Identity was
+   title-norm only: re-adding the same source page under a drifted tile
+   title would create a SECOND `series` row. A (source_id, source_url)
+   link is a stronger identity than any title match — `addToLibrary` now
+   resolves an existing link first and reuses that series
+   (`SeriesDao.findSeriesIdBySourceLink`). Cross-probe likewise never
+   re-links a URL owned by another series. Verified live on device:
+   adding the same card twice → still 1 series, 1 library row.
+2. **Empty-norm fusion risk.** A pure-noise title ('มังงะ') normalizes to
+   '' — the UNIQUE(title_norm) index would fuse unrelated series onto one
+   row. Fallback chain: detail-page title norm → per-page escape key
+   `raw:<primary.url>` (URL-unique; same-URL re-adds are caught by the
+   link check before norm matters). Unit-tested with two same-noise-title
+   pages → two distinct rows, no '' norm ever stored.
+3. **Chapter writes not atomic.** 175-chapter detail fetch did 175
+   sequential inserts outside a transaction → `ChaptersDao.upsertAll`
+   (single transaction). Live-verified: 175 chapters land whole.
+4. **Genre-mode + source-chip inconsistency.** Toggling a chip while in
+   genre mode silently kept genre results; now it leaves genre view and
+   filters the latest feed (genre is bound to one source by definition).
+   Controller unit tests added (genre toggle, clear, retry, loadMore).
+5. **Empty state had no retry** when ALL sources fail — added retry
+   button (Plan/08 "never a blank error page").
+6. **Status-filter honesty.** Status chips were selectable no-ops on
+   browse listings (no status until a detail fetch); the sheet now says
+   when they engage. Tags likewise (populated lazily from details).
+7. **browse_repo.dart was 500 lines** (rule: ~400) — pure grouping/
+   filter logic split into `data/repo/browse_merge.dart`; browse_repo
+   re-exports it so callers keep one import path.
+8. `_genreTermFrom` catch narrowed `on Object` → `on Exception`.
+
+Also this pass:
+- **Per-chapter source chips (user decision 2026-10-17, extends L2):**
+  every chapter row will show which sites carry it + a "read from which
+  site" picker. Data primitive shipped now
+  (`ChaptersDao.sourcesForNumber`, epsilon match); UI lands in Phase 6 —
+  spec recorded as a dated addendum at the top of Plan/09.
+- Hard-rule greps re-verified: Dio only in safe_http; no hardcoded user
+  strings; deps exactly plan + url_launcher.
+- adb gotcha for DB checks: `input tap` coords from a uiautomator dump
+  of a PREVIOUS sheet/layout are stale — dump and tap in the same
+  session (cost one false-negative live check this pass).

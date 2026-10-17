@@ -232,6 +232,19 @@ class SeriesDao {
     return rows.isEmpty ? null : SeriesSource.fromRow(rows.first);
   }
 
+  /// A (source, url) pair is the strongest series identity — stronger than
+  /// any title match (titles drift between listings). Used by
+  /// addToLibrary to reuse the existing series row instead of creating a
+  /// duplicate under a drifted title.
+  Future<int?> findSeriesIdBySourceLink(String sourceId, String sourceUrl) async {
+    final rows = await db.query('series_sources',
+        columns: ['series_id'],
+        where: 'source_id = ? AND source_url = ?',
+        whereArgs: [sourceId, sourceUrl],
+        limit: 1);
+    return rows.isEmpty ? null : rows.first['series_id'] as int;
+  }
+
   Future<List<SourceInfo>> allSources({bool onlyEnabled = false}) async {
     final rows = await db.query('sources',
         where: onlyEnabled ? 'enabled = 1' : null,

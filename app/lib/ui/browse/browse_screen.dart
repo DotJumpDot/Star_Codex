@@ -126,8 +126,21 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                     ? Center(
                         child: Padding(
                           padding: const EdgeInsets.all(24),
-                          child: Text(t(context, 'browse.empty'),
-                              textAlign: TextAlign.center),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(t(context, 'browse.empty'),
+                                  textAlign: TextAlign.center),
+                              const SizedBox(height: 12),
+                              OutlinedButton.icon(
+                                icon: const Icon(Icons.refresh, size: 18),
+                                label: Text(t(context, 'common.retry')),
+                                onPressed: () =>
+                                    ref.read(browseControllerProvider.notifier)
+                                        .retry(),
+                              ),
+                            ],
+                          ),
                         ),
                       )
                     : ListView.builder(

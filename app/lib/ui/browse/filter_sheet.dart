@@ -78,6 +78,14 @@ class _FilterSheetBodyState extends ConsumerState<_FilterSheetBody> {
               ],
             ),
             _sectionLabel(context, 'browse.filter.status'),
+            // Honest no-op on browse listings until detail data exists
+            // (Plan/08 §3): keep the control, say when it engages.
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(t(context, 'browse.filter.status_hint'),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.outline)),
+            ),
             Wrap(
               spacing: 6,
               children: [

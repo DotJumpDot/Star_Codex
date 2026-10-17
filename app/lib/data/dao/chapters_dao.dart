@@ -123,6 +123,28 @@ class ChaptersDao {
     return id;
   }
 
+  /// Bulk [upsert] inside ONE transaction — a 900-chapter detail fetch must
+  /// not land half-written (and 900 sequential round-trips are slow).
+  Future<void> upsertAll(List<Chapter> chapters) {
+    return db.transaction((txn) async {
+      for (final c in chapters) {
+        final rows = await txn.query('chapters',
+            columns: ['id'],
+            where:
+                'series_id = ? AND source_id = ? AND ABS(number - ?) < 1e-6',
+            whereArgs: [c.seriesId, c.sourceId, c.number],
+            limit: 1);
+        if (rows.isEmpty) {
+          await txn.insert('chapters', c.toRow());
+        } else {
+          final id = rows.first['id'] as int;
+          await txn.update('chapters', c.toRow()..remove('id'),
+              where: 'id = ?', whereArgs: [id]);
+        }
+      }
+    });
+  }
+
   Future<Chapter?> find(int seriesId, String sourceId, double number) async {
     final rows = await db.query('chapters',
         where: 'series_id = ? AND source_id = ? AND ABS(number - ?) < 1e-6',
@@ -142,6 +164,17 @@ class ChaptersDao {
     final rows = await db.query('chapters',
         where: 'series_id = ?', whereArgs: [seriesId], orderBy: 'number DESC');
     return rows.map(Chapter.fromRow).toList(growable: false);
+  }
+
+  /// Which sources carry chapter [number] of [seriesId] (epsilon match) —
+  /// powers the per-chapter source chips + "read from which site" picker
+  /// on the detail screen (doc 09 addendum, user decision 2026-10-17).
+  Future<List<String>> sourcesForNumber(int seriesId, double number) async {
+    final rows = await db.query('chapters',
+        columns: ['source_id'],
+        where: 'series_id = ? AND ABS(number - ?) < 1e-6',
+        whereArgs: [seriesId, number]);
+    return rows.map((r) => r['source_id'] as String).toList(growable: false);
   }
 
   Future<void> setPageCount(int chapterId, int pageCount) =>

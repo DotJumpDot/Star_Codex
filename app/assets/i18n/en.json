@@ -24,6 +24,7 @@
   "browse.filter.off": "All",
   "browse.filter.type": "Type",
   "browse.filter.status": "Status",
+  "browse.filter.status_hint": "Applies once series details are loaded",
   "browse.filter.min_chapters": "Min chapters",
   "browse.filter.hide_oneshot": "Hide oneshot",
   "browse.filter.tags": "Tags",

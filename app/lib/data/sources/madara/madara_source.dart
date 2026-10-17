@@ -236,14 +236,14 @@ class MadaraSource implements Source {
 
   /// `/genres/{term}/` → percent-decoded term. Sites emit occasional
   /// malformed hrefs (raw Thai, broken `%` sequences) — skip them; Uri
-  /// errors here are ArgumentError/FormatException, not parseable data
-  /// loss (probed live on slow-manga, Phase 5).
+  /// errors here are ArgumentError/FormatException (both Exception), not
+  /// parseable data loss (probed live on slow-manga, Phase 5).
   String? _genreTermFrom(String href) {
     try {
       final path = Uri.parse(baseUrl).resolve(href).pathSegments;
       if (path.length < 2 || path[0] != 'genres') return null;
       return Uri.decodeComponent(path[1]);
-    } on Object {
+    } on Exception {
       return null;
     }
   }

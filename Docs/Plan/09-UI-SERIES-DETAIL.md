@@ -1,5 +1,23 @@
 # 09 — UI: Series Detail Screen
 
+> ## Addendum — 2026-10-17 (user decision, extends L2 per-chapter fallback)
+>
+> **Per-chapter source visibility + selection** (on top of the source-tab
+> switcher below):
+>
+> - Every chapter row carries small colored **source chips (dots)** — one
+>   per `series_sources` member that actually HAS that chapter number
+>   (epsilon match, `ChaptersDao.sourcesForNumber`). A chapter only on
+>   slow-manga shows one dot; one mirrored everywhere shows all four.
+> - Tapping a chapter opens it from the **current tab's source by default**;
+>   long-press (or the row's trailing source picker) lets the user pick
+>   ANY source shown on that row — "อ่านจากเว็บไหน" picker listing the
+>   available sources with their names/dots.
+> - The reader's automatic fallback (07 §5) stays: if the chosen source
+>   fails mid-read, fall to the next source that has the chapter; the
+>   chips make that availability visible up front.
+> - Phase 5 shipped the data primitive: `ChaptersDao.sourcesForNumber`.
+
 Opened from browse card or library grid. One screen = one merged series
 (all its sources).
 

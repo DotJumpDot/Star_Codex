@@ -245,9 +245,97 @@ void main() {
       expect(chapters, hasLength(1));
       expect(chapters.first.number, 1);
 
+      // Per-chapter source visibility (doc 09 addendum).
+      expect(await chaptersDao.sourcesForNumber(seriesId, 1),
+          ['slow-manga']);
+
       expect(await libraryDao.contains(seriesId), isTrue);
       expect(await tagsDao.tagsOf(seriesId),
           containsAll(['Action', 'Sci-Fi'])); // L7 union path
+
+      // URL-dedup: re-adding the SAME source page under a drifted title
+      // reuses the series row — no second series (review-pass regression).
+      final again = await repo.addToLibrary(SearchGroup([
+        BrowseCandidate(
+          sourceId: 'slow-manga',
+          referer: 'https://r/',
+          url: 'https://a/nano-machine/',
+          title: 'นาโน แมชชีน', // drifted Thai title, no alt bridge
+          chapterCountHint: 920,
+        ),
+      ]));
+      expect(again, seriesId); // same row — (source,url) identity wins
+      expect(await seriesDao.findByTitleNorm('nano machine'), isNotNull);
+    });
+
+    test('cross-probe never re-links a URL owned by another series',
+        () async {
+      // Source b's URL is already linked to an existing series.
+      final existing = await seriesDao.upsertByTitleNorm(Series(
+        title: 'Unrelated',
+        titleNorm: 'unrelated',
+        createdAt: 1,
+        updatedAt: 1,
+      ));
+      await seriesDao.upsertSource(SeriesSource(
+        seriesId: existing,
+        sourceId: 'go-manga',
+        sourceUrl: 'https://b/nano/',
+        fetchedAt: 1,
+      ));
+
+      final a = FakeSource('slow-manga', searchResults: {
+        'nano': [
+          const SourceSeries(url: 'https://a/nano/', title: 'Nano Machine'),
+        ],
+      }, details: {
+        'https://a/nano/': const SourceSeriesDetail(
+            title: 'Nano Machine', chapters: []),
+      });
+      final b = FakeSource('go-manga', searchResults: {
+        'Nano Machine': [
+          const SourceSeries(
+              url: 'https://b/nano/', title: 'nano machine (แปลไทย)'),
+        ],
+      });
+      final repo = repoWith([a, b]);
+      final page = await repo.search('nano');
+      final seriesId = await repo.addToLibrary(page.groups.first);
+
+      // b's link stays on the series that owns it.
+      final owner =
+          await seriesDao.findSeriesIdBySourceLink('go-manga', 'https://b/nano/');
+      expect(owner, existing);
+      final links = await seriesDao.sourcesOf(seriesId);
+      expect(links.map((l) => l.sourceId), ['slow-manga']);
+    });
+
+    test('pure-noise title never collides on empty title_norm', () async {
+      // Both pages titled ONLY 'มังงะ' (a pure noise word → norm '').
+      final a = FakeSource('slow-manga', details: {
+        'https://a/one/': const SourceSeriesDetail(
+            title: 'มังงะ', chapters: []),
+        'https://a/two/': const SourceSeriesDetail(
+            title: 'มังงะ', chapters: []),
+      });
+      final repo = repoWith([a]);
+      final one = await repo.addToLibrary(SearchGroup([
+        BrowseCandidate(
+            sourceId: 'slow-manga',
+            referer: 'https://r/',
+            url: 'https://a/one/',
+            title: 'มังงะ'),
+      ]));
+      final two = await repo.addToLibrary(SearchGroup([
+        BrowseCandidate(
+            sourceId: 'slow-manga',
+            referer: 'https://r/',
+            url: 'https://a/two/',
+            title: 'มังงะ'),
+      ]));
+      // Two different pages must NOT fuse onto one ''-normed row.
+      expect(one, isNot(two));
+      expect(await seriesDao.findByTitleNorm(''), isNull); // never ''
     });
   });
 }

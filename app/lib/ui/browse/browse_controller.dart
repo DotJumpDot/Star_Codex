@@ -129,11 +129,17 @@ class BrowseController extends StateNotifier<BrowseState> {
   }
 
   /// Toggling a chip re-runs the current search/latest limited to that site
-  /// (Plan/08 §2 — this IS the per-site tab).
+  /// (Plan/08 §2 — this IS the per-site tab). In genre mode a chip tap
+  /// leaves the single-source genre view and filters the latest feed —
+  /// genre results are bound to their own source and can't be re-scoped.
   Future<void> toggleSource(String id) async {
     final active = {...state.activeSourceIds};
     if (!active.remove(id)) active.add(id);
+    final leavingGenre = state.mode == BrowseMode.genre;
     state = state.copyWith(
+      mode: leavingGenre ? BrowseMode.latest : null,
+      genreSourceId: leavingGenre ? null : _keep,
+      genreTerm: leavingGenre ? null : _keep,
       activeSourceIds: active,
       groups: const [],
       failedSources: const {},
@@ -146,9 +152,28 @@ class BrowseController extends StateNotifier<BrowseState> {
 
   /// "ทั้งหมด" chip — clear the per-site filter and re-run.
   Future<void> clearSourceFilter() async {
-    if (state.activeSourceIds.isEmpty) return;
+    if (state.activeSourceIds.isEmpty && state.mode != BrowseMode.genre) {
+      return;
+    }
+    final leavingGenre = state.mode == BrowseMode.genre;
     state = state.copyWith(
+      mode: leavingGenre ? BrowseMode.latest : null,
+      genreSourceId: leavingGenre ? null : _keep,
+      genreTerm: leavingGenre ? null : _keep,
       activeSourceIds: const {},
+      groups: const [],
+      failedSources: const {},
+      loading: true,
+      endReached: false,
+      page: 0,
+    );
+    await _replace(page: 1);
+  }
+
+  /// Empty-state retry: re-run the current mode from page 1 (Plan/08 —
+  /// never leave a blank page after a total failure).
+  Future<void> retry() async {
+    state = state.copyWith(
       groups: const [],
       failedSources: const {},
       loading: true,

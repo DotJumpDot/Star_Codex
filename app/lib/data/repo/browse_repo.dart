@@ -9,100 +9,9 @@ import '../dao/series_dao.dart';
 import '../dao/tags_dao.dart';
 import '../sources/source_api.dart';
 import '../storage/image_pipeline.dart';
+import 'browse_merge.dart';
 
-/// One listing tile from one source — a [SourceSeries] plus the source
-/// context (referer for image fetches) the UI layer needs downstream.
-class BrowseCandidate {
-  const BrowseCandidate({
-    required this.sourceId,
-    required this.referer,
-    required this.url,
-    required this.title,
-    this.coverUrl,
-    this.chapterCountHint,
-    this.type,
-  });
-
-  final String sourceId;
-  final String referer;
-  final String url;
-  final String title;
-  final String? coverUrl;
-  final int? chapterCountHint;
-  final String? type;
-
-  TitleCandidate get candidate => TitleCandidate.fromRaw(title);
-}
-
-/// One merged result card (Plan/08): one real series, N source members.
-class SearchGroup {
-  SearchGroup(Iterable<BrowseCandidate> initial)
-      : members = [...initial];
-
-  final List<BrowseCandidate> members;
-
-  /// Indices (into the page's group list) of groups in the "similar"
-  /// 0.88–0.95 band — UI hint only, never merged (Plan/07 §2). Recomputed
-  /// by [annotateSimilar] after every grouping pass.
-  final List<int> similarTo = [];
-
-  /// Max chapter hint across members; null when no source reports one.
-  int? get chapterCount {
-    final hints = members
-        .map((m) => m.chapterCountHint)
-        .whereType<int>()
-        .toList(growable: false);
-    return hints.isEmpty ? null : hints.reduce(max2);
-  }
-
-  /// First non-null type in member (source sort) order.
-  String? get type {
-    for (final m in members) {
-      if (m.type != null) return m.type;
-    }
-    return null;
-  }
-
-  /// Primary source = most chapters, tie → member order (source sort order;
-  /// listings carry no timestamps — see Plan/05 drift addendum).
-  BrowseCandidate get primary {
-    var best = members.first;
-    for (final m in members.skip(1)) {
-      if ((m.chapterCountHint ?? -1) > (best.chapterCountHint ?? -1)) {
-        best = m;
-      }
-    }
-    return best;
-  }
-
-  /// Display title: primary source's pick, but prefer a Thai-script title
-  /// when both scripts exist (decision L5).
-  String get displayTitle {
-    var best = primary;
-    for (final m in members) {
-      if (hasThaiScript(m.title) && !hasThaiScript(best.title)) best = m;
-    }
-    return best.title;
-  }
-}
-
-int max2(int a, int b) => a > b ? a : b;
-
-/// One source failing inside a parallel fetch — browse NEVER blanks on a
-/// single source error (Plan/08 §Behavior); the UI marks the chip instead.
-class SourceFailure {
-  const SourceFailure(this.sourceId, this.error);
-
-  final String sourceId;
-  final Object error;
-}
-
-class BrowsePage {
-  const BrowsePage({required this.groups, this.failures = const []});
-
-  final List<SearchGroup> groups;
-  final List<SourceFailure> failures;
-}
+export 'browse_merge.dart';
 
 class _SourceResult {
   const _SourceResult(this.source, this.items, this.error);
@@ -110,152 +19,6 @@ class _SourceResult {
   final Source source;
   final List<SourceSeries> items;
   final Object? error;
-}
-
-/// Merge [incoming] candidates into [existing] groups (Plan/07 §2):
-/// duplicate (source,url) dropped; match by exact/alt/fuzzy against every
-/// member; else a new group. Used both within one page and across latest-
-/// feed pages. Similar-band pairs are annotated afterwards.
-List<SearchGroup> mergeIntoGroups(
-    List<SearchGroup> existing, Iterable<BrowseCandidate> incoming) {
-  final groups = [for (final g in existing) SearchGroup(g.members)];
-  for (final c in incoming) {
-    if (groups.any((g) => g.members
-        .any((m) => m.sourceId == c.sourceId && m.url == c.url))) {
-      continue;
-    }
-    SearchGroup? target;
-    for (final g in groups) {
-      if (g.members.any((m) => merges(matchTitles(m.candidate, c.candidate)))) {
-        target = g;
-        break;
-      }
-    }
-    if (target == null) {
-      groups.add(SearchGroup([c]));
-    } else {
-      target.members.add(c);
-    }
-  }
-  annotateSimilar(groups);
-  return groups;
-}
-
-/// Mark group pairs whose primary titles land in the 0.88–0.95 similar
-/// band (Plan/08 card: "คล้ายกับเรื่องอื่น?").
-void annotateSimilar(List<SearchGroup> groups) {
-  for (final g in groups) {
-    g.similarTo.clear();
-  }
-  for (var i = 0; i < groups.length; i++) {
-    for (var j = i + 1; j < groups.length; j++) {
-      if (matchTitles(groups[i].primary.candidate, groups[j].primary.candidate) ==
-          TitleMatchKind.similar) {
-        groups[i].similarTo.add(j);
-        groups[j].similarTo.add(i);
-      }
-    }
-  }
-}
-
-/// Merge whole group lists (latest-feed pagination: page N+1's groups can
-/// be the same series as page N's from another source).
-List<SearchGroup> mergeGroupLists(
-    List<SearchGroup> existing, List<SearchGroup> incoming) {
-  final groups = [for (final g in existing) SearchGroup(g.members)];
-  bool anyMatch(SearchGroup a, SearchGroup b) => a.members
-      .any((m) => b.members.any((n) => merges(matchTitles(m.candidate, n.candidate))));
-  for (final ig in incoming) {
-    SearchGroup? target;
-    for (final g in groups) {
-      if (anyMatch(g, ig)) {
-        target = g;
-        break;
-      }
-    }
-    if (target == null) {
-      groups.add(SearchGroup(ig.members));
-    } else {
-      for (final m in ig.members) {
-        if (!target.members
-            .any((x) => x.sourceId == m.sourceId && x.url == m.url)) {
-          target.members.add(m);
-        }
-      }
-    }
-  }
-  annotateSimilar(groups);
-  return groups;
-}
-
-/// Session-only browse filters (Plan/08 §3) — NEVER written to settings;
-/// defaults OFF per decision L1 (restart ⇒ defaults).
-class BrowseFilters {
-  const BrowseFilters({
-    this.type,
-    this.status,
-    this.minChapters = 0,
-    this.hideOneshot = false,
-    this.tags = const {},
-  });
-
-  final String? type; // 'manga'|'manhwa'|'manhua'|'novel'
-  final String? status; // 'ongoing'|'completed'
-  final int minChapters; // 0 = off
-  final bool hideOneshot;
-  final Set<String> tags;
-
-  bool get isDefault =>
-      type == null &&
-      status == null &&
-      minChapters == 0 &&
-      !hideOneshot &&
-      tags.isEmpty;
-
-  BrowseFilters copyWith({
-    String? type,
-    bool clearType = false,
-    String? status,
-    bool clearStatus = false,
-    int? minChapters,
-    bool? hideOneshot,
-    Set<String>? tags,
-  }) =>
-      BrowseFilters(
-        type: clearType ? null : (type ?? this.type),
-        status: clearStatus ? null : (status ?? this.status),
-        minChapters: minChapters ?? this.minChapters,
-        hideOneshot: hideOneshot ?? this.hideOneshot,
-        tags: tags ?? this.tags,
-      );
-}
-
-/// Apply filters to grouped results. Status/tag filters are honest no-ops
-/// on browse listings (no status/tags until a detail fetch) — the controls
-/// exist per Plan/08 §3 and start filtering once detail data flows.
-List<SearchGroup> filterGroups(List<SearchGroup> groups, BrowseFilters f) {
-  return groups.where((g) {
-    final chapters = g.chapterCount ?? 0;
-    if (f.hideOneshot && chapters <= 1) return false;
-    if (f.minChapters > 0 && chapters < f.minChapters) return false;
-    if (f.type != null && g.type != f.type) return false;
-    return true;
-  }).toList(growable: false);
-}
-
-/// Type → origin mapping (decision L6). Novels get origin only from
-/// nekopost metadata (Phase 8) — never guessed from titles.
-String? originForType(String? type) {
-  switch (type) {
-    case 'manga':
-      return 'japan';
-    case 'manhwa':
-      return 'korea';
-    case 'manhua':
-      return 'china';
-    default:
-      return null;
-  }
 }
 
 /// Orchestrates source adapters → normalize → group (Plan/07 §3) for the
@@ -365,7 +128,7 @@ class BrowseRepo {
   /// Long-press quick action (Plan/08): fetch the primary source's detail,
   /// create/merge the series row (Plan/07 §4), save chapters + source link
   /// + tags, then best-effort cross-probe other sources (§3.2) and insert
-  /// the library row. Returns the series id.
+  /// the library row. Returns the series id. Idempotent.
   Future<int> addToLibrary(SearchGroup group) async {
     final primary = group.primary;
     final source = sourceById(primary.sourceId);
@@ -375,8 +138,25 @@ class BrowseRepo {
     final detail = await source.detail(primary.url);
     final now = DateTime.now().millisecondsSinceEpoch;
 
-    final title = group.displayTitle;
-    final norm = normalizeTitle(title);
+    // Identity order: an existing (source, url) link IS this series —
+    // stronger than any title match (titles drift between listings).
+    // Without it, re-adding under a drifted title would create a second
+    // series row for the same page.
+    final existingId =
+        await seriesDao.findSeriesIdBySourceLink(source.id, primary.url);
+
+    var title = group.displayTitle;
+    var norm = normalizeTitle(title);
+    if (norm.isEmpty) {
+      // Pure-noise titles ('มังงะ') normalize to '' — the unique index on
+      // title_norm would then fuse unrelated series onto one row. Fall
+      // back to the richer detail-page title, then to a per-page escape
+      // key (same-URL re-adds are already caught by the link check above,
+      // so distinct URLs must stay distinct rows).
+      title = detail.title;
+      norm = normalizeTitle(title);
+      if (norm.isEmpty) norm = 'raw:${primary.url}';
+    }
 
     // original_title (L5 order 2): first majority-Latin alt whose norm
     // differs; ts pages carry no alt titles → often null (subtitle hidden).
@@ -393,40 +173,43 @@ class BrowseRepo {
 
     String? coverHash;
     final coverUrl = detail.coverUrl ?? primary.coverUrl;
-    if (coverUrl != null && pipeline != null) {
+    final pipe = pipeline;
+    if (coverUrl != null && pipe != null) {
       try {
-        coverHash = (await pipeline!
-            .fetchAndStore(coverUrl, referer: source.referer))
-            .hash;
+        coverHash =
+            (await pipe.fetchAndStore(coverUrl, referer: source.referer)).hash;
       } catch (_) {
         // Cover is optional; series row still created.
       }
     }
 
-    final seriesId = await seriesDao.upsertByTitleNorm(Series(
-      title: title,
-      titleNorm: norm,
-      originalTitle: originalTitle,
-      coverHash: coverHash,
-      type: type,
-      origin: originForType(type),
-      status: detail.status,
-      description: detail.description,
-      createdAt: now,
-      updatedAt: now,
-    ));
+    final seriesId = existingId ??
+        await seriesDao.upsertByTitleNorm(Series(
+          title: title,
+          titleNorm: norm,
+          originalTitle: originalTitle,
+          coverHash: coverHash,
+          type: type,
+          origin: originForType(type),
+          status: detail.status,
+          description: detail.description,
+          createdAt: now,
+          updatedAt: now,
+        ));
 
-    for (final ch in detail.chapters) {
-      await chaptersDao.upsert(Chapter(
-        seriesId: seriesId,
-        sourceId: source.id,
-        number: ch.number,
-        title: ch.title,
-        url: ch.url,
-        uploadedAt: ch.uploadedAt,
-        fetchedAt: now,
-      ));
-    }
+    // One transaction: a 900-chapter series must not land half-written.
+    await chaptersDao.upsertAll([
+      for (final ch in detail.chapters)
+        Chapter(
+          seriesId: seriesId,
+          sourceId: source.id,
+          number: ch.number,
+          title: ch.title,
+          url: ch.url,
+          uploadedAt: ch.uploadedAt,
+          fetchedAt: now,
+        ),
+    ]);
 
     await seriesDao.upsertSource(SeriesSource(
       seriesId: seriesId,
@@ -453,7 +236,8 @@ class BrowseRepo {
   /// Plan/07 §3.2: probe other enabled sources with exact title queries;
   /// any merge-hit gets a series_sources row (lazy detail later). Blocked
   /// (Cloudflare) or erroring sources are skipped silently — this is a
-  /// best-effort enrichment, never a failure.
+  /// best-effort enrichment, never a failure. A (source, url) already
+  /// linked to another series is never re-linked.
   Future<void> _crossProbe(int seriesId, SearchGroup group, String title,
       String titleNorm, List<String> altTitles) async {
     final groupCand = TitleCandidate(
@@ -476,19 +260,27 @@ class BrowseRepo {
         try {
           final items = await other.search(q);
           for (final item in items) {
-            if (merges(matchTitles(groupCand, TitleCandidate.fromRaw(item.title)))) {
-              await seriesDao.upsertSource(SeriesSource(
-                seriesId: seriesId,
-                sourceId: other.id,
-                sourceUrl: item.url,
-                sourceTitle: item.title,
-                coverUrl: item.coverUrl,
-                lastChapterNumber: item.chapterCountHint?.toDouble(),
-                fetchedAt: DateTime.now().millisecondsSinceEpoch,
-              ));
-              linked = true;
+            if (!merges(matchTitles(
+                groupCand, TitleCandidate.fromRaw(item.title)))) {
+              continue;
+            }
+            final owner =
+                await seriesDao.findSeriesIdBySourceLink(other.id, item.url);
+            if (owner != null && owner != seriesId) {
+              linked = true; // already on another series — leave it there
               break;
             }
+            await seriesDao.upsertSource(SeriesSource(
+              seriesId: seriesId,
+              sourceId: other.id,
+              sourceUrl: item.url,
+              sourceTitle: item.title,
+              coverUrl: item.coverUrl,
+              lastChapterNumber: item.chapterCountHint?.toDouble(),
+              fetchedAt: DateTime.now().millisecondsSinceEpoch,
+            ));
+            linked = true;
+            break;
           }
         } catch (_) {
           break; // source unreachable/blocked — skip it
