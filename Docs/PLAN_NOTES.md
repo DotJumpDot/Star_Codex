@@ -71,3 +71,36 @@ Flutter stable resolved to **3.47.7 / Dart 3.13.5**. On this SDK:
 - The Phase 4 DoD "manual on-device check" (blobs ~40% size, airplane
   re-read) needs the reader UI — it is exercised in Phase 7's on-device
   verification and again in the Phase 11 release journey.
+
+## Post-Phase-4 review pass (big model, 2026-10-17)
+
+Bugs found & fixed (commit "Fix: post-Phase-4 review"):
+
+1. **`getHtml` Latin-1 mojibake (serious).** `String.fromCharCodes(bytes)`
+   decoded UTF-8 sites as Latin-1 — every Thai string was garbled, which
+   silently broke Thai month parsing (uploadedAt always null), the
+   `ตอนที่ N` chapter-number regex (silent fallback to positional
+   numbering), and status normalization. Now `utf8.decode`. Live-verified:
+   Thai tags/labels parse, dates non-null, status=ongoing.
+2. **SSRF guard didn't resolve DNS.** Only literal IPs were checked; a
+   hostname resolving into private/loopback space passed. `_validate` now
+   does `InternetAddress.lookup` and rejects unless every resolved address
+   is public (per Plan/04 §2 "resolve the host").
+3. **Dio options binding.** The injected-fetcher refactor tore off
+   `_dio.getUri` as a positional 2-arg closure — real requests crashed
+   (`Closure call with mismatched arguments`) even though fake-fetcher
+   tests passed. Reminder: injected-transport tests do NOT cover the
+   default transport; run `tool/verify_sources.dart` live after touching
+   safe_http.
+4. **Detached rate limiter.** `safeHttpProvider` built its own RateLimiter;
+   `registerImageHost` would have gone to an unused instance. Now shared.
+
+Improvements:
+
+- Janitor split: integrity pass (full dir walk) at startup only; periodic
+  runs are LRU-only (matches Plan/03 and avoids walks every 50 writes).
+- Header-only image dimension sniffing (`image_dimensions.dart`): PNG/GIF/
+  JPEG/WebP(VP8/VP8L/VP8X) parsed before dedup so PageResult always carries
+  width/height for chapter_pages + reader aspect ratios.
+- `.gitignore`: `.git-msg-*.txt` scratch files no longer enter commits
+  (messages live in git history proper).

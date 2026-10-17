@@ -9,6 +9,9 @@ compress_test/
 .playwright-mcp/
 PLAN_NOTES.md.local
 
+# scratch commit-message files (the messages live in git history proper)
+.git-msg-*.txt
+
 # Flutter / Dart (pre-covers app/ once created)
 app/.dart_tool/
 app/.flutter-plugins*

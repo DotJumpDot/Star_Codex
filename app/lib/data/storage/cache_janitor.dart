@@ -27,9 +27,14 @@ class CacheJanitor {
     _pending = Timer(delay, runNow);
   }
 
-  Future<void> runNow() async {
+  /// Periodic pass: LRU enforcement only (cheap). [withIntegrity] adds the
+  /// startup pass (row/file consistency — a full directory walk, so it runs
+  /// at app start, not on every 50th write; Plan/03 §LRU/§integrity).
+  Future<void> runNow({bool withIntegrity = false}) async {
     await blobs.ensureDir();
-    await blobs.integrityPass();
+    if (withIntegrity) {
+      await blobs.integrityPass();
+    }
     await enforceLru();
   }
 

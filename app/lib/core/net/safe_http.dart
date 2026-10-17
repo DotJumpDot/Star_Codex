@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -45,20 +46,27 @@ class SafeHttp {
       },
       validateStatus: (status) => status != null && status < 400,
     ));
+    // Default transport: Dio with `options:` as a NAMED arg (a bare
+    // `_dio.getUri` tear-off would misbind it positionally).
+    _fetch = _fetcher ??
+        (uri, options) => _dio.getUri<List<int>>(uri, options: options);
   }
 
-  /// Injectable for tests (a local mock server would violate the loopback
-  /// rule, so retries are tested through a fake fetcher instead).
+  /// Injectable transport for tests (a local mock server would violate the
+  /// loopback rule, so retries are tested through a fake fetcher instead).
   late final Dio _dio;
   final RateLimiter _rateLimiter;
   final SafeHttpFetcher? _fetcher;
   final SafeHttpDelay _delay;
+  late final SafeHttpFetcher _fetch;
 
   static const maxBodyBytes = 50 * 1024 * 1024;
 
   Future<String> getHtml(Uri uri, {String? referer}) async {
     final bytes = await getBytes(uri, referer: referer);
-    return String.fromCharCodes(bytes);
+    // UTF-8 — the sites are UTF-8; Latin-1 here would mojibake all Thai
+    // text (titles, tags, chapter labels, dates).
+    return utf8.decode(bytes, allowMalformed: true);
   }
 
   Future<Uint8List> getBytes(Uri uri, {String? referer}) async {
@@ -87,7 +95,7 @@ class SafeHttp {
   }
 
   Future<Response<List<int>>> _run(Uri uri, {String? referer}) async {
-    _validate(uri);
+    await _validate(uri);
     final release = await _rateLimiter.acquire(uri.host);
     try {
       return await _withRetries(uri, referer: referer);
@@ -100,7 +108,7 @@ class SafeHttp {
     var backoff = const Duration(seconds: 1);
     for (var attempt = 1; attempt <= 3; attempt++) {
       try {
-        final response = await (_fetcher ?? _dio.getUri)(uri,
+        final response = await _fetch(uri,
             Options(
               responseType: ResponseType.bytes,
               headers: {
@@ -133,8 +141,11 @@ class SafeHttp {
     throw NetException('unreachable', uri: uri); // not reached
   }
 
-  /// Steps 1–2 of the security rule. Throws [NetException] on violation.
-  static void _validate(Uri uri) {
+  /// Steps 1–2 of the security rule: scheme check, localhost/literal-IP
+  /// checks, then DNS resolution of hostnames with every resolved address
+  /// validated (a public-looking name resolving into private/loopback space
+  /// is rejected before connecting). Throws [NetException] on violation.
+  static Future<void> _validate(Uri uri) async {
     if (!uri.isScheme('http') && !uri.isScheme('https')) {
       throw NetException('scheme ${uri.scheme} not allowed', uri: uri);
     }
@@ -148,11 +159,21 @@ class SafeHttp {
     try {
       final addr = InternetAddress(host); // numeric literal?
       _validateAddress(addr, uri);
+      return;
     } on ArgumentError {
-      // hostname — check textual private forms, then resolve at connect time
-      // is not feasible pre-DNS in pure Dart without lookups; textual checks
-      // cover literal IPs and localhost. DNS names resolving into private
-      // space are out of scope for v1 (same-origin public sites).
+      // not a literal — resolve below
+    }
+    List<InternetAddress> resolved;
+    try {
+      resolved = await InternetAddress.lookup(host);
+    } on SocketException catch (e) {
+      throw NetException('DNS lookup failed: ${e.message}', uri: uri);
+    }
+    if (resolved.isEmpty) {
+      throw NetException('host did not resolve: $host', uri: uri);
+    }
+    for (final addr in resolved) {
+      _validateAddress(addr, uri);
     }
   }
 

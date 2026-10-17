@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 
 import '../../core/net/net_exception.dart';
 import '../../core/net/safe_http.dart';
+import '../../core/utils/image_dimensions.dart';
 import '../dao/blobs_dao.dart';
 import '../sources/source_api.dart';
 import 'blob_store.dart';
@@ -76,6 +77,10 @@ class ImagePipeline {
       throw StoreException('not an image (no image magic bytes): $url');
     }
 
+    // Header-only sniff before any dedup/cache return, so every result
+    // carries dimensions (chapter_pages.width/height, reader aspect ratio).
+    final dims = imageDimensions(original);
+
     final hash = sha256.convert(original).toString();
 
     // Dedup: same original bytes already stored → touch + reuse (03 §3).
@@ -86,6 +91,8 @@ class ImagePipeline {
         hash: hash,
         path: row.path,
         storedBytes: row.bytes,
+        width: dims?.width,
+        height: dims?.height,
         fromCache: true,
       );
     }
@@ -121,6 +128,8 @@ class ImagePipeline {
       hash: hash,
       path: rel,
       storedBytes: stored.length,
+      width: dims?.width,
+      height: dims?.height,
       fromCache: false,
     );
   }

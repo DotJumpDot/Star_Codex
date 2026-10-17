@@ -1,12 +1,67 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:star_codex/core/net/net_exception.dart';
 import 'package:star_codex/core/net/safe_http.dart';
 import 'package:star_codex/core/net/rate_limiter.dart';
+import 'package:star_codex/core/utils/image_dimensions.dart';
 import 'package:star_codex/core/utils/thai.dart';
 
 void main() {
+  group('imageDimensions (header sniffing)', () {
+    test('PNG', () {
+      final b = Uint8List(24);
+      b.setAll(0, [0x89, 0x50, 0x4E, 0x47]);
+      // 32-bit BE width=1000 at 16, height=1430 at 20
+      b.setAll(16, [0x00, 0x00, 0x03, 0xE8]);
+      b.setAll(20, [0x00, 0x00, 0x05, 0x96]);
+      final d = imageDimensions(b);
+      expect((d!.width, d.height), (1000, 1430));
+    });
+
+    test('GIF', () {
+      final b = Uint8List(10);
+      b.setAll(0, [0x47, 0x49, 0x46, 0x38, 0x39, 0x61]);
+      b[6] = 0x64; b[7] = 0x00; // 100
+      b[8] = 0xC8; b[9] = 0x00; // 200
+      final d = imageDimensions(b);
+      expect((d!.width, d.height), (100, 200));
+    });
+
+    test('JPEG SOF0', () {
+      final b = Uint8List.fromList([
+        0xFF, 0xD8,             // SOI
+        0xFF, 0xE0, 0x00, 0x04, // APP0, length 4 (2 length bytes + 2 payload)
+        0x41, 0x42,             // APP0 payload
+        0xFF, 0xC0, 0x00, 0x0B, // SOF0, length 11
+        0x08,                   // precision
+        0x05, 0x96,             // height 1430
+        0x03, 0xE8,             // width 1000
+      ]);
+      final d = imageDimensions(b);
+      expect((d!.width, d.height), (1000, 1430));
+    });
+
+    test('WebP VP8X canvas', () {
+      final b = Uint8List(31);
+      b.setAll(0, [0x52, 0x49, 0x46, 0x46]); // RIFF
+      b.setAll(8, [0x57, 0x45, 0x42, 0x50]); // WEBP
+      b.setAll(12, 'VP8X'.codeUnits);
+      // canvas width-1 = 999 (0x03E7), height-1 = 1429 (0x0595), 24-bit LE
+      b[24] = 0xE7; b[25] = 0x03; b[26] = 0x00;
+      b[27] = 0x95; b[28] = 0x05; b[29] = 0x00;
+      final d = imageDimensions(b);
+      expect((d!.width, d.height), (1000, 1430));
+    });
+
+    test('garbage → null', () {
+      expect(imageDimensions(Uint8List(20)), isNull);
+    });
+  });
+
   group('SafeHttp retries (Plan/04 §5)', () {
     // Loopback servers are forbidden by the security rule itself, so retry
     // behavior is tested through an injected fetcher.
@@ -126,6 +181,25 @@ void main() {
       await expectRejected('http://[fe80::1]/');
       await expectRejected('http://[fc00::1]/');
       await expectRejected('http://[fd12::1]/');
+    });
+
+    test('getHtml decodes UTF-8 (Thai text intact)', () async {
+      // Regression: getHtml once decoded as Latin-1, mojibake-ing every
+      // Thai string from the sites (titles, tags, ตอนที่ labels, dates).
+      const thai = '<title>มังงะ ตอนที่ 155.5 มิถุนายน</title>';
+      final utf8Bytes = Uint8List.fromList(
+          const Utf8Encoder().convert(thai));
+      final http = SafeHttp(
+        rateLimiter: RateLimiter(seed: 1),
+        fetcher: (uri, options) async => Response<List<int>>(
+          requestOptions: RequestOptions(path: uri.toString()),
+          statusCode: 200,
+          data: utf8Bytes,
+        ),
+        delay: (_) async {},
+      );
+      final html = await http.getHtml(Uri.parse('https://www.example.com/x'));
+      expect(html, thai);
     });
   });
 

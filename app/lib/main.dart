@@ -20,10 +20,11 @@ Future<void> main() async {
     libraryDirProvider.overrideWithValue(libraryDir),
     initialSettingsProvider.overrideWithValue(initialSettings),
   ]);
-  // Cache janitor 10 s after app start (Plan/03 §LRU). Scheduled here (not
-  // in a widget) so widget tests never inherit a pending timer.
+  // Cache janitor 10 s after app start (Plan/03 §LRU): startup pass includes
+  // integrity (orphan/missing-file cleanup), later runs are LRU-only.
+  // Scheduled here (not in a widget) so tests never inherit a timer.
   Timer(const Duration(seconds: 10), () {
-    container.read(cacheJanitorProvider).runNow();
+    container.read(cacheJanitorProvider).runNow(withIntegrity: true);
   });
   runApp(UncontrolledProviderScope(
     container: container,

@@ -36,8 +36,12 @@ final tagsDaoProvider = Provider((ref) => TagsDao(ref.watch(dbProvider)));
 
 // --- network + storage singletons (Plan/03 §API surface) ---
 
-final safeHttpProvider = Provider((ref) => SafeHttp());
 final rateLimiterProvider = Provider((ref) => RateLimiter());
+
+/// Single shared network door — uses the shared rate limiter so runtime
+/// image-host registrations (ts_reader CDN domains) apply to every request.
+final safeHttpProvider = Provider(
+    (ref) => SafeHttp(rateLimiter: ref.watch(rateLimiterProvider)));
 
 /// Overridden in `main()` with the real library dir; tests use temp dirs.
 final libraryDirProvider = Provider<Directory>(
