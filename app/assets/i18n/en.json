@@ -1,0 +1,13 @@
+{
+  "app.name": "Star Codex",
+  "tab.browse": "Browse",
+  "tab.library": "Library",
+  "tab.history": "History",
+  "tab.offline": "Offline",
+  "tab.settings": "Settings",
+  "common.retry": "Retry",
+  "common.loading": "Loading…",
+  "common.error.title": "Something went wrong",
+  "common.empty": "Nothing here yet",
+  "coming.soon": "This section arrives in a later phase"
+}

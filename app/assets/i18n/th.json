@@ -1,0 +1,13 @@
+{
+  "app.name": "Star Codex",
+  "tab.browse": "ค้นหา",
+  "tab.library": "คลัง",
+  "tab.history": "ประวัติ",
+  "tab.offline": "ออฟไลน์",
+  "tab.settings": "ตั้งค่า",
+  "common.retry": "ลองใหม่",
+  "common.loading": "กำลังโหลด…",
+  "common.error.title": "เกิดข้อผิดพลาด",
+  "common.empty": "ยังไม่มีข้อมูล",
+  "coming.soon": "ส่วนนี้จะเสร็จในเฟสถัดไป"
+}

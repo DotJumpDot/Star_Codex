@@ -13,4 +13,11 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   C:\tools\flutter (user PATH), Android SDK platform 36 + platform-tools,
   licenses accepted, `flutter doctor` fully green. Headless emulator AVD
   `StarCodex` (Pixel 7 / API 36) for automated UI verification.
+- 2026-10-17 — Phase 1: scaffold — Flutter project `app/` (applicationId
+  com.jamej.starcodex, minSdk 23, INTERNET permission, label "Star Codex"),
+  all planned deps (see PLAN_NOTES for version pins), folder tree, Thai-first
+  i18n helper + th/en bundles with key-parity test, M3 dark theme (Sarabun),
+  5-tab shell (Browse/Library/History/Offline/Settings) with placeholder
+  screens. `flutter analyze` clean, `flutter test` green (4 tests), shell
+  verified on emulator.
 
