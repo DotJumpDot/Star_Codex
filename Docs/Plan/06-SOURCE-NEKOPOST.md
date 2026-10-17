@@ -59,15 +59,27 @@ Implements the same `Source` interface (04). Specifics:
   site chrome/scripts; keep Thai text as-is (no transliteration, no trimming
   inside paragraphs).
 
-## 4. Confirmed endpoints (FILL DURING PROBE — keep as table)
+## 4. Confirmed endpoints (FILLED 2026-10-17, live probes + keiyoushi port)
+
+Base: `https://www.nekopost.net`. All list endpoints are **JSON POSTs**
+(`Content-Type: application/json`). Reference port:
+`keiyoushi/extensions-source src/th/nekopost` (Apache-2.0). Example
+responses live in `Docs/Plan/notes/nekopost-*.json` (+ encrypted cinfo
+payloads and their decrypted plaintext).
 
 | purpose | method+path | notes |
 |---|---|---|
-| search | _(fill)_ | |
-| latest | _(fill)_ | |
-| series detail + chapter list | _(fill)_ | |
-| chapter pages | _(fill)_ | |
-| novel chapter text | _(fill)_ | |
+| latest | POST `/api/project/latest` `{"type":"m"\|"f"\|"n","paging":{"pageNo":N,"pageSize":15}}` | `listChapter[] {pid, projectName, chapterId, chapterNo, coverVersion, status:"1", projectType}`. type m = manga feed; **f/n = novel feeds** (adapter merges m + f; n surfaces via search). |
+| search | POST `/api/project/search` `{"keyword":q,"status":0,"paging":{"pageNo":N,"pageSize":100}}` | `listProject[] {pid, projectName, status:int, projectType, coverVersion, noChapter}`. projectType: m/c/d = comics, **f/n = novels** — novels surface through the SAME search. |
+| series detail + chapter list | POST `/api/project/detail2` `{"pid":N}` | `{projectInfo:{Project:{pid, projectName, aliasName, info, status:int, projectType, authorName, artistName}, ListCate:[{CateName}], ListChapter:[{ChapterID, ChapterNo, ChapterName, PublishDate:{String: ISO}}]}}`. Dead ids answer HTTP 200 with the STRING `"sql: no rows in result set"`. status 3 = licensed → skip (D5). |
+| chapter pages (comics) | POST `https://www.nekopost.net/handler/cinfo` `{"p":pid,"c":chapterId}` | Body = base64 `Salted__` OpenSSL payload: **AES-256-CBC, EVP_BytesToKey(MD5), passphrase `AeyTest`** (CryptoJS passphrase mode). Decrypted: `{pageItem:[{pageNo, fileName, width, height}], pageCount}`. Sort by pageNo NUMERICALLY (raw order is lexicographic!). Image URL: `{host}collectManga/{pid}/{cid}/{fileName}`. |
+| novel chapter text | same `/handler/cinfo` | Same decrypt → `{pageText}` (fallback `novelContent`): HTML (`<p>`, `<strong>`, `&nbsp;`) with `{file_fs}`/`{file_img}`/`{file_audio}` placeholders → replace with `{host}collectManga/{pid}/{cid}/`; strip inline `style=""`; normalize to `\n\n` paragraphs. |
+| covers | GET `{host}collectManga/{pid}/{pid}_cover.jpg[?ver={coverVersion}]` | Host split: pid ≤ 17500 → `https://www.osemocphoto.com/collectManga/`, > 17500 → `https://fs.osemocphoto.com/collectManga/` (the wrong host answers 200 with a placeholder — never mix). |
+
+Adapter: `app/lib/data/sources/nekopost/` (`nekopost_source.dart`,
+`nekopost_crypto.dart` — pure-Dart AES + EVP_BytesToKey, no new deps).
+Series URLs are opaque ids: `nekopost:project:{pid}`, chapters
+`nekopost:chapter:{pid}:{chapterId}`.
 
 ## 5. Risks
 

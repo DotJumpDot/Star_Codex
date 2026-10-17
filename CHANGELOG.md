@@ -89,3 +89,14 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   reader_mode_<id>, RTL switch, novel extras), resolveReaderMode
   (override > type default), ReaderRepo.resolvePage shared page fallback
   + loadNovelText (chapter_text → source fetch → persist).
+- 2026-10-17 — Phase 8 (part 2): Nekopost adapter (Plan/06) — live-probed
+  all endpoints (detail2 serves novels too; chapter payloads are
+  AES-256-CBC "Salted__" with passphrase AeyTest via /handler/cinfo),
+  pure-Dart decryptor (EVP_BytesToKey + AES, no new deps), adapter with
+  opaque project/chapter URLs, manga+novel latest merge, search surfacing
+  novels (projectType f/n), HTML→paragraphs novel text with inline-media
+  placeholder resolution, safe_http.postJson through the same
+  validation/retry door, source registry now dispatches by adapter
+  column. Fixture tests run the whole adapter offline; live
+  verify_sources --source nekopost ALL OK (26 latest, Thai detail,
+  26 decrypted pages, 5.9k-char novel chapter).

@@ -1,0 +1,322 @@
+{
+ "projectInfo": {
+  "Project": {
+   "pid": 8262,
+   "projectName": "[นิยายแปล] ไปเกิดใหม่ที่โลกวันพีช One Piece : Heart Of Swordsman",
+   "aliasName": "",
+   "website": "",
+   "authorId": 10786,
+   "authorName": "那一隻蚊子",
+   "artistId": 1,
+   "artistName": "N/A",
+   "info": "นักดาบที่แข็งแกร่งจะไม่มีจิตใจที่เมตตาและไร้เดียงสา\r\nฉันชื่อวิลล์มาจากดินแดนที่เรียกว่าโลกมายังโลกวันพีชเพื่อลิ้มรสอาหารอร่อยจากทั่วทุกมุมโลกและต่อสู้กับผู้มีอำนาจทุกคน\r\nฉันเป็นนักผจญภัยไม่ใช่โจรสลัด\r\nวิลล์ยืนอยู่ในสนามรบบนกองศพของกองทัพเรือเพื่อยืนยันความเป็นเอกลักษณ์ของเขาและเซนโกคุที่กำลังทำหน้าน่าเกลียด… เพจ https://www.facebook.com/OnePieceHeartOfSwordsmanByFool",
+   "status": 1,
+   "flgMature": "N",
+   "flgIntense": "N",
+   "flgViolent": "N",
+   "flgGlue": "N",
+   "flgReligion": "N",
+   "flgHidemeta": "N",
+   "mainCategory": "",
+   "goingType": "S",
+   "projectType": "n",
+   "readerGroup": "N",
+   "releaseDate": {
+    "String": "2020-08-14T03:25:07+07:00",
+    "Valid": true
+   },
+   "updateDate": {
+    "String": "2020-08-10T23:47:08+07:00",
+    "Valid": true
+   },
+   "views": 18608,
+   "imageVersion": 0,
+   "noChapter": 0,
+   "coverVersion": 0,
+   "concatCate": "",
+   "editorId": 0,
+   "editorName": "",
+   "aiLevel": "NONE",
+   "aiLevelUpdateDate": {
+    "String": "",
+    "Valid": false
+   }
+  },
+  "ListCate": [
+   {
+    "CateCode": "2",
+    "CateName": "Action",
+    "CateLink": "action"
+   },
+   {
+    "CateCode": "13",
+    "CateName": "Adventure",
+    "CateLink": "adventure"
+   },
+   {
+    "CateCode": "1",
+    "CateName": "Fantasy",
+    "CateLink": "fantasy"
+   },
+   {
+    "CateCode": "44",
+    "CateName": "Isekai",
+    "CateLink": "isekai"
+   },
+   {
+    "CateCode": "45",
+    "CateName": "Second Life",
+    "CateLink": "second_life"
+   }
+  ],
+  "ListChapter": [
+   {
+    "ChapterID": 86915,
+    "ChapterNo": "12",
+    "ChapterName": "ตอนที่ 12 ดาบลับ",
+    "Status": 1,
+    "PublishDate": {
+     "String": "2020-10-29T06:09:25Z",
+     "Valid": true
+    },
+    "CreateDate": {
+     "String": "2020-10-29T06:09:25+07:00",
+     "Valid": true
+    },
+    "View": {
+     "String": "473",
+     "Valid": true
+    },
+    "OwnerID": 40957,
+    "ProviderName": "Fool"
+   },
+   {
+    "ChapterID": 86914,
+    "ChapterNo": "11",
+    "ChapterName": "ตอนที่ 11 เกาะอลาเบลล่า",
+    "Status": 1,
+    "PublishDate": {
+     "String": "2020-10-29T06:08:02Z",
+     "Valid": true
+    },
+    "CreateDate": {
+     "String": "2020-10-29T06:08:02+07:00",
+     "Valid": true
+    },
+    "View": {
+     "String": "351",
+     "Valid": true
+    },
+    "OwnerID": 40957,
+    "ProviderName": "Fool"
+   },
+   {
+    "ChapterID": 84657,
+    "ChapterNo": "10",
+    "ChapterName": "ตอนที่ 10 อาจารย์กับลูกศิษย์",
+    "Status": 1,
+    "PublishDate": {
+     "String": "2020-09-05T04:10:00Z",
+     "Valid": true
+    },
+    "CreateDate": {
+     "String": "2020-09-05T04:10:00+07:00",
+     "Valid": true
+    },
+    "View": {
+     "String": "378",
+     "Valid": true
+    },
+    "OwnerID": 40957,
+    "ProviderName": "fool"
+   },
+   {
+    "ChapterID": 84474,
+    "ChapterNo": "9",
+    "ChapterName": "ตอนที่ 9 เวลาผ่านไปอย่างรวดเร็ว",
+    "Status": 1,
+    "PublishDate": {
+     "String": "2020-09-01T14:46:29Z",
+     "Valid": true
+    },
+    "CreateDate": {
+     "String": "2020-09-01T14:46:29+07:00",
+     "Valid": true
+    },
+    "View": {
+     "String": "357",
+     "Valid": true
+    },
+    "OwnerID": 40957,
+    "ProviderName": "fool"
+   },
+   {
+    "ChapterID": 84219,
+    "ChapterNo": "8",
+    "ChapterName": "ตอนที่ 8 แบ่งเป็น 6 ระดับ",
+    "Status": 1,
+    "PublishDate": {
+     "String": "2020-08-27T15:38:49Z",
+     "Valid": true
+    },
+    "CreateDate": {
+     "String": "2020-08-27T15:38:49+07:00",
+     "Valid": true
+    },
+    "View": {
+     "String": "916",
+     "Valid": true
+    },
+    "OwnerID": 40957,
+    "ProviderName": "fool"
+   },
+   {
+    "ChapterID": 84078,
+    "ChapterNo": "7",
+    "ChapterName": "ตอนที่ 7 การตื่นขึ้นของแกนสายฟ้า",
+    "Status": 1,
+    "PublishDate": {
+     "String": "2020-08-24T14:34:23Z",
+     "Valid": true
+    },
+    "CreateDate": {
+     "String": "2020-08-24T14:34:23+07:00",
+     "Valid": true
+    },
+    "View": {
+     "String": "367",
+     "Valid": true
+    },
+    "OwnerID": 40957,
+    "ProviderName": "fool"
+   },
+   {
+    "ChapterID": 83961,
+    "ChapterNo": "6",
+    "ChapterName": "ตอนที่ 6 การฝึกซ้อมครั้งแรก",
+    "Status": 1,
+    "PublishDate": {
+     "String": "2020-08-22T15:00:46Z",
+     "Valid": true
+    },
+    "CreateDate": {
+     "String": "2020-08-22T15:00:46+07:00",
+     "Valid": true
+    },
+    "View": {
+     "String": "371",
+     "Valid": true
+    },
+    "OwnerID": 40957,
+    "ProviderName": "fool"
+   },
+   {
+    "ChapterID": 83926,
+    "ChapterNo": "5",
+    "ChapterName": "ตอนที่ 5 ภัยคุกคาม",
+    "Status": 1,
+    "PublishDate": {
+     "String": "2020-08-21T15:20:55Z",
+     "Valid": true
+    },
+    "CreateDate": {
+     "String": "2020-08-21T15:20:55+07:00",
+     "Valid": true
+    },
+    "View": {
+     "String": "419",
+     "Valid": true
+    },
+    "OwnerID": 40957,
+    "ProviderName": "fool"
+   },
+   {
+    "ChapterID": 83843,
+    "ChapterNo": "4",
+    "ChapterName": "ตอนที่ 4 ไม่มีเงิน อะไรๆมันก็ยาก",
+    "Status": 1,
+    "PublishDate": {
+     "String": "2020-08-19T15:36:01Z",
+     "Valid": true
+    },
+    "CreateDate": {
+     "String": "2020-08-19T15:36:01+07:00",
+     "Valid": true
+    },
+    "View": {
+     "String": "590",
+     "Valid": true
+    },
+    "OwnerID": 40957,
+    "ProviderName": "fool"
+   },
+   {
+    "ChapterID": 83530,
+    "ChapterNo": "3",
+    "ChapterName": "ตอนที่ 3 โรงฝึกดาบ",
+    "Status": 1,
+    "PublishDate": {
+     "String": "2020-08-14T15:57:18Z",
+     "Valid": true
+    },
+    "CreateDate": {
+     "String": "2020-08-14T15:57:18+07:00",
+     "Valid": true
+    },
+    "View": {
+     "String": "531",
+     "Valid": true
+    },
+    "OwnerID": 40957,
+    "ProviderName": "fool"
+   },
+   {
+    "ChapterID": 83515,
+    "ChapterNo": "2",
+    "ChapterName": "ตอนที่ 2 เกิดใหม่",
+    "Status": 1,
+    "PublishDate": {
+     "String": "2020-08-14T03:26:20Z",
+     "Valid": true
+    },
+    "CreateDate": {
+     "String": "2020-08-14T03:26:20+07:00",
+     "Valid": true
+    },
+    "View": {
+     "String": "878",
+     "Valid": true
+    },
+    "OwnerID": 40957,
+    "ProviderName": "fool"
+   },
+   {
+    "ChapterID": 83514,
+    "ChapterNo": "1",
+    "ChapterName": "ตอนที่ 1 จุดเริ่มต้นของการฟาดฟัน",
+    "Status": 1,
+    "PublishDate": {
+     "String": "2020-08-14T03:25:07Z",
+     "Valid": true
+    },
+    "CreateDate": {
+     "String": "2020-08-14T03:25:07+07:00",
+     "Valid": true
+    },
+    "View": {
+     "String": "2726",
+     "Valid": true
+    },
+    "OwnerID": 40957,
+    "ProviderName": "fool"
+   }
+  ],
+  "ListOtherMedia": null,
+  "ListContributor": [
+   {
+    "UserID": 40957,
+    "DisplayName": "Thesaka777"
+   }
+  ]
+ }
+}

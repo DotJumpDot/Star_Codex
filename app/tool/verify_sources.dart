@@ -1,35 +1,37 @@
-// Smoke-test CLI for source adapters (Plan/15 Phase 3 DoD).
+// Smoke-test CLI for source adapters (Plan/15 Phase 3 DoD + Plan/06 DoD).
 //
 // Usage (from app/):
 //   dart run tool/verify_sources.dart --source slow-manga
+//   dart run tool/verify_sources.dart --source nekopost
 //   dart run tool/verify_sources.dart --source all
 //
-// Uses the SAME adapter code as the app (no copies). Nekopost arrives in
-// Phase 8.
+// Uses the SAME adapter code as the app (no copies).
 // ignore_for_file: avoid_print
 import 'package:star_codex/core/net/safe_http.dart';
 import 'package:star_codex/data/sources/madara/configs.dart';
 import 'package:star_codex/data/sources/madara/madara_source.dart';
+import 'package:star_codex/data/sources/nekopost/nekopost_source.dart';
 import 'package:star_codex/data/sources/source_api.dart';
 
 Future<void> main(List<String> args) async {
   final which = args.contains('--source')
       ? args[args.indexOf('--source') + 1]
       : 'all';
-  final configs = which == 'all'
-      ? madaraConfigs
-      : madaraConfigs.where((c) => c.id == which).toList();
-  if (configs.isEmpty) {
+  final http = SafeHttp();
+  final sources = <Source>[
+    for (final config in madaraConfigs)
+      if (which == 'all' || which == config.id) MadaraSource(config, http),
+    if (which == 'all' || which == 'nekopost') NekopostSource(http),
+  ];
+  if (sources.isEmpty) {
     print('unknown source: $which (expected one of: '
-        '${madaraConfigs.map((c) => c.id).join(', ')}, all)');
+        '${madaraConfigs.map((c) => c.id).join(', ')}, nekopost, all)');
     return;
   }
 
-  final http = SafeHttp();
   var failures = 0;
-  for (final config in configs) {
-    final source = MadaraSource(config, http);
-    print('\n========== ${config.id} ==========');
+  for (final source in sources) {
+    print('\n========== ${source.id} ==========');
     failures += await verify(source);
   }
   print('\n${failures == 0 ? 'ALL OK' : '$failures FAILURES'}');
@@ -72,7 +74,8 @@ Future<int> verify(Source source) async {
     }
 
     // 3. detail + 5 chapters with parsed numbers
-    final first = latest.first;
+    final first = latest.firstWhere((s) => s.type != 'novel',
+        orElse: () => latest.first);
     try {
       final detail = await source.detail(first.url);
       print('detail: "${detail.title}" '
@@ -84,8 +87,8 @@ Future<int> verify(Source source) async {
       }
       ok('detail');
 
-      // 4. pages: image URLs for one chapter
-      if (detail.chapters.isNotEmpty) {
+      // 4. pages: image URLs for one chapter (comics only)
+      if (detail.chapters.isNotEmpty && detail.type != 'novel') {
         final pages = await source.pages(detail.chapters.last.url);
         print('pages for "${detail.chapters.last.title}": '
             '${pages.imageUrls.length} images');
@@ -98,6 +101,29 @@ Future<int> verify(Source source) async {
       }
     } catch (e) {
       fail('detail', e);
+    }
+
+    // 5. novels (Plan/06 §DoD): one novel chapter's first 200 chars.
+    if (source.supportsNovels) {
+      try {
+        final novels = await source.search('one piece');
+        final novel = novels.firstWhere((s) => s.type == 'novel');
+        final detail = await source.detail(novel.url);
+        final chapter = detail.chapters.last;
+        final text = await source.novelText(chapter.url);
+        if (text == null || text.isEmpty) {
+          fail('novel', 'empty novel text');
+        } else {
+          print('novel "${detail.title}" ch ${chapter.number}: '
+              '${text.length} chars');
+          final preview = text.substring(0, text.length > 200 ? 200 : text.length)
+              .replaceAll('\n', ' | ');
+          print('  $preview…');
+          ok('novel');
+        }
+      } catch (e) {
+        fail('novel', e);
+      }
     }
   } catch (e) {
     fail('latest', e);

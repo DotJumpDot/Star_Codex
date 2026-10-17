@@ -263,3 +263,24 @@ Also this pass:
   `scrollCacheExtent: ScrollCacheExtent.pixels(...)` (rendering import).
 - Novel novels have no cross-source fallback (single-source by nature);
   loadNovelText rejects empty text as a parse bug per doc 06 §3.
+
+## Phase 8 part 2 (2026-10-17) — Nekopost probing findings
+
+- **Novels are NOT a separate API.** detail2 + cinfo serve them with the
+  manga shapes; projectType m/c/d = comics, f/n = novels. The keiyoushi
+  extension dropped novels entirely — our novel support is original work
+  (doc 06 addendum §4 records it).
+- `/handler/cinfo` is OUTSIDE /api (the web bundle calls
+  `{www}/api/handler/cinfo` → 404; keiyoushi's `{www}/handler/cinfo`
+  works).
+- Latest feed: type "m" only returns comics; novels need type "f"
+  (translated) / "n" (original) — adapter merges m+f per page.
+- detail2 dead ids answer HTTP 200 with the string
+  `"sql: no rows in result set"` — always type-check the decoded body.
+- dio `Options` has no data field: SafeHttp.postJson carries the body in
+  `Options.extra['safe_http_body']` and the default transport switches to
+  `dio.post` on method=POST. Fetcher fakes read the extra map.
+- Nekopost genres: categories exist but no server-side genre filter —
+  browse-by-genre is unsupported for this source (picker shows nothing).
+- keiyoushi reference moved to `keiyoushi/extensions-source`
+  (`src/th/nekopost/`, not `lib/src/...` as doc 06 guessed).

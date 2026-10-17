@@ -24,8 +24,10 @@ typedef SafeHttpDelay = Future<void> Function(Duration d);
 ///  4. redirects are followed manually, re-validating every hop
 ///  5. timeouts 15 s connect / 30 s receive; bodies capped at 50 MB
 ///
-/// Exposes exactly `getHtml` and `getBytes`. Nothing else in the app may
-/// construct a Dio/HttpClient (checked in the Phase 3 DoD grep).
+/// Exposes exactly `getHtml`, `getBytes` and `postJson`. Nothing else in
+/// the app may construct a Dio/HttpClient (checked in the Phase 3 DoD
+/// grep). `postJson` exists for the Nekopost API (Plan/06): same scheme +
+/// host validation, rate limiter and retry policy as every GET.
 class SafeHttp {
   SafeHttp(
       {RateLimiter? rateLimiter, SafeHttpFetcher? fetcher, SafeHttpDelay? delay})
@@ -47,9 +49,25 @@ class SafeHttp {
       validateStatus: (status) => status != null && status < 400,
     ));
     // Default transport: Dio with `options:` as a NAMED arg (a bare
-    // `_dio.getUri` tear-off would misbind it positionally).
+    // `_dio.getUri` tear-off would misbind it positionally). POST bodies
+    // ride in `options.extra['safe_http_body']` (Options has no data
+    // field) and go out through dio.post.
     _fetch = _fetcher ??
-        (uri, options) => _dio.getUri<List<int>>(uri, options: options);
+        (uri, options) async {
+          if ((options.method ?? 'GET') == 'POST') {
+            return _dio.post<List<int>>(
+              uri.toString(),
+              data: options.extra?['safe_http_body'],
+              options: Options(
+                responseType: options.responseType,
+                headers: options.headers,
+                contentType: options.contentType,
+                validateStatus: options.validateStatus,
+              ),
+            );
+          }
+          return _dio.getUri<List<int>>(uri, options: options);
+        };
   }
 
   /// Injectable transport for tests (a local mock server would violate the
@@ -69,10 +87,24 @@ class SafeHttp {
     return utf8.decode(bytes, allowMalformed: true);
   }
 
+  /// JSON-body POST (Plan/06 nekopost API). Validated + rate-limited +
+  /// retried exactly like GET; read-only endpoints, so retrying a 5xx is
+  /// safe.
+  Future<Uint8List> postJson(Uri uri, Map<String, Object?> body,
+      {String? referer}) async {
+    return _loop(uri, referer: referer, method: 'POST', data: body);
+  }
+
   Future<Uint8List> getBytes(Uri uri, {String? referer}) async {
+    return _loop(uri, referer: referer);
+  }
+
+  Future<Uint8List> _loop(Uri uri,
+      {String? referer, String method = 'GET', Object? data}) async {
     var current = uri;
     for (var hop = 0; hop <= 8; hop++) {
-      final response = await _run(current, referer: referer);
+      final response = await _run(current,
+          referer: referer, method: method, data: data);
       final status = response.statusCode ?? 0;
       if (status >= 300 && status < 400) {
         final location = response.headers.value(HttpHeaders.locationHeader);
@@ -82,38 +114,45 @@ class SafeHttp {
         current = current.resolve(location);
         continue;
       }
-      final data = response.data;
-      if (data is! List<int>) {
+      final payload = response.data;
+      if (payload is! List<int>) {
         throw NetException('unexpected body type', uri: current);
       }
-      if (data.length > maxBodyBytes) {
+      if (payload.length > maxBodyBytes) {
         throw NetException('body exceeds 50 MB cap', uri: current);
       }
-      return Uint8List.fromList(data);
+      return Uint8List.fromList(payload);
     }
     throw NetException('too many redirects', uri: uri);
   }
 
-  Future<Response<List<int>>> _run(Uri uri, {String? referer}) async {
+  Future<Response<List<int>>> _run(Uri uri,
+      {String? referer, String method = 'GET', Object? data}) async {
     await _validate(uri);
     final release = await _rateLimiter.acquire(uri.host);
     try {
-      return await _withRetries(uri, referer: referer);
+      return await _withRetries(uri,
+          referer: referer, method: method, data: data);
     } finally {
       release();
     }
   }
 
-  Future<Response<List<int>>> _withRetries(Uri uri, {String? referer}) async {
+  Future<Response<List<int>>> _withRetries(Uri uri,
+      {String? referer, String method = 'GET', Object? data}) async {
     var backoff = const Duration(seconds: 1);
     for (var attempt = 1; attempt <= 3; attempt++) {
       try {
-        final response = await _fetch(uri,
+        final response = await _fetch(
+            uri,
             Options(
               responseType: ResponseType.bytes,
+              method: method,
+              contentType: method == 'POST' ? 'application/json' : null,
               headers: {
                 'Referer': ?referer,
               },
+              extra: data == null ? null : {'safe_http_body': data},
             ));
         return response;
       } on DioException catch (e) {
