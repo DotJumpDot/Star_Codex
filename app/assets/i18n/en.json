@@ -229,5 +229,6 @@
   "settings.personal_use_body": "This app reads public catalog websites for personal use. No server, no cloud, no login, no redistribution.",
   "settings.plan_note": "Built from the plan in Docs/Plan",
   "settings.plan_note_body": "The design contract (00-DECISIONS) and every phase doc live in the same repository as the code.",
-  "settings.licenses": "Open-source licenses"
+  "settings.licenses": "Open-source licenses",
+  "offline.delete_go": "Delete {n}"
 }

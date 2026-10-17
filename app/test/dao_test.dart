@@ -155,9 +155,16 @@ void main() {
 
     await historyDao.recordCompletion(chId, seriesId, now);
     await historyDao.recordCompletion(chId, seriesId, now + 1);
-    final h = await db.query('reading_history', where: 'chapter_id = ?', whereArgs: [chId]);
-    expect(h.single['times_read'], 2);
+    var h = await db.query('reading_history',
+        where: 'chapter_id = ?', whereArgs: [chId]);
+    // +1 ms is same-session completion spam (the readers save every
+    // 500 ms at the chapter end) — refreshes read_at, does NOT bump.
+    expect(h.single['times_read'], 1);
     expect(h.single['read_at'], now + 1);
+    await historyDao.recordCompletion(chId, seriesId, now + 120000);
+    h = await db.query('reading_history',
+        where: 'chapter_id = ?', whereArgs: [chId]);
+    expect(h.single['times_read'], 2); // a later re-read counts
 
     await downloadsDao.enqueue(chId, createdAt: now);
     await downloadsDao.updateState(chId, 'done');

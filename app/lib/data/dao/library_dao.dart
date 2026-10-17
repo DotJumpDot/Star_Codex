@@ -143,19 +143,32 @@ class HistoryDao {
 
   Future<void> recordCompletion(int chapterId, int seriesId, int atMs) async {
     await db.transaction((txn) async {
+      // Same-session guard: the readers persist completed=1 every 500 ms
+      // while the user sits at the chapter end — that refreshes read_at
+      // WITHOUT inflating times_read. A completion counts as a new read
+      // only when there is no history row yet, or the previous one is
+      // older than a minute (a genuine re-read). The discriminator is the
+      // PREVIOUS HISTORY row — not read_progress, which the reader stamps
+      // milliseconds before this call (comparing against that would eat
+      // the FIRST completion too).
       final rows = await txn.query('reading_history',
-          columns: ['times_read'],
+          columns: ['times_read', 'read_at'],
           where: 'chapter_id = ?',
           whereArgs: [chapterId],
           limit: 1);
       final times = rows.isEmpty ? 0 : rows.first['times_read'] as int;
+      final lastRecordedAt =
+          rows.isEmpty ? null : rows.first['read_at'] as int;
+      final sameSession =
+          lastRecordedAt != null && atMs - lastRecordedAt < 60 * 1000;
+
       await txn.insert(
           'reading_history',
           {
             'chapter_id': chapterId,
             'series_id': seriesId,
             'read_at': atMs,
-            'times_read': times + 1,
+            'times_read': sameSession ? times : times + 1,
           },
           conflictAlgorithm: ConflictAlgorithm.replace);
     });

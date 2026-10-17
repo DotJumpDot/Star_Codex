@@ -102,6 +102,7 @@ class DownloadsRepo {
 
   static const _maxRetries = 3;
   static const _estimateBytesPerChapter = 8 * 1024 * 1024;
+  static const _estimateBytesPerNovel = 64 * 1024;
 
   /// Section 1 of the Offline tab (doc 13 §A): done downloads whose files
   /// STILL EXIST on disk, grouped per series. The JOIN through `blobs` is
@@ -166,13 +167,27 @@ class DownloadsRepo {
   }
 
   /// Download size estimate for the sheet (doc 13: unfetched chapters ×
-  /// 8 MB default, fetched ones × their real size).
+  /// 8 MB default, fetched ones × their real size). Novels are text —
+  /// the 8 MB page default would over-refuse the quota by ~100×.
   Future<int> estimateBytes(List<int> chapterIds) async {
+    if (chapterIds.isEmpty) return 0;
+    final rows = await seriesDao.db.rawQuery('''
+      SELECT s.type AS type,
+             (SELECT COALESCE(SUM(bytes), 0) FROM chapter_pages
+              WHERE chapter_id = c.id) AS known
+      FROM chapters c JOIN series s ON s.id = c.series_id
+      WHERE c.id IN (${chapterIds.join(',')})
+    ''');
     var total = 0;
-    for (final id in chapterIds) {
-      final pages = await chaptersDao.pages(id);
-      final known = pages.fold<int>(0, (n, p) => n + (p.bytes ?? 0));
-      total += known > 0 ? known : _estimateBytesPerChapter;
+    for (final r in rows) {
+      final known = (r['known'] as num).toInt();
+      if (known > 0) {
+        total += known;
+      } else if (r['type'] == 'novel') {
+        total += _estimateBytesPerNovel;
+      } else {
+        total += _estimateBytesPerChapter;
+      }
     }
     return total;
   }
@@ -180,10 +195,18 @@ class DownloadsRepo {
   Future<void> pause(int chapterId) async {
     await downloadsDao.updateState(chapterId, 'paused');
     _failures.remove(chapterId);
+    _notBefore.remove(chapterId);
     await refreshSnapshot();
   }
 
   Future<void> resume(int chapterId) async {
+    // Retrying an ERROR row is a user decision → fresh attempt budget.
+    // Resuming a queued/paused row mid-retry keeps the failure count (the
+    // backoff skip must not reset the strikes).
+    final errors = await downloadsDao.byState('error');
+    if (errors.any((r) => r['chapter_id'] as int == chapterId)) {
+      _failures.remove(chapterId);
+    }
     _notBefore.remove(chapterId);
     await downloadsDao.updateState(chapterId, 'queued');
     await refreshSnapshot();
@@ -222,16 +245,21 @@ class DownloadsRepo {
         }
         return;
       }
+      final hadWifiChip = _wifiPausedAnnounced;
       _wifiPausedAnnounced = false;
 
+      var ran = false;
       final now = DateTime.now().millisecondsSinceEpoch;
       for (final row in await downloadsDao.byState('queued')) {
         final id = row['chapter_id'] as int;
         if ((_notBefore[id] ?? 0) > now) continue;
         await _runChapter(id);
+        ran = true;
         break; // one chapter per pass; the next tick picks the next
       }
-      await refreshSnapshot();
+      // An idle worker doesn't re-emit snapshots every second — refresh
+      // only when a chapter ran, or once to clear the Wi-Fi-paused chip.
+      if (ran || hadWifiChip) await refreshSnapshot();
     } finally {
       _ticking = false;
     }
@@ -257,11 +285,26 @@ class DownloadsRepo {
         if (source == null) {
           throw DownloadException('source missing: ${chapter.sourceId}');
         }
-        final pages = await source.pages(chapter.url);
-        for (var i = 0; i < pages.imageUrls.length; i++) {
+        // Page list is DB-first (same rule as the reader). A chapter that
+        // was NEVER opened has no chapter_pages rows yet — persist them
+        // BEFORE fetching: setPageHash targets those rows, so without this
+        // every hash write is a silent no-op, the blobs land unlinked, and
+        // the "done" download demotes at the next integrity pass.
+        var pages = await chaptersDao.pages(chapterId);
+        if (pages.isEmpty) {
+          final fetched = await source.pages(chapter.url);
+          await chaptersDao.replacePages(chapterId, [
+            for (var i = 0; i < fetched.imageUrls.length; i++)
+              ChapterPage(
+                  chapterId: chapterId, idx: i, url: fetched.imageUrls[i]),
+          ]);
+          await chaptersDao.setPageCount(chapterId, fetched.imageUrls.length);
+          pages = await chaptersDao.pages(chapterId);
+        }
+        for (final page in pages) {
           await readerRepo.fetchPage(
             chapterId,
-            ReaderPageRef(idx: i, url: pages.imageUrls[i]),
+            ReaderPageRef(idx: page.idx, url: page.url),
             source.referer,
           );
           await refreshSnapshot(); // live "12/23 หน้า" progress
@@ -288,7 +331,31 @@ class DownloadsRepo {
     }
   }
 
+  QueueSnapshot? _lastSnapshot;
+
+  /// Rows compare by identity-relevant fields only — the Offline tab
+  /// re-runs its ready-offline query on every distinct snapshot.
+  static bool _sameSnapshot(QueueSnapshot a, QueueSnapshot b) {
+    if (a.wifiPaused != b.wifiPaused || a.pinnedBytes != b.pinnedBytes) {
+      return false;
+    }
+    if (a.rows.length != b.rows.length) return false;
+    for (var i = 0; i < a.rows.length; i++) {
+      final x = a.rows[i];
+      final y = b.rows[i];
+      if (x.chapterId != y.chapterId ||
+          x.state != y.state ||
+          x.pagesDone != y.pagesDone ||
+          x.pagesTotal != y.pagesTotal ||
+          x.error != y.error) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   /// Rebuild the snapshot: queue rows + live page counts + pinned size.
+  /// Identical snapshots are suppressed (idle no-op).
   Future<void> refreshSnapshot({bool wifiPaused = false}) async {
     final rows = <QueueRow>[];
     for (final state in const ['running', 'queued', 'paused', 'error']) {
@@ -314,11 +381,15 @@ class DownloadsRepo {
         ));
       }
     }
-    _snapshots.add(QueueSnapshot(
+    final snap = QueueSnapshot(
       rows: rows,
       wifiPaused: wifiPaused,
       pinnedBytes: await readerRepo.blobs.totalBytes(pinned: true),
-    ));
+    );
+    final last = _lastSnapshot;
+    if (last != null && _sameSnapshot(last, snap)) return;
+    _lastSnapshot = snap;
+    _snapshots.add(snap);
   }
 }
 

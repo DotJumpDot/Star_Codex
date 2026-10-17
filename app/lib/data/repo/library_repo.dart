@@ -56,7 +56,6 @@ class LibraryRepo {
 
     final numbers = <int, Set<double>>{};
     final completed = <int, Set<double>>{};
-    final newCounts = <int, int>{};
     final maxUpdated = <int, int?>{};
     for (final r in await seriesDao.db.rawQuery('''
       SELECT series_id, number, uploaded_at,
@@ -71,18 +70,20 @@ class LibraryRepo {
       maxUpdated[sid] = _maxOf(
           maxUpdated[sid], (r['uploaded_at'] as num?)?.toInt());
     }
-    // New-count needs the per-series last_read_at — second pass after rows.
+    // Doc-13 badge rule, deduped by NUMBER: mirrors carry the same new
+    // chapter and "2 ตอนใหม่" must mean two new chapters, not two copies.
     final lastReadById = {
       for (final r in rows) r['series_id'] as int: r['last_read_at'] as int?,
     };
+    final newNumbers = <int, Set<double>>{};
     for (final r in await seriesDao.db.rawQuery(
-      'SELECT series_id, uploaded_at FROM chapters WHERE uploaded_at IS NOT NULL',
+      'SELECT series_id, number, uploaded_at FROM chapters '
+      'WHERE uploaded_at IS NOT NULL',
     )) {
       final sid = r['series_id'] as int;
-      final at = r['uploaded_at'] as int;
       final lastRead = lastReadById[sid];
-      if (lastRead != null && at > lastRead) {
-        newCounts[sid] = (newCounts[sid] ?? 0) + 1;
+      if (lastRead != null && (r['uploaded_at'] as int) > lastRead) {
+        (newNumbers[sid] ??= {}).add((r['number'] as num).toDouble());
       }
     }
 
@@ -102,8 +103,12 @@ class LibraryRepo {
     for (final link in await seriesDao.db.query('series_sources')) {
       final sid = link['series_id'] as int;
       (sourcesBySeries[sid] ??= []).add(link['source_id'] as String);
-      coverBySeries[sid] ??= link['cover_url'] as String?;
-      coverSourceBySeries[sid] ??= link['source_id'] as String;
+      // Pair the cover URL with ITS source — a first link without a
+      // cover must not donate its referer to a later link's cover.
+      if (coverBySeries[sid] == null && link['cover_url'] != null) {
+        coverBySeries[sid] = link['cover_url'] as String?;
+        coverSourceBySeries[sid] = link['source_id'] as String?;
+      }
       final raw = link['alt_titles'] as String?;
       if (raw != null) {
         (altsBySeries[sid] ??= [])
@@ -134,7 +139,7 @@ class LibraryRepo {
           lastReadAt: r['last_read_at'] as int?,
           chapterNumbers: numbers[r['series_id'] as int] ?? {},
           completedNumbers: completed[r['series_id'] as int] ?? {},
-          newCount: newCounts[r['series_id'] as int] ?? 0,
+          newCount: newNumbers[r['series_id'] as int]?.length ?? 0,
           maxUpdatedAt: maxUpdated[r['series_id'] as int],
           doneDownloads: downloads[r['series_id'] as int] ?? 0,
           sources: sourcesBySeries[r['series_id'] as int] ?? const [],
@@ -242,7 +247,20 @@ class LibraryRepo {
       }
 
       // 4) library: absorb the row when the primary has none; when both
-      //    are in the library keep the NEWEST read state.
+      //    are in the library keep the NEWEST read state. The absorbed
+      //    last-read chapter may be one of the DROPPED duplicates —
+      //    copying its id would violate the chapters FK and roll the
+      //    whole merge back, so verify it survived ON the primary first.
+      Future<int?> survivedOnPrimary(int? chapterId) async {
+        if (chapterId == null) return null;
+        final rows = await txn.query('chapters',
+            columns: ['id'],
+            where: 'id = ? AND series_id = ?',
+            whereArgs: [chapterId, primaryId],
+            limit: 1);
+        return rows.isEmpty ? null : chapterId;
+      }
+
       for (final absorbed in absorbedIds) {
         final absorbedEntry = await txn.query('library',
             where: 'series_id = ?', whereArgs: [absorbed], limit: 1);
@@ -255,7 +273,7 @@ class LibraryRepo {
             'series_id': primaryId,
             'added_at': a.addedAt,
             'last_read_at': a.lastReadAt,
-            'last_read_chapter_id': a.lastReadChapterId,
+            'last_read_chapter_id': await survivedOnPrimary(a.lastReadChapterId),
           });
         } else {
           final p = LibraryEntry.fromRow(primaryEntry.first);
@@ -264,7 +282,9 @@ class LibraryRepo {
               'library',
               {
                 'last_read_at': a.lastReadAt,
-                'last_read_chapter_id': a.lastReadChapterId,
+                'last_read_chapter_id':
+                    await survivedOnPrimary(a.lastReadChapterId) ??
+                        p.lastReadChapterId,
               },
               where: 'series_id = ?',
               whereArgs: [primaryId],

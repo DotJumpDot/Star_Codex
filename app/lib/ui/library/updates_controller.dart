@@ -38,10 +38,14 @@ class UpdatesController extends StateNotifier<UpdatesFeedState> {
   final UpdatesRepo _repo;
 
   Future<void> reload() async {
+    // One feed() pass — the unseen count falls out of the same groups
+    // (unseenCount() would re-run the whole query).
     final groups = await _repo.feed();
     if (!mounted) return;
     state = state.copyWith(
-        groups: groups, unseen: await _repo.unseenCount());
+      groups: groups,
+      unseen: groups.fold<int>(0, (n, g) => n + g.items.length),
+    );
   }
 
   /// Pull-to-refresh / library refresh icon / sheet refresh. [force]

@@ -285,48 +285,21 @@ class _SourceTileState extends ConsumerState<_SourceTile> {
   @override
   Widget build(BuildContext context) {
     final info = widget.info;
-    return ListTile(
-      title: Text(info.name),
-      subtitle: _testResult == null
-          ? Text(info.baseUrl,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall)
-          : Text(_testResult!,
-              style: Theme.of(context).textTheme.labelSmall),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            tooltip: t(context, 'settings.source_test'),
-            icon: const Icon(Icons.network_check, size: 20),
-            onPressed: _testConnection,
-          ),
-          IconButton(
-            tooltip: t(context, 'settings.source_up'),
-            icon: const Icon(Icons.arrow_upward, size: 18),
-            onPressed: widget.isFirst
-                ? null
-                : () async {
-                    await ref
-                        .read(seriesDaoProvider)
-                        .moveSource(info.id, up: true);
-                    await widget.onChanged();
-                  },
-          ),
-          IconButton(
-            tooltip: t(context, 'settings.source_down'),
-            icon: const Icon(Icons.arrow_downward, size: 18),
-            onPressed: widget.isLast
-                ? null
-                : () async {
-                    await ref
-                        .read(seriesDaoProvider)
-                        .moveSource(info.id, up: false);
-                    await widget.onChanged();
-                  },
-          ),
-          Switch(
+    // Switch on the row, action icons below it — a single trailing Row
+    // with three icons + a switch overflows on narrow screens.
+    return Column(
+      children: [
+        ListTile(
+          dense: true,
+          title: Text(info.name),
+          subtitle: _testResult == null
+              ? Text(info.baseUrl,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelSmall)
+              : Text(_testResult!,
+                  style: Theme.of(context).textTheme.labelSmall),
+          trailing: Switch(
             value: info.enabled,
             onChanged: (v) async {
               await ref
@@ -335,8 +308,45 @@ class _SourceTileState extends ConsumerState<_SourceTile> {
               await widget.onChanged();
             },
           ),
-        ],
-      ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 12, right: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              IconButton(
+                tooltip: t(context, 'settings.source_test'),
+                icon: const Icon(Icons.network_check, size: 20),
+                onPressed: _testConnection,
+              ),
+              IconButton(
+                tooltip: t(context, 'settings.source_up'),
+                icon: const Icon(Icons.arrow_upward, size: 18),
+                onPressed: widget.isFirst
+                    ? null
+                    : () async {
+                        await ref
+                            .read(seriesDaoProvider)
+                            .moveSource(info.id, up: true);
+                        await widget.onChanged();
+                      },
+              ),
+              IconButton(
+                tooltip: t(context, 'settings.source_down'),
+                icon: const Icon(Icons.arrow_downward, size: 18),
+                onPressed: widget.isLast
+                    ? null
+                    : () async {
+                        await ref
+                            .read(seriesDaoProvider)
+                            .moveSource(info.id, up: false);
+                        await widget.onChanged();
+                      },
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

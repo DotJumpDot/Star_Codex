@@ -10,6 +10,7 @@ import 'package:star_codex/data/repo/library_cards.dart';
 import 'package:star_codex/data/repo/library_repo.dart';
 import 'package:star_codex/core/utils/title_norm.dart';
 
+import 'fake_source.dart';
 import 'helpers.dart';
 
 void main() {
@@ -61,12 +62,13 @@ void main() {
   }
 
   Future<void> link(int seriesId, String source, String url,
-      {List<String> alts = const []}) async {
+      {List<String> alts = const [], String? coverUrl}) async {
     await db.insert('series_sources', {
       'series_id': seriesId,
       'source_id': source,
       'source_url': url,
       'alt_titles': alts.isEmpty ? null : '["${alts.join('","')}"]',
+      'cover_url': coverUrl,
       'fetched_at': now,
     });
   }
@@ -99,7 +101,9 @@ void main() {
       await link(b, 'slow-manga', 'https://s/1', alts: ['นาโน']);
       final b1 = await chapter(b, 'slow-manga', 1, uploadedAt: now - 10000);
       await chapter(b, 'slow-manga', 2, uploadedAt: now + 5000);
-      await chapter(b, 'go-manga', 2, uploadedAt: now - 10000);
+      // Mirror copy of #2 ALSO counts as new upstream — the badge must
+      // still say ONE new chapter (dedupe by number).
+      await chapter(b, 'go-manga', 2, uploadedAt: now + 6000);
       await chaptersDao.saveProgress(b1, pageIndex: 0, completed: true);
       await libraryDao.markRead(b, b1, now - 1000);
       final d = await chapter(b, 'go-manga', 99, uploadedAt: now - 10000);
@@ -224,7 +228,9 @@ void main() {
       await historyDao.recordCompletion(c1, s1, now - 100);
       await historyDao.recordCompletion(c3, s2, now - 50);
       await historyDao.recordCompletion(c2, s1, now); // newest
-      await historyDao.recordCompletion(c2, s1, now + 10); // re-read bumps
+      // A genuine re-read 10 minutes later bumps (10 ms later would be
+      // same-session spam and must NOT).
+      await historyDao.recordCompletion(c2, s1, now + 600000);
 
       final rows = await historyDao.recent();
       expect(rows.map((r) => r.chapterId).toList(), [c2, c3, c1]);
@@ -255,6 +261,36 @@ void main() {
       await historyDao.recordCompletion(c, s, now);
       await db.delete('chapters', where: 'id = ?', whereArgs: [c]);
       expect(await historyDao.recent(), isEmpty);
+    });
+
+    test('same-session completion spam does not inflate times_read',
+        () async {
+      final s = await series('S');
+      final c = await chapter(s, 'slow-manga', 1);
+
+      // First completion at t=1_000_000.
+      await chaptersDao.saveProgress(c,
+          pageIndex: 9, completed: true, readAt: 1000000);
+      await historyDao.recordCompletion(c, s, 1000000);
+      // The reader saves completed=1 every 500 ms while the user sits at
+      // the chapter end — these must refresh read_at, NOT times_read.
+      await chaptersDao.saveProgress(c,
+          pageIndex: 9, completed: true, readAt: 1001000);
+      await historyDao.recordCompletion(c, s, 1001000);
+      await chaptersDao.saveProgress(c,
+          pageIndex: 9, completed: true, readAt: 1002000);
+      await historyDao.recordCompletion(c, s, 1002000);
+
+      var rows = await historyDao.recent();
+      expect(rows.single.timesRead, 1);
+      expect(rows.single.readAt, 1002000);
+
+      // A genuine re-read an hour later DOES count.
+      await chaptersDao.saveProgress(c,
+          pageIndex: 9, completed: true, readAt: 4600000);
+      await historyDao.recordCompletion(c, s, 4600000);
+      rows = await historyDao.recent();
+      expect(rows.single.timesRead, 2);
     });
   });
 
@@ -313,6 +349,33 @@ void main() {
       final entry = await libraryDao.entry(primary);
       expect(entry!.lastReadAt, now + 7000); // newer read state won
     });
+
+    test('survives an absorbed last-read that was a dropped duplicate',
+        () async {
+      final primary = await series('Nano Machine');
+      final absorbed = await series('nanomachine ฉบับแปลอื่น');
+      await link(primary, 'slow-manga', 'https://s/nano');
+      await link(absorbed, 'slow-manga', 'https://s2/nano'); // SAME source
+
+      final pCh1 =
+          await chapter(primary, 'slow-manga', 1, url: 'https://s/nano');
+      final aCh1 =
+          await chapter(absorbed, 'slow-manga', 1, url: 'https://s2/nano');
+
+      // Absorbed is in the library, read MORE recently, pointing at ITS
+      // ch1 — which merge step 2 drops as a duplicate. Copying that id
+      // would violate the chapters FK and roll the whole merge back.
+      await libraryDao.add(absorbed, now - 5000);
+      await libraryDao.markRead(absorbed, aCh1, now + 9000);
+
+      await repo.merge(primary, [absorbed]); // must not throw
+
+      final entry = await libraryDao.entry(primary);
+      expect(entry!.lastReadAt, now + 9000); // newer read state kept
+      expect(entry.lastReadChapterId, isNull); // dangling id NOT copied
+      expect(await chaptersDao.byId(pCh1), isNotNull);
+      expect(await chaptersDao.byId(aCh1), isNull); // the dropped clash
+    });
   });
 
   group('แยกเรื่อง split (Plan/12 §4)', () {
@@ -366,6 +429,29 @@ void main() {
       await libraryDao.add(s, now);
       await repo.deleteFromLibrary(s, keepFiles: false);
       expect(await downloadsDao.isDownloaded(c), isFalse);
+    });
+  });
+
+  group('cover fallback referer', () {
+    test('pairs the cover URL with the source that actually supplied it',
+        () async {
+      final s = await series('Cover Pairing');
+      await link(s, 'slow-manga', 'https://s/1'); // first link: NO cover
+      await link(s, 'go-manga', 'https://g/1',
+          coverUrl: 'https://img.example.com/c.jpg');
+
+      final goManga = FakeSource('go-manga');
+      final repoWithSources = LibraryRepo(
+        seriesDao: seriesDao,
+        chaptersDao: chaptersDao,
+        libraryDao: libraryDao,
+        downloadsDao: downloadsDao,
+        blobsDao: BlobsDao(db),
+        sources: [FakeSource('slow-manga'), goManga],
+      );
+      final card = (await repoWithSources.load()).single;
+      expect(card.coverUrl, 'https://img.example.com/c.jpg');
+      expect(card.coverReferer, goManga.referer); // NOT slow-manga's
     });
   });
 }

@@ -281,7 +281,7 @@ class _ChapterDeleteSheetState extends ConsumerState<_ChapterDeleteSheet> {
                   child: FilledButton.icon(
                     icon: const Icon(Icons.delete_outline, size: 18),
                     label: Text(tFmt(context,
-                        'downloads.go', {'n': '${_picked.length}'})),
+                        'offline.delete_go', {'n': '${_picked.length}'})),
                     onPressed: _picked.isEmpty
                         ? null
                         : () => Navigator.of(context).pop(_picked),

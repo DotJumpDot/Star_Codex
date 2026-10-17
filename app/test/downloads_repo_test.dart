@@ -109,24 +109,32 @@ void main() {
         isUnmetered: isUnmetered,
       )..snapshots.listen(snapshots.add);
 
+  /// [prepopulatePages] false simulates a chapter the user NEVER opened in
+  /// the reader (no chapter_pages rows) — the normal download case.
   Future<int> seedChapter(
       {List<String> pages = const ['https://www.example.com/p1.jpg'],
-      String type = 'manhwa'}) async {
+      String type = 'manhwa',
+      double number = 1,
+      bool prepopulatePages = true}) async {
     await db.update('series', {'type': type},
         where: 'title_norm = ?', whereArgs: ['nano machine']);
+    final urlNum =
+        number == number.roundToDouble() ? number.toInt() : number;
     final c = Chapter(
       seriesId: 1,
       sourceId: 'slow-manga',
-      number: 1,
-      url: 'https://www.slow-manga.net/c1',
+      number: number,
+      url: 'https://www.slow-manga.net/c$urlNum',
       fetchedAt: 0,
     );
     source.pagesResults[c.url] = pages;
     final id = await chaptersDao.upsert(c);
-    await chaptersDao.replacePages(id, [
-      for (var i = 0; i < pages.length; i++)
-        ChapterPage(chapterId: id, idx: i, url: pages[i]),
-    ]);
+    if (prepopulatePages) {
+      await chaptersDao.replacePages(id, [
+        for (var i = 0; i < pages.length; i++)
+          ChapterPage(chapterId: id, idx: i, url: pages[i]),
+      ]);
+    }
     await downloadsDao.enqueue(id, createdAt: 1);
     return id;
   }
@@ -152,7 +160,7 @@ void main() {
 
   test('unfailing retries: 3 strikes → error, backoff gates the 2nd try',
       () async {
-    final id = await seedChapter();
+    final id = await seedChapter(prepopulatePages: false);
     source.error = StateError('host down');
     final repo1 = repo();
     await repo1.tick(); // fail 1 → queued + backoff
@@ -171,7 +179,7 @@ void main() {
   });
 
   test('resume retries a failed chapter and finishes it', () async {
-    final id = await seedChapter();
+    final id = await seedChapter(prepopulatePages: false);
     source.error = StateError('down');
     final repo1 = repo();
     await repo1.tick();
@@ -191,7 +199,8 @@ void main() {
     expect(await downloadsDao.isDownloaded(id), isFalse);
 
     await downloadsDao.updateState(id, 'queued');
-    final id2 = await seedChapter();
+    final id2 = await seedChapter(number: 2);
+    expect(id2, isNot(id)); // distinct row, not an upsert onto chapter 1
     await repo1.pauseAll();
     await repo1.tick();
     expect(await downloadsDao.isDownloaded(id), isFalse);
@@ -220,6 +229,8 @@ void main() {
     final id = await seedChapter(type: 'novel');
     source.novelTexts['https://www.slow-manga.net/c1'] = 'ตอนที่ 1\n\nจบ';
     final repo1 = repo();
+    // Text, not pages — the estimate must not burn the 8 MB page default.
+    expect(await repo1.estimateBytes([id]), 64 * 1024);
     await repo1.tick();
     expect(await downloadsDao.isDownloaded(id), isTrue);
     expect(await chaptersDao.text(id), 'ตอนที่ 1\n\nจบ');
@@ -249,6 +260,26 @@ void main() {
     expect(ready, isEmpty);
     final done = await downloadsDao.byState('done');
     expect(done, isEmpty); // demoted, not stale-listed
+  });
+
+  test('un-opened chapter (no page rows): download persists pages + hashes',
+      () async {
+    final id = await seedChapter(prepopulatePages: false, pages: const [
+      'https://www.example.com/a.jpg',
+      'https://www.example.com/b.jpg',
+    ]);
+    final repo1 = repo();
+    await repo1.tick();
+    await repo1.tick();
+
+    // Before the fix: setPageHash wrote to nothing, blobs landed unlinked,
+    // and the done row demoted at the next integrity pass.
+    expect(await downloadsDao.isDownloaded(id), isTrue);
+    final pages = await chaptersDao.pages(id);
+    expect(pages.length, 2);
+    expect(pages.every((p) => p.contentHash != null), isTrue);
+    expect((await chaptersDao.byId(id))!.pageCount, 2);
+    expect(await repo1.readyOffline(), isNotEmpty);
   });
 
   test('estimate: unfetched → 8 MB default; fetched pages use real size',

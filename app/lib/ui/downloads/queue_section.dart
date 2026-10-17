@@ -69,6 +69,7 @@ class QueueSection extends ConsumerWidget {
       DownloadsController controller, QueueRow row) {
     switch (row.state) {
       case 'running':
+      case 'queued': // pullable out of the line before it even starts
         return IconButton(
           tooltip: t(context, 'offline.pause'),
           icon: const Icon(Icons.pause, size: 20),
@@ -94,7 +95,7 @@ class QueueSection extends ConsumerWidget {
           ),
         ]);
       default:
-        return null; // queued: nothing to do but wait
+        return null;
     }
   }
 }

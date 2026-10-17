@@ -418,3 +418,51 @@ prefetching and the settings slider did nothing.
   On-phone DoD items (cold-open, RAM, airplane re-read, quota round-trip
   on device) stay deliberately unchecked until the user's emulator/phone
   session.
+
+## Post-Phase-11 review pass (big model, 2026-10-18)
+
+Bugs found and fixed (Phases 9-11):
+
+1. **Downloads of un-opened chapters were silently useless.** The worker
+   fetched `source.pages()` directly and wrote hashes via setPageHash —
+   which targets `chapter_pages` rows that DON'T EXIST until a chapter is
+   opened in the reader. Blobs landed unlinked; the done row demoted at
+   the next integrity pass. (Tests had masked it by pre-seeding page
+   rows.) The worker is now DB-first like the reader and persists the
+   page list (+ page_count) before fetching.
+2. **times_read inflated ~10x.** The readers persist completed=1 every
+   500 ms while the user sits at the chapter end; every save bumped
+   times_read. Guard: recordCompletion compares against the PREVIOUS
+   HISTORY row's read_at (< 60 s = same session, no bump; none yet or
+   older = bump). Comparing against read_progress instead eats the FIRST
+   completion too — the reader stamps it milliseconds earlier.
+3. **Merge could die on the chapters FK.** Step 4 copied the absorbed
+   library row's last_read_chapter_id verbatim; when that chapter was a
+   dropped duplicate the UPDATE violated the FK and rolled the whole
+   merge back. The id is now verified to have survived ON the primary.
+4. **Offline tab re-queried ready-offline every second.** Every worker
+   tick emitted a fresh snapshot (new list identity) and the tab's
+   listener re-ran its grouped query. Idle ticks no longer refresh at
+   all, and identical snapshots are suppressed by an equality gate
+   (wifiPaused/pinnedBytes/rows by chapterId+state+pagesDone+error).
+5. **Library card cover referer could come from the wrong source** (the
+   first link donated its referer even when a later link supplied the
+   cover URL). Now paired with the supplying link.
+6. **"N ตอนใหม่" badge double-counted mirror copies** of the same new
+   chapter; now distinct chapter numbers.
+7. **Download sheet was empty when the primary link has no chapters
+   yet** (lazy probed link) — falls back to the first non-empty source.
+8. **Novel downloads estimated at 8 MB/chapter** (quota over-refusal
+   ~100x); novels now estimate 64 KB and the estimate is one query.
+9. updates reload ran feed() twice; delete-sheet button reused the
+   "ดาวน์โหลด N ตอน" label; dead updateAge helper removed.
+
+Improvements: queued download rows are now pauseable; error-row resume
+gets a fresh retry budget (queued-row resume keeps the strikes so the
+backoff skip can't reset them); Settings source tile restructured
+(switch on the row, icons below) to avoid narrow-screen overflow;
+readers now stamp read_progress.read_at on completion.
+
+Regression tests added: un-opened-chapter download, times_read spam
+guard, merge-with-dropped-last-read, badge dedupe across mirrors, cover
+referer pairing, novel estimate. 165 tests green.

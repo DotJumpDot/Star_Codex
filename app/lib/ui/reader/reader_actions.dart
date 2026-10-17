@@ -14,11 +14,11 @@ Future<void> persistReaderProgress(
   required int pageIndex,
   required bool completed,
 }) async {
-  await ref
-      .read(chaptersDaoProvider)
-      .saveProgress(chapter.id!, pageIndex: pageIndex, completed: completed);
+  final now = DateTime.now().millisecondsSinceEpoch;
+  await ref.read(chaptersDaoProvider).saveProgress(chapter.id!,
+      pageIndex: pageIndex, completed: completed,
+      readAt: completed ? now : null);
   if (completed) {
-    final now = DateTime.now().millisecondsSinceEpoch;
     await ref
         .read(libraryDaoProvider)
         .markRead(chapter.seriesId, chapter.id!, now);

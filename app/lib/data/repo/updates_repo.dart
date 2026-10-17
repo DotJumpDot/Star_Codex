@@ -3,7 +3,6 @@ import '../dao/library_dao.dart';
 import '../dao/series_dao.dart';
 import '../dao/settings_dao.dart';
 import '../sources/source_api.dart';
-import '../../core/utils/relative_time.dart';
 
 /// One Updates-feed group (doc 13 §B): a library series + its unseen new
 /// chapters across all its sources.
@@ -206,8 +205,3 @@ class UpdatesRepo {
     return n;
   }
 }
-
-/// Relative "2 ชม. ที่แล้ว" for feed rows — reuses the reader's parts so
-/// TH/EN stay in sync.
-({String key, Map<String, String> params}) updateAge(int atMs, {int? nowMs}) =>
-    relativeParts(atMs, nowMs: nowMs);

@@ -15,7 +15,18 @@ import 'detail_controller.dart';
 Future<void> showDownloadSheet(
     BuildContext context, WidgetRef ref, SeriesDetailVm vm, int key) async {
   final primary = vm.primaryLink.sourceId;
-  final chapters = vm.chaptersBySource[primary] ?? const <Chapter>[];
+  var chapters = vm.chaptersBySource[primary] ?? const <Chapter>[];
+  if (chapters.isEmpty) {
+    // A lazily-probed link can be "primary" by last_chapter_number yet
+    // carry no chapters until opened — fall back to the first source
+    // that actually has a list.
+    for (final list in vm.chaptersBySource.values) {
+      if (list.isNotEmpty) {
+        chapters = list;
+        break;
+      }
+    }
+  }
   if (chapters.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(t(context, 'downloads.none'))));
