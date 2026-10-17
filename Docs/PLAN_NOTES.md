@@ -53,3 +53,21 @@ Flutter stable resolved to **3.47.7 / Dart 3.13.5**. On this SDK:
 - Retry tests use an injected fetcher (loopback servers are forbidden by the
   security rule itself); redirect-to-private rejection is enforced by
   re-validating every hop through the same `_validate` covered by unit tests.
+
+## Storage engine notes (Phase 4, 2026-10-17)
+
+- `PageResult.width/height` are null in v1 — decoding dimensions needs the
+  dart:ui codec which is not reachable from plain unit tests; the schema
+  columns are nullable and the reader can fill them in Phase 7 if needed.
+- `fetchAndStore` always performs the network fetch (it must, to hash the
+  original bytes). The zero-network dedup path is the repo read path
+  (`getPage`: content_hash + file-exists → serve directly).
+- Widget tests must not construct `main()`'s 10 s janitor Timer — it lives
+  in `main()` (UncontrolledProviderScope), not in any widget, or the
+  test binding's pending-timer invariant fails.
+- Test gotcha: `sqflite_common_ffi` re-exports `package:file`, whose
+  `File.deleteSync()` returns void — use `dart:io as io` in tests that mix
+  real filesystem work with the ffi import.
+- The Phase 4 DoD "manual on-device check" (blobs ~40% size, airplane
+  re-read) needs the reader UI — it is exercised in Phase 7's on-device
+  verification and again in the Phase 11 release journey.

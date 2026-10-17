@@ -47,6 +47,9 @@ class BlobsDao {
     return rows.isEmpty ? null : BlobRow.fromRow(rows.first);
   }
 
+  Future<List<BlobRow>> all() async =>
+      (await db.query('blobs')).map(BlobRow.fromRow).toList(growable: false);
+
   Future<bool> exists(String hash) async {
     final rows = await db.query('blobs',
         columns: ['hash'], where: 'hash = ?', whereArgs: [hash], limit: 1);
@@ -72,6 +75,12 @@ class BlobsDao {
   Future<int> pinnedBytes() async {
     final r = await db
         .rawQuery('SELECT COALESCE(SUM(bytes), 0) AS n FROM blobs WHERE is_pinned = 1');
+    return (r.first['n'] as num).toInt();
+  }
+
+  Future<int> unpinnedBytes() async {
+    final r = await db
+        .rawQuery('SELECT COALESCE(SUM(bytes), 0) AS n FROM blobs WHERE is_pinned = 0');
     return (r.first['n'] as num).toInt();
   }
 

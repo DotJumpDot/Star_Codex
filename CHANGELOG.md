@@ -34,4 +34,12 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   Thai-date parsing, tool/verify_sources.dart — live-verified latest/search/
   detail/chapters/images on all 4 sites. 29 tests green, analyze clean,
   Dio only in safe_http (grep).
+- 2026-10-17 — Phase 4: storage engine — BlobStore (content-addressed
+  sha256 store, 2-char shards, tmp+rename atomic writes, integrity pass),
+  ImagePipeline (magic-byte validation, dedup, WebP q80 via
+  flutter_image_compress, GIF passthrough, maxWidth hook per S3),
+  CacheJanitor (LRU 5 GiB default, never evicts pinned, pin recompute from
+  done downloads, 100 GiB quota guard, 10 s-after-start + every-50-writes
+  schedule). 36 tests green (dedup, LRU, pins, quota, integrity), analyze
+  clean.
 
