@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/i18n/i18n.dart';
 import '../../core/providers.dart';
+import '../../core/settings_provider.dart';
 import '../../data/dao/blobs_dao.dart';
 import '../../data/repo/browse_merge.dart' show SearchGroup;
 import '../../data/repo/series_repo.dart';
@@ -349,7 +350,10 @@ class _ActionRow extends ConsumerWidget {
                   : () => openReader(context,
                       chapter: target.chapter,
                       sourceId: target.sourceId,
-                      seriesDao: ref.read(seriesDaoProvider)),
+                      seriesDao: ref.read(seriesDaoProvider),
+                      modeOverride: ref
+                          .read(settingsProvider)
+                          .get('reader_mode_${target.chapter.seriesId}', 'auto')),
             ),
           ),
           const SizedBox(width: 8),

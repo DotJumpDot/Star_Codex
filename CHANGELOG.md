@@ -78,3 +78,14 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   settings sheet: prefetch/keep-awake/auto-next), per-page source fallback
   with "จาก X" toast, adjacent-chapter resolution (same-source preferred).
   wakelock_plus added (rule 5 table). 116 tests green, analyze clean.
+- 2026-10-17 — Phase 8 (part 1): Paged + Novel readers (Plan/11) —
+  PagedReaderScreen (horizontal PageView, double-tap zoom/pan via
+  ExtendedImage gesture with tap-gating on scale, left/right/middle tap
+  zones with RTL swap, overscroll→next chapter), NovelReaderScreen
+  (Sarabun paragraphs from chapter_text with indent, adjustable font
+  14–30 / leading 1.4–2.2 / light-sepia-dark themes, scroll-fraction
+  progress at ≥97% completes, end button + 1.5s dwell auto-next), shared
+  reader settings sheet (per-series mode override persisted via
+  reader_mode_<id>, RTL switch, novel extras), resolveReaderMode
+  (override > type default), ReaderRepo.resolvePage shared page fallback
+  + loadNovelText (chapter_text → source fetch → persist).

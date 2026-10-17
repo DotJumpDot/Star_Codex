@@ -71,8 +71,8 @@
   "detail.delete_downloaded": "Delete downloaded files",
   "detail.deleted": "Deleted",
   "detail.read_from": "Read from which site",
-  "reader.mode.webtoon": "Webtoon (vertical)",
-  "reader.mode.paged": "Paged (horizontal)",
+  "reader.mode.webtoon": "Webtoon",
+  "reader.mode.paged": "Paged",
   "reader.mode.novel": "Novel",
   "reader.soon": "The reader arrives in the next phase",
   "relative.now": "just now",
@@ -95,5 +95,14 @@
   "reader.cancel": "Cancel",
   "reader.end": "The end — no next chapter",
   "reader.error_page": "Failed to load this page",
-  "reader.fallback_source": "Reading from {source}"
+  "reader.fallback_source": "Reading from {source}",
+  "reader.mode": "Reading mode",
+  "reader.mode.auto": "Auto",
+  "reader.rtl": "Right-to-left (manga)",
+  "reader.novel.font": "Font size",
+  "reader.novel.line_height": "Line height",
+  "reader.novel.theme": "Theme",
+  "reader.novel.light": "Light",
+  "reader.novel.sepia": "Sepia",
+  "reader.novel.dark": "Dark"
 }

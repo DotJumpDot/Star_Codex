@@ -206,4 +206,54 @@ class ReaderRepo {
   Future<Chapter?> adjacentChapter(Chapter current, {required bool forward}) {
     return chaptersDao.adjacent(current, forward: forward);
   }
+
+  /// Novel chapter body (doc 06/11): `chapter_text` first; missing →
+  /// fetch via the source, persist, return. Novels live on nekopost only,
+  /// so there is no cross-source fallback here.
+  Future<String> loadNovelText(Chapter chapter) async {
+    final existing = await chaptersDao.text(chapter.id!);
+    if (existing != null) return existing;
+    final source = sourceById(chapter.sourceId);
+    if (source == null) {
+      throw SourceException(chapter.sourceId, SourceErrorKind.notFound,
+          detail: 'unknown source');
+    }
+    final text = await source.novelText(chapter.url);
+    if (text == null || text.isEmpty) {
+      throw SourceException(chapter.sourceId, SourceErrorKind.parse,
+          detail: 'empty novel text');
+    }
+    await chaptersDao.saveText(chapter.id!, text);
+    return text;
+  }
+
+  /// Shared page resolver for every reader mode: disk-first → own source
+  /// fetch → per-page fallback across sibling sources (07 §5). [onFallback]
+  /// fires with the serving source id for the UI badge.
+  Future<PageFile> resolvePage(
+    LoadedChapter loaded,
+    int idx, {
+    void Function(String sourceId)? onFallback,
+  }) async {
+    final cached = await cachedFile(loaded.pages[idx]);
+    if (cached != null) return cached;
+    try {
+      return await fetchPage(
+          loaded.chapter.id!, loaded.pages[idx], loaded.referer);
+    } catch (_) {
+      for (final sib in await siblings(loaded.chapter)) {
+        try {
+          final sibLoaded = await loadChapter(sib);
+          if (idx >= sibLoaded.pages.length) continue;
+          final pf = await fetchPage(sibLoaded.chapter.id!,
+              sibLoaded.pages[idx], sibLoaded.referer);
+          onFallback?.call(sibLoaded.chapter.sourceId);
+          return pf;
+        } catch (_) {
+          continue;
+        }
+      }
+      rethrow;
+    }
+  }
 }

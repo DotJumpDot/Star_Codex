@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/i18n/i18n.dart';
 import '../../core/providers.dart';
+import '../../core/settings_provider.dart';
 import '../../data/dao/chapters_dao.dart';
 import '../../data/repo/series_repo.dart';
 import '../browse/source_palette.dart';
@@ -53,7 +54,10 @@ Future<void> showChapterActions(
                 openReader(context,
                     chapter: copy,
                     sourceId: sid,
-                    seriesDao: ref.read(seriesDaoProvider));
+                    seriesDao: ref.read(seriesDaoProvider),
+                    modeOverride: ref
+                        .read(settingsProvider)
+                        .get('reader_mode_${chapter.seriesId}', 'auto'));
               },
             ),
           const Divider(),

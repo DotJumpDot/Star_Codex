@@ -47,8 +47,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   final _scroll = ScrollController();
 
-  int get _prefetchAhead =>
-      ref.read(settingsProvider).getInt('reader_prefetch_ahead', 6);
   bool get _keepAwake =>
       ref.read(settingsProvider).getBool('reader_keep_awake', true);
   bool get _autoNext =>
@@ -126,37 +124,18 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     }
   }
 
-  /// One page, disk-first; on failure fall to the next sibling source's
-  /// copy of the same number (07 §5) and badge it.
-  Future<PageFile> _resolvePage(int idx) async {
+  /// One page via the shared resolver: disk → own source → sibling
+  /// sources (07 §5), badge the fallback source.
+  Future<PageFile> _resolvePage(int idx) {
     final loaded = _loaded!;
-    final ref = loaded.pages[idx];
-    final cached = await _repo.cachedFile(ref);
-    if (cached != null) return cached;
-    try {
-      return await _repo.fetchPage(loaded.chapter.id!, ref, loaded.referer);
-    } catch (e) {
-      final sibs = await _repo.siblings(loaded.chapter);
-      for (final sib in sibs) {
-        try {
-          final sibLoaded = await _repo.loadChapter(sib);
-          if (idx >= sibLoaded.pages.length) continue;
-          final pf = await _repo.fetchPage(
-              sibLoaded.chapter.id!, sibLoaded.pages[idx], sibLoaded.referer);
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(tFmt(context, 'reader.fallback_source',
-                  {'source': sibLoaded.chapter.sourceId})),
-              duration: const Duration(seconds: 2),
-            ));
-          }
-          return pf;
-        } catch (_) {
-          continue;
-        }
-      }
-      rethrow;
-    }
+    return _repo.resolvePage(loaded, idx, onFallback: (sourceId) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(tFmt(
+            context, 'reader.fallback_source', {'source': sourceId})),
+        duration: const Duration(seconds: 2),
+      ));
+    });
   }
 
   void _onDimensions(int idx, int? w, int? h) {
@@ -378,19 +357,27 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 messenger.showSnackBar(SnackBar(content: Text(endText)));
               }
             },
-            onSettings: () => showReaderSettings(
-              context,
-              prefetchAhead: _prefetchAhead,
-              keepAwake: _keepAwake,
-              autoNext: _autoNext,
-              onChanged: (prefetch, awake, autoNext) {
-                final c = ref.read(settingsProvider.notifier);
-                c.set('reader_prefetch_ahead', '$prefetch');
-                c.set('reader_keep_awake', awake ? '1' : '0');
-                c.set('reader_auto_next', autoNext ? '1' : '0');
-                _setAwake(awake);
-              },
-            ),
+            onSettings: () {
+              final settings = ref.read(settingsProvider);
+              final controller = ref.read(settingsProvider.notifier);
+              final seriesId = widget.chapter.seriesId;
+              showReaderSettings(
+                context,
+                prefetchAhead: settings.getInt('reader_prefetch_ahead', 6),
+                keepAwake: settings.getBool('reader_keep_awake', true),
+                autoNext: settings.getBool('reader_auto_next', true),
+                rtl: settings.getBool('reader_rtl', false),
+                mode: settings.get('reader_mode_$seriesId', 'auto'),
+                onMode: (m) => controller.set('reader_mode_$seriesId', m),
+                onChanged: (prefetch, awake, autoNext, rtl) {
+                  controller.set('reader_prefetch_ahead', '$prefetch');
+                  controller.set('reader_keep_awake', awake ? '1' : '0');
+                  controller.set('reader_auto_next', autoNext ? '1' : '0');
+                  controller.set('reader_rtl', rtl ? '1' : '0');
+                  _setAwake(awake);
+                },
+              );
+            },
             onSeek: (v) {
               final total = loaded?.pages.length ?? 1;
               _jumpTo((v * (total - 1)).round());

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/i18n/i18n.dart';
 import '../../core/providers.dart';
+import '../../core/settings_provider.dart';
 import '../../core/utils/relative_time.dart';
 import '../../core/utils/thai.dart';
 import '../../data/dao/chapters_dao.dart';
@@ -291,7 +292,10 @@ class _ChapterRow extends ConsumerWidget {
       onTap: () => openReader(context,
           chapter: chapter,
           sourceId: sourceId,
-          seriesDao: ref.read(seriesDaoProvider)),
+          seriesDao: ref.read(seriesDaoProvider),
+          modeOverride: ref
+              .read(settingsProvider)
+              .get('reader_mode_${chapter.seriesId}', 'auto')),
       onLongPress: () => showChapterActions(context, ref,
           vm: vm, chapter: chapter, carryingSourceIds: carrying),
     );

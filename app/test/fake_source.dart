@@ -11,6 +11,7 @@ class FakeSource implements Source {
     this.genreList = const [],
     this.details = const {},
     this.pagesResults = const {},
+    this.novelTexts = const {},
     this.error,
   });
 
@@ -27,12 +28,16 @@ class FakeSource implements Source {
   /// Keyed by chapter URL; missing key → parse error (empty list).
   final Map<String, List<String>> pagesResults;
 
+  /// Keyed by chapter URL; missing key → null (doc 06: image+null = bug).
+  final Map<String, String> novelTexts;
+
   /// When non-null, every network call throws it (Cloudflare simulation).
   final Object? error;
 
   int searchCalls = 0;
   int detailCalls = 0;
   int pagesCalls = 0;
+  int novelCalls = 0;
   List<String> searchedQueries = [];
 
   @override
@@ -90,5 +95,9 @@ class FakeSource implements Source {
   }
 
   @override
-  Future<String?> novelText(String chapterUrl) async => null;
+  Future<String?> novelText(String chapterUrl) async {
+    novelCalls++;
+    if (error != null) throw error!;
+    return novelTexts[chapterUrl];
+  }
 }

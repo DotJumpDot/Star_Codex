@@ -71,8 +71,8 @@
   "detail.delete_downloaded": "ลบไฟล์ที่ดาวน์โหลด",
   "detail.deleted": "ลบแล้ว",
   "detail.read_from": "อ่านจากเว็บไหน",
-  "reader.mode.webtoon": "เว็บตูน (เลื่อนแนวตั้ง)",
-  "reader.mode.paged": "หน้าต่อหน้า (แนวนอน)",
+  "reader.mode.webtoon": "เว็บตูน",
+  "reader.mode.paged": "หน้าต่อหน้า",
   "reader.mode.novel": "นิยาย",
   "reader.soon": "ตัวอ่านจะพร้อมในเฟสถัดไป",
   "relative.now": "เมื่อสักครู่",
@@ -95,5 +95,14 @@
   "reader.cancel": "ยกเลิก",
   "reader.end": "จบแล้ว — ไม่มีตอนถัดไป",
   "reader.error_page": "โหลดหน้านี้ไม่สำเร็จ",
-  "reader.fallback_source": "กำลังอ่านจาก {source}"
+  "reader.fallback_source": "กำลังอ่านจาก {source}",
+  "reader.mode": "โหมดอ่าน",
+  "reader.mode.auto": "อัตโนมัติ",
+  "reader.rtl": "อ่านจากขวาไปซ้าย (มังงะญี่ปุ่น)",
+  "reader.novel.font": "ขนาดตัวอักษร",
+  "reader.novel.line_height": "ระยะบรรทัด",
+  "reader.novel.theme": "โหมดสี",
+  "reader.novel.light": "ขาว",
+  "reader.novel.sepia": "น้ำตาลเหลือง",
+  "reader.novel.dark": "ดำ"
 }

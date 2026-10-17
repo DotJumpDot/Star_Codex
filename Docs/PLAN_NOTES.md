@@ -252,3 +252,14 @@ Also this pass:
   everything (scroll reset per doc 10 §6).
 - reading_history upsert stays in Phase 9 (15-BUILD-ORDER); completion
   currently writes read_progress + library.last_read_*.
+
+## Phase 8 part 1 (2026-10-17) — paged + novel readers
+
+- extended_image 10.1: zoom state is read via `extendedImageGestureKey` →
+  `ExtendedImageGestureState.gestureDetails.totalScale` (there is no
+  `.scale` on GestureDetails; 0/1 means unzoomed → tap zones active).
+- Flutter 3.47: `RadioListTile` groupValue/onChanged deprecated in favor
+  of the `RadioGroup<T>` ancestor widget; ListView's `cacheExtent` →
+  `scrollCacheExtent: ScrollCacheExtent.pixels(...)` (rendering import).
+- Novel novels have no cross-source fallback (single-source by nature);
+  loadNovelText rejects empty text as a parse bug per doc 06 §3.
