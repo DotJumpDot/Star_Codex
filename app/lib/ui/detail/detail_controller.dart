@@ -26,7 +26,8 @@ class DetailController extends StateNotifier<AsyncValue<SeriesDetailVm>> {
     required this.libraryRepo,
     required this.settingsDao,
     required this.downloadsRepo,
-  }) : _explicitId = seriesId, super(const AsyncValue.loading());
+  }) : _explicitId = seriesId,
+       super(const AsyncValue.loading());
 
   /// Browse-card entries carry a group and NO id; the row is materialized
   /// on first load ([SeriesRepo.ensureSeries]). Library/detail entries
@@ -81,18 +82,28 @@ class DetailController extends StateNotifier<AsyncValue<SeriesDetailVm>> {
     if (completed) {
       final existing = cur.progress[chapterId];
       final now = DateTime.now().millisecondsSinceEpoch;
-      await chaptersDao.saveProgress(chapterId,
-          pageIndex: existing?.pageIndex ?? 0, completed: true, readAt: now);
+      await chaptersDao.saveProgress(
+        chapterId,
+        pageIndex: existing?.pageIndex ?? 0,
+        completed: true,
+        readAt: now,
+      );
       await libraryDao.markRead(seriesId, chapterId, now);
       // Same "completed=1" moment as the readers (doc 12 §5 write path).
       await historyDao.recordCompletion(chapterId, seriesId, now);
-      state = AsyncValue.data(cur.copyWith(
-        progress: {
-          ...cur.progress,
-          chapterId: (pageIndex: existing?.pageIndex ?? 0, completed: true, readAt: now),
-        },
-        lastReadChapterId: chapterId,
-      ));
+      state = AsyncValue.data(
+        cur.copyWith(
+          progress: {
+            ...cur.progress,
+            chapterId: (
+              pageIndex: existing?.pageIndex ?? 0,
+              completed: true,
+              readAt: now,
+            ),
+          },
+          lastReadChapterId: chapterId,
+        ),
+      );
     } else {
       await chaptersDao.clearProgress(chapterId);
       final progress = {...cur.progress}..remove(chapterId);
@@ -105,7 +116,9 @@ class DetailController extends StateNotifier<AsyncValue<SeriesDetailVm>> {
     final cur = state.valueOrNull;
     if (cur == null) return;
     await settingsDao.upsert(
-        'chapter_sort_$seriesId', oldestFirst ? 'asc' : 'desc');
+      'chapter_sort_$seriesId',
+      oldestFirst ? 'asc' : 'desc',
+    );
     state = AsyncValue.data(cur.copyWith(sortOldestFirst: oldestFirst));
   }
 
@@ -116,8 +129,7 @@ class DetailController extends StateNotifier<AsyncValue<SeriesDetailVm>> {
       await libraryDao.remove(seriesId);
       state = AsyncValue.data(cur.copyWith(inLibrary: false));
     } else {
-      await libraryDao.add(
-          seriesId, DateTime.now().millisecondsSinceEpoch);
+      await libraryDao.add(seriesId, DateTime.now().millisecondsSinceEpoch);
       state = AsyncValue.data(cur.copyWith(inLibrary: true));
     }
   }
@@ -128,22 +140,25 @@ class DetailController extends StateNotifier<AsyncValue<SeriesDetailVm>> {
   /// Enqueue a batch (download sheet: range / unread / all). Quota is
   /// checked FIRST with the repo's size estimate — throws QuotaException
   /// with the remaining free bytes on refusal (doc 13 §A).
-  Future<void> enqueueDownloads(List<int> chapterIds,
-      {int priority = 1}) async {
+  Future<void> enqueueDownloads(
+    List<int> chapterIds, {
+    int priority = 1,
+  }) async {
     final cur = state.valueOrNull;
     if (cur == null || chapterIds.isEmpty) return;
-    await downloadsRepo.janitor
-        .enforceQuota(await downloadsRepo.estimateBytes(chapterIds));
+    await downloadsRepo.janitor.enforceQuota(
+      await downloadsRepo.estimateBytes(chapterIds),
+    );
     final base = DateTime.now().millisecondsSinceEpoch;
     var i = 0;
     for (final id in chapterIds) {
-      await downloadsDao.enqueue(id,
-          priority: priority, createdAt: base + i++);
+      await downloadsDao.enqueue(id, priority: priority, createdAt: base + i++);
     }
-    state = AsyncValue.data(cur.copyWith(downloadedChapterIds: {
-      ...cur.downloadedChapterIds,
-      ...chapterIds,
-    }));
+    state = AsyncValue.data(
+      cur.copyWith(
+        downloadedChapterIds: {...cur.downloadedChapterIds, ...chapterIds},
+      ),
+    );
   }
 
   Future<void> deleteDownload(int chapterId) async {
@@ -206,25 +221,41 @@ class DetailController extends StateNotifier<AsyncValue<SeriesDetailVm>> {
   }
 }
 
-final detailControllerProvider = StateNotifierProvider.family<
-    DetailController, AsyncValue<SeriesDetailVm>, int>((ref, key) {
-  return DetailController(
-    seriesId: key < 0 ? null : key,
-    group: ref.watch(detailGroupProvider(key)),
-    repo: ref.watch(seriesRepoProvider),
-    chaptersDao: ref.watch(chaptersDaoProvider),
-    downloadsDao: ref.watch(downloadsDaoProvider),
-    libraryDao: ref.watch(libraryDaoProvider),
-    historyDao: ref.watch(historyDaoProvider),
-    libraryRepo: ref.watch(libraryRepoProvider),
-    settingsDao: ref.watch(settingsDaoProvider),
-    downloadsRepo: ref.watch(downloadsRepoProvider),
-  );
-});
+/// Provider-family key for detail controllers (Plan/09): library opens
+/// carry the saved [id]; browse-card opens carry the listing [group] and
+/// the series row materializes on first load. The group uses IDENTITY
+/// equality (two cards with the same title keep separate controllers).
+class DetailKey {
+  const DetailKey.id(int this.id) : group = null;
+  const DetailKey.forGroup(SearchGroup this.group) : id = null;
 
-/// Browse-card → detail passes the listing group through this family
-/// provider, overridden by the nested ProviderScope at the push site (a
-/// SearchGroup can't be a provider-family key; -1 is the "from browse"
-/// sentinel key).
-final detailGroupProvider =
-    Provider.family<SearchGroup?, int>((ref, key) => null);
+  final int? id;
+  final SearchGroup? group;
+
+  @override
+  bool operator ==(Object other) =>
+      other is DetailKey && other.id == id && identical(other.group, group);
+
+  @override
+  int get hashCode => id ?? identityHashCode(group);
+}
+
+final detailControllerProvider =
+    StateNotifierProvider.family<
+      DetailController,
+      AsyncValue<SeriesDetailVm>,
+      DetailKey
+    >((ref, key) {
+      return DetailController(
+        seriesId: key.id,
+        group: key.group,
+        repo: ref.watch(seriesRepoProvider),
+        chaptersDao: ref.watch(chaptersDaoProvider),
+        downloadsDao: ref.watch(downloadsDaoProvider),
+        libraryDao: ref.watch(libraryDaoProvider),
+        historyDao: ref.watch(historyDaoProvider),
+        libraryRepo: ref.watch(libraryRepoProvider),
+        settingsDao: ref.watch(settingsDaoProvider),
+        downloadsRepo: ref.watch(downloadsRepoProvider),
+      );
+    });

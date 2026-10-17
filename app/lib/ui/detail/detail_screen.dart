@@ -29,8 +29,9 @@ class DetailScreen extends ConsumerStatefulWidget {
   final int? seriesId;
   final SearchGroup? group;
 
-  /// Provider-family key; -1 = "materialize from [group]".
-  int get _key => seriesId ?? -1;
+  /// Provider-family key; groups key by identity (row materializes).
+  DetailKey get _key =>
+      seriesId != null ? DetailKey.id(seriesId!) : DetailKey.forGroup(group!);
 
   @override
   ConsumerState<DetailScreen> createState() => _DetailScreenState();
@@ -50,8 +51,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(detailControllerProvider(widget._key));
-    final controller =
-        ref.read(detailControllerProvider(widget._key).notifier);
+    final controller = ref.read(detailControllerProvider(widget._key).notifier);
     final vm = async.valueOrNull;
 
     Widget body;
@@ -73,18 +73,21 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
     } else if (vm == null) {
       body = const Center(child: CircularProgressIndicator());
     } else {
-      // Children must talk to THIS screen's controller (family key = -1
-      // when opened from a browse card — vm.series.id would resolve to a
-      // different, empty controller and every action button would
-      // dead-end).
+      // Children must talk to THIS screen's controller (DetailKey =
+      // -1-keyed when opened from a browse card — vm.series.id would
+      // resolve to a different, empty controller and every action button
+      // would dead-end).
       body = _DetailBody(vm: vm, controllerKey: widget._key);
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(vm?.series.title ?? '',
-            maxLines: 1, overflow: TextOverflow.ellipsis),
-        actions: [_Menu(vm: vm, seriesId: widget._key)],
+        title: Text(
+          vm?.series.title ?? '',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        actions: [_Menu(vm: vm, controllerKey: widget._key)],
       ),
       body: body,
     );
@@ -95,10 +98,10 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
 /// a dependency outside the allowed table — clipboard is the substitute,
 /// noted in PLAN_NOTES). ผสานเรื่อง arrives with Phase 9's manual merge.
 class _Menu extends StatelessWidget {
-  const _Menu({required this.vm, required this.seriesId});
+  const _Menu({required this.vm, required this.controllerKey});
 
   final SeriesDetailVm? vm;
-  final int seriesId;
+  final DetailKey controllerKey;
 
   @override
   Widget build(BuildContext context) {
@@ -110,25 +113,30 @@ class _Menu extends StatelessWidget {
       switch (action) {
         case 'probe':
           final added = await container
-              .read(detailControllerProvider(seriesId).notifier)
+              .read(detailControllerProvider(controllerKey).notifier)
               .probeOthers();
           if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(
-                t(context, added ? 'detail.probe_found' : 'detail.probe_done')),
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                t(context, added ? 'detail.probe_found' : 'detail.probe_done'),
+              ),
+            ),
+          );
         case 'open':
-          launchUrl(Uri.parse(link.sourceUrl),
-              mode: LaunchMode.externalApplication);
+          launchUrl(
+            Uri.parse(link.sourceUrl),
+            mode: LaunchMode.externalApplication,
+          );
         case 'copy':
           await Clipboard.setData(ClipboardData(text: link.sourceUrl));
           if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(t(context, 'detail.link_copied'))));
+            SnackBar(content: Text(t(context, 'detail.link_copied'))),
+          );
         case 'merge':
           final id = current.series.id!;
-          await showMergeDialog(
-              context, container, id, current.series.title);
+          await showMergeDialog(context, container, id, current.series.title);
         case 'split':
           await showSplitDialog(context, container, current.series.id!);
       }
@@ -138,21 +146,26 @@ class _Menu extends StatelessWidget {
       onSelected: onSelected,
       itemBuilder: (context) => [
         PopupMenuItem(
-            value: 'probe',
-            child: Text(t(context, 'detail.menu.find_other'))),
+          value: 'probe',
+          child: Text(t(context, 'detail.menu.find_other')),
+        ),
         PopupMenuItem(
-            value: 'open',
-            child: Text(t(context, 'detail.menu.open_site'))),
+          value: 'open',
+          child: Text(t(context, 'detail.menu.open_site')),
+        ),
         PopupMenuItem(
-            value: 'copy',
-            child: Text(t(context, 'detail.menu.copy_link'))),
+          value: 'copy',
+          child: Text(t(context, 'detail.menu.copy_link')),
+        ),
         PopupMenuItem(
-            value: 'merge',
-            child: Text(t(context, 'detail.menu.merge'))),
+          value: 'merge',
+          child: Text(t(context, 'detail.menu.merge')),
+        ),
         if (current.links.length > 1)
           PopupMenuItem(
-              value: 'split',
-              child: Text(t(context, 'detail.menu.split'))),
+            value: 'split',
+            child: Text(t(context, 'detail.menu.split')),
+          ),
       ],
     );
   }
@@ -162,7 +175,7 @@ class _DetailBody extends ConsumerStatefulWidget {
   const _DetailBody({required this.vm, required this.controllerKey});
 
   final SeriesDetailVm vm;
-  final int controllerKey;
+  final DetailKey controllerKey;
 
   @override
   ConsumerState<_DetailBody> createState() => _DetailBodyState();
@@ -190,19 +203,22 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(series.title,
-                        style: Theme.of(context).textTheme.titleLarge),
+                    Text(
+                      series.title,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
                     if (series.originalTitle != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
-                        child: Text(series.originalTitle!,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant)),
+                        child: Text(
+                          series.originalTitle!,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                        ),
                       ),
                     if (vm.altTitles.isNotEmpty)
                       GestureDetector(
@@ -212,15 +228,13 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
                           '${t(context, 'detail.alt_titles')}: '
                           '${vm.altTitles.join(', ')}',
                           maxLines: _altExpanded ? null : 1,
-                          overflow:
-                              _altExpanded ? null : TextOverflow.ellipsis,
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelSmall
+                          overflow: _altExpanded ? null : TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.labelSmall
                               ?.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant),
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
                         ),
                       ),
                     const SizedBox(height: 6),
@@ -251,50 +265,52 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
             children: [
               for (var i = 0; i < vm.links.length; i++)
                 _chip(
-                    vm.sourceNames[vm.links[i].sourceId] ??
-                        vm.links[i].sourceId,
-                    dotIndex: i),
+                  vm.sourceNames[vm.links[i].sourceId] ?? vm.links[i].sourceId,
+                  dotIndex: i,
+                ),
             ],
           ),
         ),
         _ActionRow(vm: vm, controllerKey: widget.controllerKey),
         if (series.description != null && series.description!.isNotEmpty)
           _Description(
-              vm: vm,
-              expanded: _descExpanded,
-              onToggle: () => setState(() => _descExpanded = !_descExpanded)),
+            vm: vm,
+            expanded: _descExpanded,
+            onToggle: () => setState(() => _descExpanded = !_descExpanded),
+          ),
         if (vm.tags.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: _TagRow(tags: vm.tags),
           ),
         Expanded(
-            child: ChapterList(vm: vm, controllerKey: widget.controllerKey)),
+          child: ChapterList(vm: vm, controllerKey: widget.controllerKey),
+        ),
       ],
     );
   }
 
   Widget _chip(String label, {int? dotIndex}) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(999),
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(999),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (dotIndex != null) ...[
+          SourceDot(color: sourceDotColor(dotIndex)),
+          const SizedBox(width: 5),
+        ],
+        Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall
+              ?.copyWith(fontWeight: FontWeight.w600),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (dotIndex != null) ...[
-              SourceDot(color: sourceDotColor(dotIndex)),
-              const SizedBox(width: 5),
-            ],
-            Text(label,
-                style: Theme.of(context)
-                    .textTheme
-                    .labelSmall
-                    ?.copyWith(fontWeight: FontWeight.w600)),
-          ],
-        ),
-      );
+      ],
+    ),
+  );
 }
 
 /// Cover: `series.cover_hash` blob file first; evicted → fetch the first
@@ -351,8 +367,11 @@ class _CoverState extends ConsumerState<_Cover> {
       width: 120,
       height: 170,
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      child: Icon(Icons.image_outlined,
-          size: 32, color: Theme.of(context).colorScheme.outline),
+      child: Icon(
+        Icons.image_outlined,
+        size: 32,
+        color: Theme.of(context).colorScheme.outline,
+      ),
     );
   }
 }
@@ -361,12 +380,13 @@ class _ActionRow extends ConsumerWidget {
   const _ActionRow({required this.vm, required this.controllerKey});
 
   final SeriesDetailVm vm;
-  final int controllerKey;
+  final DetailKey controllerKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final controller =
-        ref.read(detailControllerProvider(controllerKey).notifier);
+    final controller = ref.read(
+      detailControllerProvider(controllerKey).notifier,
+    );
     final target = continueTarget(vm);
 
     return Padding(
@@ -381,31 +401,36 @@ class _ActionRow extends ConsumerWidget {
                   ? null
                   : () {
                       final settings = ref.read(settingsProvider);
-                      openReader(context,
-                          chapter: target.chapter,
-                          sourceId: target.sourceId,
-                          seriesDao: ref.read(seriesDaoProvider),
-                          modeOverride: effectiveModeOverride(
-                              settings.get('reader_mode_'
-                                  '${target.chapter.seriesId}', 'auto'),
-                              settings.get(
-                                  'reader_mode_default', 'auto')));
+                      openReader(
+                        context,
+                        chapter: target.chapter,
+                        sourceId: target.sourceId,
+                        seriesDao: ref.read(seriesDaoProvider),
+                        modeOverride: effectiveModeOverride(
+                          settings.get(
+                            'reader_mode_'
+                                '${target.chapter.seriesId}',
+                            'auto',
+                          ),
+                          settings.get('reader_mode_default', 'auto'),
+                        ),
+                      );
                     },
             ),
           ),
           const SizedBox(width: 8),
           IconButton.filledTonal(
             tooltip: t(
-                context,
-                vm.inLibrary ? 'detail.remove_library' : 'detail.add_library'),
+              context,
+              vm.inLibrary ? 'detail.remove_library' : 'detail.add_library',
+            ),
             icon: Icon(vm.inLibrary ? Icons.delete_outline : Icons.add),
             onPressed: controller.toggleLibrary,
           ),
           IconButton(
             tooltip: t(context, 'detail.download'),
             icon: const Icon(Icons.download_outlined),
-            onPressed: () => showDownloadSheet(
-                context, ref, vm, controllerKey),
+            onPressed: () => showDownloadSheet(context, ref, vm, controllerKey),
           ),
         ],
       ),
@@ -414,8 +439,11 @@ class _ActionRow extends ConsumerWidget {
 }
 
 class _Description extends StatelessWidget {
-  const _Description(
-      {required this.vm, required this.expanded, required this.onToggle});
+  const _Description({
+    required this.vm,
+    required this.expanded,
+    required this.onToggle,
+  });
 
   final SeriesDetailVm vm;
   final bool expanded;
@@ -444,10 +472,12 @@ class _Description extends StatelessWidget {
             children: [
               if (captionSource != null)
                 Text(
-                  tFmt(context, 'detail.description_from',
-                      {'source': captionSource}),
+                  tFmt(context, 'detail.description_from', {
+                    'source': captionSource,
+                  }),
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               const Spacer(),
               InkWell(
@@ -455,13 +485,13 @@ class _Description extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: Text(
-                    t(context,
-                        expanded ? 'detail.read_less' : 'detail.read_more'),
-                    style: Theme.of(context)
-                        .textTheme
-                        .labelSmall
-                        ?.copyWith(
-                            color: Theme.of(context).colorScheme.primary),
+                    t(
+                      context,
+                      expanded ? 'detail.read_less' : 'detail.read_more',
+                    ),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
                 ),
               ),

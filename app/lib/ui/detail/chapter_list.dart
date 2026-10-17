@@ -18,14 +18,12 @@ import 'detail_controller.dart';
 /// series_sources member, per-chapter source dots (09 addendum), sort
 /// toggle, search-in-chapters.
 class ChapterList extends ConsumerStatefulWidget {
-  const ChapterList(
-      {super.key, required this.vm, required this.controllerKey});
-
+  const ChapterList({super.key, required this.vm, required this.controllerKey});
   final SeriesDetailVm vm;
 
   /// The screen's provider-family key (-1 when opened from browse) — NOT
   /// vm.series.id, which resolves to a different controller there.
-  final int controllerKey;
+  final DetailKey controllerKey;
 
   @override
   ConsumerState<ChapterList> createState() => _ChapterListState();
@@ -59,7 +57,8 @@ class _ChapterListState extends ConsumerState<ChapterList>
   Widget build(BuildContext context) {
     final vm = widget.vm;
     final tabs = _controller();
-    final primaryCount = vm.chaptersBySource[vm.primaryLink.sourceId]?.length ?? 0;
+    final primaryCount =
+        vm.chaptersBySource[vm.primaryLink.sourceId]?.length ?? 0;
 
     return Column(
       children: [
@@ -74,30 +73,29 @@ class _ChapterListState extends ConsumerState<ChapterList>
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(vm.sourceNames[link.sourceId] ?? link.sourceId,
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(
+                      vm.sourceNames[link.sourceId] ?? link.sourceId,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     if ((vm.chaptersBySource[link.sourceId]?.length ?? 0) >
                         primaryCount)
                       Container(
                         margin: const EdgeInsets.only(top: 2),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 1),
+                          horizontal: 6,
+                          vertical: 1,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFF2E7D32),
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
-                          tFmt(
-                              context,
-                              'detail.more_chapters',
-                              {
-                                'n':
-                                    '${vm.chaptersBySource[link.sourceId]!.length}',
-                              },
-                          ),
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelSmall
+                          tFmt(context, 'detail.more_chapters', {
+                            'n':
+                                '${vm.chaptersBySource[link.sourceId]!.length}',
+                          }),
+                          style: Theme.of(context).textTheme.labelSmall
                               ?.copyWith(color: Colors.white),
                         ),
                       ),
@@ -119,7 +117,8 @@ class _ChapterListState extends ConsumerState<ChapterList>
                     prefixIcon: const Icon(Icons.search, size: 20),
                     hintText: t(context, 'detail.search_chapters'),
                     border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20)),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
                     suffixIcon: _search.text.isEmpty
                         ? null
                         : IconButton(
@@ -133,15 +132,21 @@ class _ChapterListState extends ConsumerState<ChapterList>
                 ),
               ),
               IconButton(
-                tooltip: t(context, vm.sortOldestFirst
-                    ? 'detail.sort.newest'
-                    : 'detail.sort.oldest'),
-                icon: Icon(vm.sortOldestFirst
-                    ? Icons.arrow_downward
-                    : Icons.arrow_upward),
+                tooltip: t(
+                  context,
+                  vm.sortOldestFirst
+                      ? 'detail.sort.newest'
+                      : 'detail.sort.oldest',
+                ),
+                icon: Icon(
+                  vm.sortOldestFirst
+                      ? Icons.arrow_downward
+                      : Icons.arrow_upward,
+                ),
                 onPressed: () => ref
                     .read(
-                        detailControllerProvider(widget.controllerKey).notifier)
+                      detailControllerProvider(widget.controllerKey).notifier,
+                    )
                     .setSort(oldestFirst: !vm.sortOldestFirst),
               ),
             ],
@@ -153,10 +158,11 @@ class _ChapterListState extends ConsumerState<ChapterList>
             children: [
               for (final link in vm.links)
                 _SourceChapters(
-                    vm: vm,
-                    link: link,
-                    query: _search.text,
-                    controllerKey: widget.controllerKey),
+                  vm: vm,
+                  link: link,
+                  query: _search.text,
+                  controllerKey: widget.controllerKey,
+                ),
             ],
           ),
         ),
@@ -176,14 +182,18 @@ class _SourceChapters extends ConsumerWidget {
   final SeriesDetailVm vm;
   final SeriesSource link;
   final String query;
-  final int controllerKey;
+  final DetailKey controllerKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    var chapters = [...(vm.chaptersBySource[link.sourceId] ?? const <Chapter>[])];
-    chapters.sort((a, b) => vm.sortOldestFirst
-        ? a.number.compareTo(b.number)
-        : b.number.compareTo(a.number));
+    var chapters = [
+      ...(vm.chaptersBySource[link.sourceId] ?? const <Chapter>[]),
+    ];
+    chapters.sort(
+      (a, b) => vm.sortOldestFirst
+          ? a.number.compareTo(b.number)
+          : b.number.compareTo(a.number),
+    );
     final q = query.trim().toLowerCase();
     if (q.isNotEmpty) {
       bool hit(Chapter c) =>
@@ -207,10 +217,11 @@ class _SourceChapters extends ConsumerWidget {
     return ListView.builder(
       itemCount: chapters.length,
       itemBuilder: (context, i) => _ChapterRow(
-          vm: vm,
-          chapter: chapters[i],
-          sourceId: link.sourceId,
-          controllerKey: controllerKey),
+        vm: vm,
+        chapter: chapters[i],
+        sourceId: link.sourceId,
+        controllerKey: controllerKey,
+      ),
     );
   }
 }
@@ -226,7 +237,7 @@ class _ChapterRow extends ConsumerWidget {
   final SeriesDetailVm vm;
   final Chapter chapter;
   final String sourceId;
-  final int controllerKey;
+  final DetailKey controllerKey;
 
   /// Sources carrying this exact chapter number (epsilon), in tab order —
   /// the colored chips of the doc 09 addendum.
@@ -250,26 +261,33 @@ class _ChapterRow extends ConsumerWidget {
     final dateText = uploadedAt == null
         ? null
         : (() {
-            final parts = relativeParts(uploadedAt,
-                nowMs: DateTime.now().millisecondsSinceEpoch);
+            final parts = relativeParts(
+              uploadedAt,
+              nowMs: DateTime.now().millisecondsSinceEpoch,
+            );
             return tFmt(context, parts.key, parts.params);
           })();
 
     return ListTile(
       dense: true,
       title: Text.rich(
-        TextSpan(children: [
-          TextSpan(
-            text: tFmt(context, 'detail.chapter_number',
-                {'n': formatChapterNumber(chapter.number)}),
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-          if (extra != null)
+        TextSpan(
+          children: [
             TextSpan(
+              text: tFmt(context, 'detail.chapter_number', {
+                'n': formatChapterNumber(chapter.number),
+              }),
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            if (extra != null)
+              TextSpan(
                 text: '  $extra',
                 style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
-        ]),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+          ],
+        ),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
@@ -282,18 +300,25 @@ class _ChapterRow extends ConsumerWidget {
               padding: const EdgeInsets.only(left: 3),
               child: SourceDot(
                 color: sourceDotColor(
-                    vm.links.indexWhere((l) => l.sourceId == sid)),
+                  vm.links.indexWhere((l) => l.sourceId == sid),
+                ),
               ),
             ),
           if (downloaded) ...[
             const SizedBox(width: 6),
-            Icon(Icons.download,
-                size: 16, color: Theme.of(context).colorScheme.primary),
+            Icon(
+              Icons.download,
+              size: 16,
+              color: Theme.of(context).colorScheme.primary,
+            ),
           ],
           const SizedBox(width: 6),
           if (completed)
-            Icon(Icons.check_circle,
-                size: 18, color: Theme.of(context).colorScheme.primary)
+            Icon(
+              Icons.check_circle,
+              size: 18,
+              color: Theme.of(context).colorScheme.primary,
+            )
           else
             Container(
               width: 8,
@@ -301,26 +326,34 @@ class _ChapterRow extends ConsumerWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                    color: Theme.of(context).colorScheme.primary, width: 1.5),
+                  color: Theme.of(context).colorScheme.primary,
+                  width: 1.5,
+                ),
               ),
             ),
         ],
       ),
       onTap: () {
-          final settings = ref.read(settingsProvider);
-          openReader(context,
-              chapter: chapter,
-              sourceId: sourceId,
-              seriesDao: ref.read(seriesDaoProvider),
-              modeOverride: effectiveModeOverride(
-                  settings.get('reader_mode_${chapter.seriesId}', 'auto'),
-                  settings.get('reader_mode_default', 'auto')));
-        },
-      onLongPress: () => showChapterActions(context, ref,
-          vm: vm,
+        final settings = ref.read(settingsProvider);
+        openReader(
+          context,
           chapter: chapter,
-          carryingSourceIds: carrying,
-          controllerKey: controllerKey),
+          sourceId: sourceId,
+          seriesDao: ref.read(seriesDaoProvider),
+          modeOverride: effectiveModeOverride(
+            settings.get('reader_mode_${chapter.seriesId}', 'auto'),
+            settings.get('reader_mode_default', 'auto'),
+          ),
+        );
+      },
+      onLongPress: () => showChapterActions(
+        context,
+        ref,
+        vm: vm,
+        chapter: chapter,
+        carryingSourceIds: carrying,
+        controllerKey: controllerKey,
+      ),
     );
   }
 
@@ -329,9 +362,12 @@ class _ChapterRow extends ConsumerWidget {
   String? _stripNumberPrefix(String? title) {
     if (title == null) return null;
     final stripped = title.replaceFirst(
-        RegExp(r'^\s*[-–]?\s*(?:ตอนที่|ตอน|chapter|ch\.?)\s*[:#]?\s*[\d.]+\s*[-–:]?\s*',
-            caseSensitive: false),
-        '');
+      RegExp(
+        r'^\s*[-–]?\s*(?:ตอนที่|ตอน|chapter|ch\.?)\s*[:#]?\s*[\d.]+\s*[-–:]?\s*',
+        caseSensitive: false,
+      ),
+      '',
+    );
     final trimmed = stripped.trim();
     return trimmed.isEmpty ? null : trimmed;
   }

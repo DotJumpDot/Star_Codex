@@ -5,7 +5,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/i18n/i18n.dart';
 import '../../core/providers.dart';
 import '../../data/repo/browse_repo.dart';
-import '../detail/detail_controller.dart' show detailGroupProvider;
 import '../detail/detail_screen.dart';
 import 'browse_controller.dart';
 import 'filter_sheet.dart';
@@ -39,11 +38,12 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
     final controller = ref.read(browseControllerProvider.notifier);
     final visible = filterGroups(state.groups, state.filters);
 
-    final genreHeader = (state.mode == BrowseMode.genre &&
+    final genreHeader =
+        (state.mode == BrowseMode.genre &&
             state.genreSourceId != null &&
             state.genreTerm != null)
         ? '${repo.sourceById(state.genreSourceId!)?.name ?? state.genreSourceId}'
-            ' · ${state.genreTerm}'
+              ' · ${state.genreTerm}'
         : null;
 
     return Scaffold(
@@ -75,7 +75,8 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
             onLongPress: (source) async {
               final term = await Navigator.of(context).push<String>(
                 MaterialPageRoute(
-                    builder: (_) => GenreBrowserScreen(source: source)),
+                  builder: (_) => GenreBrowserScreen(source: source),
+                ),
               );
               if (term != null && mounted) {
                 await controller.showGenre(source.id, term);
@@ -107,15 +108,18 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
               child: Row(
                 children: [
-                  const Icon(Icons.error_outline,
-                      size: 15, color: Colors.redAccent),
+                  const Icon(
+                    Icons.error_outline,
+                    size: 15,
+                    color: Colors.redAccent,
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
-                    child: Text(t(context, 'browse.sources_error'),
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelSmall
-                            ?.copyWith(color: Colors.redAccent)),
+                    child: Text(
+                      t(context, 'browse.sources_error'),
+                      style: Theme.of(context).textTheme.labelSmall
+                          ?.copyWith(color: Colors.redAccent),
+                    ),
                   ),
                 ],
               ),
@@ -124,77 +128,75 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
             child: state.loading && visible.isEmpty
                 ? const _SkeletonList()
                 : visible.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(t(context, 'browse.empty'),
-                                  textAlign: TextAlign.center),
-                              const SizedBox(height: 12),
-                              OutlinedButton.icon(
-                                icon: const Icon(Icons.refresh, size: 18),
-                                label: Text(t(context, 'common.retry')),
-                                onPressed: () =>
-                                    ref.read(browseControllerProvider.notifier)
-                                        .retry(),
-                              ),
-                            ],
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            t(context, 'browse.empty'),
+                            textAlign: TextAlign.center,
                           ),
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: visible.length,
-                        itemBuilder: (context, i) {
-                          final isLast = i == visible.length - 1;
-                          if (isLast &&
-                              !state.endReached &&
-                              !state.loadingMore) {
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              ref
-                                  .read(browseControllerProvider.notifier)
-                                  .loadMore();
-                            });
-                          }
-                          return Column(
-                            children: [
-                              ResultCard(
-                                group: visible[i],
-                                allGroups: state.groups,
-                                sources: sources,
-                                onTap: () =>
-                                    Navigator.of(context).push(MaterialPageRoute(
-                                  // Nested scope overrides the family
-                                  // group provider for this route only
-                                  // (doc 09: detail opens from browse too;
-                                  // the series row materializes on load).
-                                  builder: (_) => ProviderScope(
-                                    overrides: [
-                                      detailGroupProvider(-1)
-                                          .overrideWithValue(visible[i]),
-                                    ],
-                                    child:
-                                        DetailScreen.fromGroup(visible[i]),
-                                  ),
-                                )),
-                                onLongPress: () =>
-                                    _quickActions(context, visible[i]),
-                              ),
-                              if (isLast && state.loadingMore)
-                                const Padding(
-                                  padding: EdgeInsets.all(12),
-                                  child: SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child:
-                                        CircularProgressIndicator(strokeWidth: 2),
-                                  ),
-                                ),
-                            ],
-                          );
-                        },
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                            icon: const Icon(Icons.refresh, size: 18),
+                            label: Text(t(context, 'common.retry')),
+                            onPressed: () => ref
+                                .read(browseControllerProvider.notifier)
+                                .retry(),
+                          ),
+                        ],
                       ),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: visible.length,
+                    itemBuilder: (context, i) {
+                      final isLast = i == visible.length - 1;
+                      if (isLast && !state.endReached && !state.loadingMore) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          ref
+                              .read(browseControllerProvider.notifier)
+                              .loadMore();
+                        });
+                      }
+                      return Column(
+                        children: [
+                          ResultCard(
+                            group: visible[i],
+                            allGroups: state.groups,
+                            sources: sources,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                // Detail opens from a browse card too
+                                // (doc 09): the row materializes on load
+                                // via the controller's DetailKey.forGroup
+                                // (the previous nested-ProviderScope
+                                // override tripped riverpod's dependency
+                                // check — see PLAN_NOTES on-device QA).
+                                builder: (_) =>
+                                    DetailScreen.fromGroup(visible[i]),
+                              ),
+                            ),
+                            onLongPress: () =>
+                                _quickActions(context, visible[i]),
+                          ),
+                          if (isLast && state.loadingMore)
+                            const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -236,8 +238,10 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
               title: Text(t(sheetContext, 'browse.open_site')),
               onTap: () {
                 Navigator.pop(sheetContext);
-                launchUrl(Uri.parse(group.primary.url),
-                    mode: LaunchMode.externalApplication);
+                launchUrl(
+                  Uri.parse(group.primary.url),
+                  mode: LaunchMode.externalApplication,
+                );
               },
             ),
           ],
@@ -293,9 +297,7 @@ class _SearchBarState extends ConsumerState<_SearchBar> {
             isDense: true,
             prefixIcon: const Icon(Icons.search),
             hintText: t(context, 'browse.search_hint'),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(24),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
             suffixIcon: _text.text.isEmpty
                 ? null
                 : IconButton(
@@ -321,8 +323,10 @@ class _SearchBarState extends ConsumerState<_SearchBar> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 6),
-                    Text(t(context, 'browse.history'),
-                        style: Theme.of(context).textTheme.labelSmall),
+                    Text(
+                      t(context, 'browse.history'),
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
                     for (final q in history)
                       InkWell(
                         onTap: () {
@@ -334,14 +338,19 @@ class _SearchBarState extends ConsumerState<_SearchBar> {
                           padding: const EdgeInsets.symmetric(vertical: 6),
                           child: Row(
                             children: [
-                              Icon(Icons.history,
-                                  size: 16,
-                                  color: Theme.of(context).colorScheme.outline),
+                              Icon(
+                                Icons.history,
+                                size: 16,
+                                color: Theme.of(context).colorScheme.outline,
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
-                                  child: Text(q,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis)),
+                                child: Text(
+                                  q,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -379,10 +388,7 @@ class _SkeletonList extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                        height: 16,
-                        width: double.infinity,
-                        color: shade),
+                    Container(height: 16, width: double.infinity, color: shade),
                     const SizedBox(height: 8),
                     Container(height: 12, width: 140, color: shade),
                   ],

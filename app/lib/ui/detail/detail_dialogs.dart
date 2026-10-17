@@ -8,12 +8,15 @@ import 'detail_controller.dart';
 
 /// ผสานเรื่อง (Plan/12 §4, detail ⋯ menu): pick the OTHER series to absorb
 /// into this one, confirm with both titles shown, then merge.
-Future<void> showMergeDialog(BuildContext context, ProviderContainer container,
-    int seriesId, String thisTitle) async {
+Future<void> showMergeDialog(
+  BuildContext context,
+  ProviderContainer container,
+  int seriesId,
+  String thisTitle,
+) async {
   final messenger = ScaffoldMessenger.of(context);
   final all = await container.read(seriesDaoProvider).all();
-  final candidates =
-      all.where((s) => s.id != seriesId).toList(growable: false);
+  final candidates = all.where((s) => s.id != seriesId).toList(growable: false);
   if (candidates.isEmpty || !context.mounted) return;
 
   final picked = await showDialog<Series>(
@@ -26,8 +29,11 @@ Future<void> showMergeDialog(BuildContext context, ProviderContainer container,
             onPressed: () => Navigator.of(context).pop(s),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Text(s.title,
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
+              child: Text(
+                s.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ),
       ],
@@ -39,10 +45,12 @@ Future<void> showMergeDialog(BuildContext context, ProviderContainer container,
     context: context,
     builder: (context) => AlertDialog(
       title: Text(t(context, 'library.merge.title')),
-      content: Text(tFmt(context, 'library.merge.confirm', {
-        'a': thisTitle,
-        'b': picked.title,
-      })),
+      content: Text(
+        tFmt(context, 'library.merge.confirm', {
+          'a': thisTitle,
+          'b': picked.title,
+        }),
+      ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
@@ -59,29 +67,35 @@ Future<void> showMergeDialog(BuildContext context, ProviderContainer container,
 
   try {
     await container
-        .read(detailControllerProvider(seriesId).notifier)
+        .read(detailControllerProvider(DetailKey.id(seriesId)).notifier)
         .mergeIn([picked.id!]);
   } catch (_) {
     if (!context.mounted) return;
     messenger.showSnackBar(
-        SnackBar(content: Text(t(context, 'common.error.title'))));
+      SnackBar(content: Text(t(context, 'common.error.title'))),
+    );
     return;
   }
   if (!context.mounted) return;
   messenger.showSnackBar(
-      SnackBar(content: Text(t(context, 'library.merge.done'))));
+    SnackBar(content: Text(t(context, 'library.merge.done'))),
+  );
 }
 
 /// แยกเรื่อง (Plan/12 §4): pick one of this series' source links to lift
 /// onto its own standalone series row.
 Future<void> showSplitDialog(
-    BuildContext context, ProviderContainer container, int seriesId) async {
+  BuildContext context,
+  ProviderContainer container,
+  int seriesId,
+) async {
   final messenger = ScaffoldMessenger.of(context);
   final links = await container.read(seriesDaoProvider).sourcesOf(seriesId);
   if (!context.mounted) return;
   if (links.length < 2) {
     messenger.showSnackBar(
-        SnackBar(content: Text(t(context, 'library.split.need_two'))));
+      SnackBar(content: Text(t(context, 'library.split.need_two'))),
+    );
     return;
   }
   final names = container.read(sourcesProvider);
@@ -112,15 +126,17 @@ Future<void> showSplitDialog(
 
   try {
     await container
-        .read(detailControllerProvider(seriesId).notifier)
+        .read(detailControllerProvider(DetailKey.id(seriesId)).notifier)
         .splitOut(picked.sourceId);
   } catch (_) {
     if (!context.mounted) return;
     messenger.showSnackBar(
-        SnackBar(content: Text(t(context, 'common.error.title'))));
+      SnackBar(content: Text(t(context, 'common.error.title'))),
+    );
     return;
   }
   if (!context.mounted) return;
   messenger.showSnackBar(
-      SnackBar(content: Text(t(context, 'library.split.done'))));
+    SnackBar(content: Text(t(context, 'library.split.done'))),
+  );
 }

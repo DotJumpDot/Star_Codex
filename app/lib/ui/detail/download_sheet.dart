@@ -13,7 +13,11 @@ import 'detail_controller.dart';
 /// pick-your-own (range + list), size estimate, quota refusal with the
 /// remaining GB.
 Future<void> showDownloadSheet(
-    BuildContext context, WidgetRef ref, SeriesDetailVm vm, int key) async {
+  BuildContext context,
+  WidgetRef ref,
+  SeriesDetailVm vm,
+  DetailKey key,
+) async {
   final primary = vm.primaryLink.sourceId;
   var chapters = vm.chaptersBySource[primary] ?? const <Chapter>[];
   if (chapters.isEmpty) {
@@ -28,8 +32,8 @@ Future<void> showDownloadSheet(
     }
   }
   if (chapters.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t(context, 'downloads.none'))));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(t(context, 'downloads.none'))));
     return;
   }
   // Ascending display for range picking (the VM's list arrives number-DESC).
@@ -48,20 +52,29 @@ Future<void> showDownloadSheet(
         .read(detailControllerProvider(key).notifier)
         .enqueueDownloads(picked.toList());
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content:
-          Text(tFmt(context, 'downloads.queued', {'n': '${picked.length}'})),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          tFmt(context, 'downloads.queued', {'n': '${picked.length}'}),
+        ),
+      ),
+    );
   } on QuotaException catch (e) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(tFmt(context, 'downloads.quota',
-          {'gb': (e.freeBytes / 1073741824).toStringAsFixed(1)})),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          tFmt(context, 'downloads.quota', {
+            'gb': (e.freeBytes / 1073741824).toStringAsFixed(1),
+          }),
+        ),
+      ),
+    );
   } catch (_) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t(context, 'common.error.title'))));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(t(context, 'common.error.title'))));
   }
 }
 
@@ -86,9 +99,9 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
   int _estimateForCount = -1;
 
   List<int> get _unreadIds => [
-        for (final c in widget.asc)
-          if (!(widget.vm.progress[c.id]?.completed ?? false)) c.id!,
-      ];
+    for (final c in widget.asc)
+      if (!(widget.vm.progress[c.id]?.completed ?? false)) c.id!,
+  ];
 
   Set<int> get effectiveSelection {
     if (_rangeFrom != null && _rangeTo != null) {
@@ -98,9 +111,9 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
   }
 
   List<int> get _rangeIds => [
-        for (var i = 0; i < widget.asc.length; i++)
-          if (i >= _rangeFrom! && i <= _rangeTo!) widget.asc[i].id!,
-      ];
+    for (var i = 0; i < widget.asc.length; i++)
+      if (i >= _rangeFrom! && i <= _rangeTo!) widget.asc[i].id!,
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -121,34 +134,41 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text(t(context, 'downloads.title'),
-                    style: Theme.of(context).textTheme.titleMedium),
+                child: Text(
+                  t(context, 'downloads.title'),
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
               ),
             ),
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
                   OutlinedButton(
-                    onPressed: () => Navigator.of(context)
-                        .pop(_unreadIds.toSet()),
-                    child: Text(tFmt(
-                        context, 'downloads.unread',
-                        {'n': '${_unreadIds.length}'})),
+                    onPressed: () =>
+                        Navigator.of(context).pop(_unreadIds.toSet()),
+                    child: Text(
+                      tFmt(context, 'downloads.unread', {
+                        'n': '${_unreadIds.length}',
+                      }),
+                    ),
                   ),
                   OutlinedButton(
-                    onPressed: () => Navigator.of(context)
-                        .pop(_unreadIds.take(10).toSet()),
+                    onPressed: () =>
+                        Navigator.of(context).pop(_unreadIds.take(10).toSet()),
                     child: Text(t(context, 'downloads.next10')),
                   ),
                   OutlinedButton(
-                    onPressed: () => Navigator.of(context).pop(
-                        widget.asc.map((c) => c.id!).toSet()),
-                    child: Text(tFmt(context, 'downloads.all',
-                        {'n': '${widget.asc.length}'})),
+                    onPressed: () =>
+                        Navigator.of(context)
+                            .pop(widget.asc.map((c) => c.id!).toSet()),
+                    child: Text(
+                      tFmt(context, 'downloads.all', {
+                        'n': '${widget.asc.length}',
+                      }),
+                    ),
                   ),
                 ],
               ),
@@ -157,8 +177,10 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  Text(t(context, 'downloads.pick_range'),
-                      style: Theme.of(context).textTheme.labelMedium),
+                  Text(
+                    t(context, 'downloads.pick_range'),
+                    style: Theme.of(context).textTheme.labelMedium,
+                  ),
                   const Spacer(),
                   _rangeDropdown(context, true),
                   const SizedBox(width: 8),
@@ -171,8 +193,7 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
                 itemCount: widget.asc.length,
                 itemBuilder: (context, i) {
                   final id = widget.asc[i].id!;
-                  final checked =
-                      _inRange(i) || _selected.contains(id);
+                  final checked = _inRange(i) || _selected.contains(id);
                   return CheckboxListTile(
                     dense: true,
                     value: checked,
@@ -191,8 +212,7 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
             ),
             Container(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              color:
-                  Theme.of(context).colorScheme.surfaceContainerHighest,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               child: Row(
                 children: [
                   Expanded(
@@ -200,9 +220,7 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
                       future: _estimate,
                       builder: (context, snap) => Text(
                         tFmt(context, 'downloads.estimate', {
-                          'mb': ((snap.data ?? 0) / 1048576)
-                              .round()
-                              .toString(),
+                          'mb': ((snap.data ?? 0) / 1048576).round().toString(),
                         }),
                         style: Theme.of(context).textTheme.labelSmall,
                       ),
@@ -210,8 +228,9 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
                   ),
                   FilledButton.icon(
                     icon: const Icon(Icons.download, size: 18),
-                    label: Text(tFmt(context,
-                        'downloads.go', {'n': '${ids.length}'})),
+                    label: Text(
+                      tFmt(context, 'downloads.go', {'n': '${ids.length}'}),
+                    ),
                     onPressed: ids.isEmpty
                         ? null
                         : () => Navigator.of(context).pop(ids),
@@ -243,7 +262,9 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
       onChanged: (v) => setState(() {
         if (isFrom) {
           _rangeFrom = v;
-          if (_rangeTo != null && _rangeFrom != null && _rangeTo! < _rangeFrom!) {
+          if (_rangeTo != null &&
+              _rangeFrom != null &&
+              _rangeTo! < _rangeFrom!) {
             _rangeTo = _rangeFrom;
           }
         } else {

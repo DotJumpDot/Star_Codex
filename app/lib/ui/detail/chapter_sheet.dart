@@ -19,7 +19,7 @@ Future<void> showChapterActions(
   required SeriesDetailVm vm,
   required Chapter chapter,
   required List<String> carryingSourceIds,
-  required int controllerKey,
+  required DetailKey controllerKey,
 }) {
   final controller = ref.read(detailControllerProvider(controllerKey).notifier);
   final downloaded = vm.downloadedChapterIds.contains(chapter.id);
@@ -33,45 +33,53 @@ Future<void> showChapterActions(
         children: [
           Padding(
             padding: const EdgeInsets.only(bottom: 4),
-            child: Text(t(sheetContext, 'detail.read_from'),
-                style: Theme.of(sheetContext).textTheme.titleSmall),
+            child: Text(
+              t(sheetContext, 'detail.read_from'),
+              style: Theme.of(sheetContext).textTheme.titleSmall,
+            ),
           ),
           for (final sid in carryingSourceIds)
             ListTile(
               leading: SourceDot(
-                  color: sourceDotColor(
-                      vm.links.indexWhere((l) => l.sourceId == sid)),
-                  size: 12),
+                color: sourceDotColor(
+                  vm.links.indexWhere((l) => l.sourceId == sid),
+                ),
+                size: 12,
+              ),
               title: Text(vm.sourceNames[sid] ?? sid),
               trailing: const Icon(Icons.play_arrow, size: 20),
               dense: true,
               onTap: () {
-                final copy =
-                    (vm.chaptersByNumber[chapter.number] ?? const [])
-                        .where((c) => c.sourceId == sid)
-                        .first;
+                final copy = (vm.chaptersByNumber[chapter.number] ?? const [])
+                    .where((c) => c.sourceId == sid)
+                    .first;
                 Navigator.pop(sheetContext);
                 final settings = ref.read(settingsProvider);
-                openReader(context,
-                    chapter: copy,
-                    sourceId: sid,
-                    seriesDao: ref.read(seriesDaoProvider),
-                    modeOverride: effectiveModeOverride(
-                        settings.get(
-                            'reader_mode_${chapter.seriesId}', 'auto'),
-                        settings.get('reader_mode_default', 'auto')));
+                openReader(
+                  context,
+                  chapter: copy,
+                  sourceId: sid,
+                  seriesDao: ref.read(seriesDaoProvider),
+                  modeOverride: effectiveModeOverride(
+                    settings.get('reader_mode_${chapter.seriesId}', 'auto'),
+                    settings.get('reader_mode_default', 'auto'),
+                  ),
+                );
               },
             ),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.done_all),
-            title: Text(t(sheetContext,
+            title: Text(
+              t(
+                sheetContext,
                 (vm.progress[chapter.id]?.completed ?? false)
                     ? 'detail.mark_unread'
-                    : 'detail.mark_read')),
+                    : 'detail.mark_read',
+              ),
+            ),
             onTap: () {
-              final completed =
-                  !(vm.progress[chapter.id]?.completed ?? false);
+              final completed = !(vm.progress[chapter.id]?.completed ?? false);
               Navigator.pop(sheetContext);
               controller.markRead(chapter.id!, completed: completed);
             },
@@ -84,7 +92,8 @@ Future<void> showChapterActions(
                 Navigator.pop(sheetContext);
                 controller.enqueueDownload(chapter.id!);
                 ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(t(context, 'detail.queued'))));
+                  SnackBar(content: Text(t(context, 'detail.queued'))),
+                );
               },
             ),
           if (downloaded)
@@ -95,7 +104,8 @@ Future<void> showChapterActions(
                 Navigator.pop(sheetContext);
                 controller.deleteDownload(chapter.id!);
                 ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(t(context, 'detail.deleted'))));
+                  SnackBar(content: Text(t(context, 'detail.deleted'))),
+                );
               },
             ),
         ],
