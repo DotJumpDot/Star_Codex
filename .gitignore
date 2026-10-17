@@ -1,0 +1,25 @@
+# Star Codex repo
+
+# one-off compression experiment (15 MB of test images — numbers live in Docs)
+compress_test/
+
+# local agent/tool state
+.zcode/
+.mimosa/
+.playwright-mcp/
+PLAN_NOTES.md.local
+
+# Flutter / Dart (pre-covers app/ once created)
+app/.dart_tool/
+app/.flutter-plugins*
+app/.packages
+app/build/
+app/.idea/
+app/android/.gradle/
+app/android/local.properties
+
+# general
+*.apk
+*.aab
+.DS_Store
+Thumbs.db
