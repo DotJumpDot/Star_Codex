@@ -47,10 +47,17 @@ final downloadsDaoProvider =
     Provider((ref) => DownloadsDao(ref.watch(dbProvider)));
 final historyDaoProvider = Provider((ref) => HistoryDao(ref.watch(dbProvider)));
 
-/// Live enabled Source instances in sort order — loaded in `main()` via
-/// `loadSources(db, http)` and overridden here (sync access for repos).
-/// Tests override with fake sources.
-final sourcesProvider = Provider<List<Source>>(
+/// Mutable holder so Settings can enable/disable/reorder sources at
+/// runtime (doc 14 DoD: a disabled source leaves browse/search/fallback
+/// immediately). main() seeds it via `loadSources`; tests override with
+/// fake sources.
+class SourcesController extends StateNotifier<List<Source>> {
+  SourcesController(super.initial);
+
+  void replace(List<Source> next) => state = next;
+}
+
+final sourcesProvider = StateNotifierProvider<SourcesController, List<Source>>(
     (ref) => throw UnimplementedError('sourcesProvider must be overridden'));
 
 // --- network + storage singletons (Plan/03 §API surface) ---

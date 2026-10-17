@@ -8,9 +8,13 @@ import 'source_api.dart';
 
 /// All live Source instances, ordered by the `sources` table `sort`
 /// (Plan/04 §7). Adapter column decides the class.
-Future<List<Source>> loadSources(Database db, SafeHttp http) async {
-  final rows = await db
-      .query('sources', where: 'enabled = 1', orderBy: 'sort');
+/// [onlyEnabled] false lets the Settings screen build instances of
+/// disabled sources for the "ทดสอบการเชื่อมต่อ" button (doc 14).
+Future<List<Source>> loadSources(Database db, SafeHttp http,
+    {bool onlyEnabled = true}) async {
+  final rows = await db.query('sources',
+      where: onlyEnabled ? 'enabled = 1' : null,
+      orderBy: 'sort');
   final sources = <Source>[];
   for (final row in rows) {
     switch (row['adapter'] as String) {

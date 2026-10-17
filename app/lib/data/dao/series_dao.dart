@@ -259,4 +259,27 @@ class SeriesDao {
         orderBy: 'sort');
     return rows.map(SourceInfo.fromRow).toList(growable: false);
   }
+
+  /// Settings screen switches (doc 14 §Sources). The live [SourcesController]
+  /// list is re-emitted by the caller after the write.
+  Future<void> setSourceEnabled(String id, bool enabled) =>
+      db.update('sources', {'enabled': enabled ? 1 : 0},
+          where: 'id = ?', whereArgs: [id]);
+
+  /// Up/down reordering (doc 14: affects source-priority tiebreaks in
+  /// 07 §4). Swaps the sort values of the two neighbours in one pass.
+  Future<void> moveSource(String id, {required bool up}) async {
+    final rows = await db.query('sources', orderBy: 'sort');
+    final ids = [for (final r in rows) r['id'] as String];
+    final i = ids.indexOf(id);
+    if (i < 0) return;
+    final j = up ? i - 1 : i + 1;
+    if (j < 0 || j >= ids.length) return;
+    final sortA = rows[i]['sort'] as int;
+    final sortB = rows[j]['sort'] as int;
+    await db.update('sources', {'sort': sortB},
+        where: 'id = ?', whereArgs: [ids[i]]);
+    await db.update('sources', {'sort': sortA},
+        where: 'id = ?', whereArgs: [ids[j]]);
+  }
 }

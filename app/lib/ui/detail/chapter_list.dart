@@ -306,13 +306,16 @@ class _ChapterRow extends ConsumerWidget {
             ),
         ],
       ),
-      onTap: () => openReader(context,
-          chapter: chapter,
-          sourceId: sourceId,
-          seriesDao: ref.read(seriesDaoProvider),
-          modeOverride: ref
-              .read(settingsProvider)
-              .get('reader_mode_${chapter.seriesId}', 'auto')),
+      onTap: () {
+          final settings = ref.read(settingsProvider);
+          openReader(context,
+              chapter: chapter,
+              sourceId: sourceId,
+              seriesDao: ref.read(seriesDaoProvider),
+              modeOverride: effectiveModeOverride(
+                  settings.get('reader_mode_${chapter.seriesId}', 'auto'),
+                  settings.get('reader_mode_default', 'auto')));
+        },
       onLongPress: () => showChapterActions(context, ref,
           vm: vm,
           chapter: chapter,

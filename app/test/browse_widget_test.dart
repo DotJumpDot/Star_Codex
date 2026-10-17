@@ -63,7 +63,7 @@ Future<void> main() async {
         dbProvider.overrideWithValue(db),
         initialSettingsProvider.overrideWithValue(const {}),
         libraryDirProvider.overrideWithValue(tmp),
-        sourcesProvider.overrideWithValue([sourceA, sourceB]),
+        sourcesProvider.overrideWith((ref) => SourcesController([sourceA, sourceB])),
       ],
       child: const StarCodexApp(),
     ));

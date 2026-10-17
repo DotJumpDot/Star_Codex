@@ -59,6 +59,12 @@ Full toolchain setup: [Docs/BUILD.md](./Docs/BUILD.md). Dev loop:
 
 ## Status
 
-Planning complete (2026-10-17). Build progress: see
-[Docs/CHANGELOG.md](./Docs/CHANGELOG.md) and the commit history — every
-build phase lands as a commit with a `- [x] item complete` checklist.
+**v1 shipped (2026-10-17)** — all 11 build phases complete, `flutter test`
+green (161 tests), release APK builds clean
+(`app/build/app/outputs/flutter-apk/app-release.apk`). Build progress: see
+[CHANGELOG.md](./CHANGELOG.md) and the commit history — every build phase
+lands as a commit with a `- [x] item complete` checklist.
+
+On-phone performance DoDs (cold-open timing, RAM budget, airplane-mode
+re-reads) remain to be verified in hand — they are tracked as unchecked
+items in the phase commits and Docs/PLAN_NOTES.md.

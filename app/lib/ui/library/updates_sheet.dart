@@ -176,14 +176,14 @@ class _GroupTile extends ConsumerWidget {
   Future<void> _open(BuildContext context, WidgetRef ref, UpdateItem item) async {
     final chapter = await ref.read(chaptersDaoProvider).byId(item.chapterId);
     if (chapter == null || !context.mounted) return;
-    final override = ref
-        .read(settingsProvider)
-        .get('reader_mode_${chapter.seriesId}', 'auto');
+    final settings = ref.read(settingsProvider);
     await openReader(context,
         chapter: chapter,
         sourceId: chapter.sourceId,
         seriesDao: ref.read(seriesDaoProvider),
-        modeOverride: override);
+        modeOverride: effectiveModeOverride(
+            settings.get('reader_mode_${chapter.seriesId}', 'auto'),
+            settings.get('reader_mode_default', 'auto')));
   }
 }
 

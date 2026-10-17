@@ -72,8 +72,8 @@ class BlobStore {
     return pinned ? _dao.pinnedBytes() : _dao.unpinnedBytes();
   }
 
-  Future<List<BlobRow>> evictableOldestFirst() =>
-      _dao.evictableOldestFirst();
+  Future<List<BlobRow>> evictableOldestFirst({int limit = 500}) =>
+      _dao.evictableOldestFirst(limit: limit);
 
   /// Startup integrity pass (Plan/03 §Blob integrity): rows without files
   /// lose the row (chapter_pages keeps content_hash → re-fetch later);

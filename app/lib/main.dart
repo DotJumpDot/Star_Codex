@@ -42,7 +42,7 @@ Future<void> main() async {
     initialSettingsProvider.overrideWithValue(initialSettings),
     rateLimiterProvider.overrideWithValue(rateLimiter),
     safeHttpProvider.overrideWithValue(http),
-    sourcesProvider.overrideWithValue(sources),
+    sourcesProvider.overrideWith((ref) => SourcesController(sources)),
     unmeteredCheckProvider.overrideWithValue(isUnmeteredNow),
   ]);
   // Cache janitor 10 s after app start (Plan/03 §LRU): startup pass includes

@@ -51,13 +51,15 @@ Future<void> showChapterActions(
                         .where((c) => c.sourceId == sid)
                         .first;
                 Navigator.pop(sheetContext);
+                final settings = ref.read(settingsProvider);
                 openReader(context,
                     chapter: copy,
                     sourceId: sid,
                     seriesDao: ref.read(seriesDaoProvider),
-                    modeOverride: ref
-                        .read(settingsProvider)
-                        .get('reader_mode_${chapter.seriesId}', 'auto'));
+                    modeOverride: effectiveModeOverride(
+                        settings.get(
+                            'reader_mode_${chapter.seriesId}', 'auto'),
+                        settings.get('reader_mode_default', 'auto')));
               },
             ),
           const Divider(),

@@ -392,3 +392,29 @@ prefetching and the settings slider did nothing.
   pending". helpers.openTestDb now sets `sqflite_utils.lockWarningDuration
   = null` (dev-logging only; sqflite_common added to dev_dependencies for
   the import).
+
+## Phase 11 (2026-10-17) — Settings + polish + release
+
+- `sourcesProvider` is now a `StateNotifierProvider` over a
+  `SourcesController` so the Settings switches / reorder / connection-test
+  re-emit the live registry (doc 14 DoD: a disabled source leaves browse,
+  search and the reader fallback chain immediately). Tests override it
+  with `overrideWith((ref) => SourcesController(fakes))` — the old
+  `overrideWithValue` no longer type-checks by design.
+- `loadSources(db, http, {onlyEnabled})` gained a flag so the Settings
+  screen can build instances of DISABLED sources for the
+  "ทดสอบการเชื่อมต่อ" button.
+- The global reader-mode default (`reader_mode_default`, doc 14) now
+  actually participates: `effectiveModeOverride(perSeries, globalDefault)`
+  resolves per-series override → global default → type default. Previously
+  the setting existed but nothing read it.
+- `CacheJanitor.clearUnpinned()` for the settings button; the readout adds
+  the SQLite file size (`File(db.path).stat()`).
+- Launcher icon: hand-rolled star-on-dark PNGs generated into every
+  `mipmap-*` (pure-python zlib writer, no new dependency —
+  flutter_launcher_icons deliberately NOT added, rule 5). Label was
+  already "Star Codex" from the scaffold.
+- Release: `flutter build apk --release` green (58.9 MB); icon tree-shaken.
+  On-phone DoD items (cold-open, RAM, airplane re-read, quota round-trip
+  on device) stay deliberately unchecked until the user's emulator/phone
+  session.

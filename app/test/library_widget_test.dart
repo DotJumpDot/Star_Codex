@@ -39,7 +39,7 @@ Future<void> main() async {
         dbProvider.overrideWithValue(db),
         initialSettingsProvider.overrideWithValue(const {}),
         libraryDirProvider.overrideWithValue(tmp),
-        sourcesProvider.overrideWithValue(const []),
+        sourcesProvider.overrideWith((ref) => SourcesController(const [])),
       ],
       child: const MaterialApp(home: LibraryScreen()),
     ));

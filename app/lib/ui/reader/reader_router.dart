@@ -29,6 +29,14 @@ ReaderMode readerModeForType(String? type) => switch (type) {
       _ => ReaderMode.webtoon,
     };
 
+/// Doc 14 default-mode setting: the per-series override wins; 'auto' falls
+/// through to the global default (`reader_mode_default`) and then the
+/// type default. Pass the result as [openReader]'s modeOverride.
+String? effectiveModeOverride(String perSeries, String globalDefault) {
+  if (perSeries != 'auto') return perSeries;
+  return globalDefault == 'auto' ? null : globalDefault;
+}
+
 /// The single entry point every chapter tap funnels through (detail rows,
 /// continue button, "read from which site" picker).
 Future<void> openReader(

@@ -379,13 +379,18 @@ class _ActionRow extends ConsumerWidget {
               label: Text(t(context, 'detail.continue_reading')),
               onPressed: target == null
                   ? null
-                  : () => openReader(context,
-                      chapter: target.chapter,
-                      sourceId: target.sourceId,
-                      seriesDao: ref.read(seriesDaoProvider),
-                      modeOverride: ref
-                          .read(settingsProvider)
-                          .get('reader_mode_${target.chapter.seriesId}', 'auto')),
+                  : () {
+                      final settings = ref.read(settingsProvider);
+                      openReader(context,
+                          chapter: target.chapter,
+                          sourceId: target.sourceId,
+                          seriesDao: ref.read(seriesDaoProvider),
+                          modeOverride: effectiveModeOverride(
+                              settings.get('reader_mode_'
+                                  '${target.chapter.seriesId}', 'auto'),
+                              settings.get(
+                                  'reader_mode_default', 'auto')));
+                    },
             ),
           ),
           const SizedBox(width: 8),

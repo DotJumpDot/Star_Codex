@@ -87,6 +87,19 @@ class CacheJanitor {
     return evicted;
   }
 
+  /// Settings "ล้างแคชที่ยังไม่ปักหมุด" (doc 14): evict EVERYTHING
+  /// unpinned now, ignoring the budget. Pinned downloads are untouched —
+  /// the Offline tab never changes (doc 13 §truthfulness). Returns the
+  /// freed byte count for the result toast.
+  Future<int> clearUnpinned() async {
+    var freed = 0;
+    for (final row in await blobs.evictableOldestFirst(limit: 1 << 30)) {
+      freed += row.bytes;
+      await blobs.delete(row.hash);
+    }
+    return freed;
+  }
+
   /// One statement both pins done-download blobs and unpins stale ones —
   /// dedup (one blob serving several chapters) is handled naturally
   /// (Plan/03 §is_pinned maintenance).

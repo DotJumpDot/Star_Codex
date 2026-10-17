@@ -38,6 +38,6 @@ Future<List<Override>> dbOverrides() async {
     dbProvider.overrideWithValue(db),
     initialSettingsProvider.overrideWithValue(const {}),
     libraryDirProvider.overrideWithValue(tmp),
-    sourcesProvider.overrideWithValue(const []),
+    sourcesProvider.overrideWith((ref) => SourcesController(const [])),
   ];
 }
