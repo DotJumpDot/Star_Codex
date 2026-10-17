@@ -30,10 +30,10 @@ Settings. Personal local use only — no server, no cloud, no login.
 Use a prompt like this (GLM 5.3 Flash or any model):
 
 ```
-Read C:\Code\StarCodex\Docs\HANDOFF.md, then Docs\Plan\README.md and
+Read C:\Code\StarCodex\AGENTS.md, then Docs\Plan\README.md and
 Docs\Plan\15-BUILD-ORDER.md. Continue the Star Codex build from where it
-stands (check git log + Docs/CHANGELOG.md for progress). Follow the plan
-docs exactly; end every phase with the checklist commit + push.
+stands (check git log + CHANGELOG.md at the repo root for progress). Follow
+the plan docs exactly; end every phase with the checklist commit + push.
 ```
 
 ## Notes about the rename

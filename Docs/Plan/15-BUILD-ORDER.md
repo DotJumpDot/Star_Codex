@@ -2,7 +2,8 @@
 
 Phases build on each other; each has a Definition of Done (DoD) that must
 pass before starting the next. After every phase: `flutter analyze` clean,
-`flutter test` green, update `Docs/CHANGELOG.md` (one line), then **commit
+`flutter test` green, update [`../CHANGELOG.md`](../CHANGELOG.md) at the repo
+root (one line), then **commit
 and push** with a checklist message (rule 6 below).
 
 If a DoD fails and the fix is not obvious within ~3 attempts, write the

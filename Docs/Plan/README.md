@@ -28,7 +28,8 @@ sites on 2026-10-17.
 - **Thai first.** Default UI language is Thai (`assets/i18n/th.json`), with an
   English toggle. All user-visible strings go through the i18n helper.
 - **Keep the repo clean:** no build artifacts in git, update
-  `Docs/CHANGELOG.md` at the end of every phase (one line per phase).
+  [`../CHANGELOG.md`](../CHANGELOG.md) (repo root) at the end of every phase
+  (one line per phase).
 - **Git = progress report (user requirement):** this folder is the git repo
   `github.com/DotJumpDot/Star_Codex`. Every phase ends with a commit whose
   message body lists each completed unit as `- [x] <thing> complete` lines,
