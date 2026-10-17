@@ -26,6 +26,13 @@ class TagsDao {
     return rows.map((r) => r['name'] as String).toList(growable: false);
   }
 
+  /// Every known tag name (browse filter sheet, Plan/08 §3). Populated
+  /// lazily from genres seen on detail pages — often empty early on.
+  Future<List<String>> allNames() async {
+    final rows = await db.query('tags', columns: ['name'], orderBy: 'name');
+    return rows.map((r) => r['name'] as String).toList(growable: false);
+  }
+
   /// Replace the series' tag set atomically (Plan/02: series writes maintain
   /// tags in a transaction — used by series_repo in Phase 5+).
   Future<void> setForSeries(int seriesId, List<String> names) {

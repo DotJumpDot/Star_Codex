@@ -43,3 +43,15 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   schedule). 36 tests green (dedup, LRU, pins, quota, integrity), analyze
   clean.
 
+- 2026-10-17 — Phase 5: title merge + Browse UI — title_norm (bracket/noise
+  stripping, Thai kept), Jaro-Winkler + Plan/07 matcher (exact/alt/fuzzy
+  merge, 0.88–0.95 similar hint), BrowseRepo grouping (search + latest +
+  genre, per-source failures never blank results), add-to-library with
+  §3.2 cross-source probe, Browse screen (submit-only search + history,
+  per-site chips with error dots, long-press genre browser via
+  /manga/?genres=, filter sheet defaults OFF per L1, merged cards with
+  source badges, covers via the pipeline, infinite scroll). 87 tests
+  green, analyze clean. On-device: multi-source merges live (2- and
+  3-source cards), filters + genre browsing verified via adb; fixed
+  genre-href ArgumentError, unbounded DNS lookup, persisted language not
+  applied at startup.

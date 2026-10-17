@@ -7,9 +7,12 @@ import 'package:sqflite/sqflite.dart';
 import '../data/dao/blobs_dao.dart';
 import '../data/dao/chapters_dao.dart';
 import '../data/dao/library_dao.dart';
+import '../data/dao/search_history_dao.dart';
 import '../data/dao/series_dao.dart';
 import '../data/dao/settings_dao.dart';
 import '../data/dao/tags_dao.dart';
+import '../data/repo/browse_repo.dart';
+import '../data/sources/source_api.dart';
 import '../data/storage/blob_store.dart';
 import '../data/storage/cache_janitor.dart';
 import '../data/storage/image_pipeline.dart';
@@ -33,6 +36,14 @@ final libraryDaoProvider =
 final settingsDaoProvider =
     Provider((ref) => SettingsDao(ref.watch(dbProvider)));
 final tagsDaoProvider = Provider((ref) => TagsDao(ref.watch(dbProvider)));
+final searchHistoryDaoProvider =
+    Provider((ref) => SearchHistoryDao(ref.watch(dbProvider)));
+
+/// Live enabled Source instances in sort order — loaded in `main()` via
+/// `loadSources(db, http)` and overridden here (sync access for repos).
+/// Tests override with fake sources.
+final sourcesProvider = Provider<List<Source>>(
+    (ref) => throw UnimplementedError('sourcesProvider must be overridden'));
 
 // --- network + storage singletons (Plan/03 §API surface) ---
 
@@ -61,6 +72,17 @@ final cacheJanitorProvider = Provider((ref) => CacheJanitor(
       db: ref.watch(dbProvider),
       blobs: ref.watch(blobStoreProvider),
       settings: ref.watch(settingsDaoProvider),
+    ));
+
+/// Browse orchestration (Plan/07): source adapters → normalize → group.
+final browseRepoProvider = Provider((ref) => BrowseRepo(
+      sources: ref.watch(sourcesProvider),
+      seriesDao: ref.watch(seriesDaoProvider),
+      chaptersDao: ref.watch(chaptersDaoProvider),
+      libraryDao: ref.watch(libraryDaoProvider),
+      tagsDao: ref.watch(tagsDaoProvider),
+      historyDao: ref.watch(searchHistoryDaoProvider),
+      pipeline: ref.watch(imagePipelineProvider),
     ));
 
 /// Resolves the real library dir (Plan/03: getApplicationSupportDirectory()/

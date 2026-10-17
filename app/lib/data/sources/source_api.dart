@@ -24,6 +24,21 @@ abstract class Source {
 
   /// Novel chapter body (nekopost only). Returns null for image sources.
   Future<String?> novelText(String chapterUrl);
+
+  /// Genre list for the browse picker (Plan/08): display names + URL terms.
+  /// [browseGenre] consumes the term — it is source-defined, never guessed.
+  Future<List<SourceGenre>> genres();
+
+  /// Series in one genre, filtered server-side, parse like listings.
+  Future<List<SourceSeries>> browseGenre(String term, {int page = 1});
+}
+
+/// One browsable genre of a source (Plan/08 §2 long-press picker).
+class SourceGenre {
+  const SourceGenre({required this.name, required this.term});
+
+  final String name; // display, e.g. 'Action' or 'มังงะเกาหลี'
+  final String term; // opaque term for browseGenre(), e.g. 'action'
 }
 
 class SourceSeries {

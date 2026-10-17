@@ -65,10 +65,16 @@ class MadaraSource implements Source {
       final cover =
           img?.attributes['src'] ?? img?.attributes['data-src'];
       final type = tile.querySelector('.typename')?.text.trim();
+      // `.epxs` = latest-chapter label on listing tiles ("ตอนที่ 280",
+      // drift-verified 2026-10-17) — the only chapter-count signal in
+      // listings/search; used for merge primary-pick + min-chapters filter.
+      final latestChapter = parseChapterNumber(
+          tile.querySelector('.epxs')?.text.trim() ?? '');
       return SourceSeries(
         url: href,
         title: title,
         coverUrl: _absolutize(cover),
+        chapterCountHint: latestChapter?.toInt(),
         type: _normalizeType(type),
       );
     }).where((s) => s.url.isNotEmpty && s.title.isNotEmpty).toList();
@@ -196,6 +202,51 @@ class MadaraSource implements Source {
 
   @override
   Future<String?> novelText(String chapterUrl) async => null;
+
+  /// Genre cloud scraped from the homepage (drift 2026-10-17: the theme
+  /// renders `a[href*="/genres/"]` links — both English slugs and Thai-named
+  /// genres). The genre ARCHIVE pages themselves are empty JS shells; the
+  /// working server-side filter is `/manga/?genres={term}` (see [browseGenre]).
+  @override
+  Future<List<SourceGenre>> genres() async {
+    final body = await _fetch(Uri.parse('$baseUrl/'));
+    final doc = html_parser.parse(body);
+    final seen = <String>{};
+    final genres = <SourceGenre>[];
+    for (final a in doc.querySelectorAll('a[href*="/genres/"]')) {
+      final href = a.attributes['href'] ?? '';
+      final name = a.text.trim();
+      if (href.isEmpty || name.isEmpty) continue;
+      final term = _genreTermFrom(href);
+      if (term == null || !seen.add(term)) continue;
+      genres.add(SourceGenre(name: name, term: term));
+    }
+    return genres;
+  }
+
+  /// Server-side genre filter on the listing page — the ONLY working genre
+  /// browse on ts themes (Plan/05 drift record). Same `.bsx` tiles as
+  /// [latest], so pagination uses the same `page` query parameter.
+  @override
+  Future<List<SourceSeries>> browseGenre(String term, {int page = 1}) =>
+      _parseTiles(Uri.parse('$baseUrl/manga/').replace(queryParameters: {
+        'genres': term,
+        if (page > 1) 'page': '$page',
+      }));
+
+  /// `/genres/{term}/` → percent-decoded term. Sites emit occasional
+  /// malformed hrefs (raw Thai, broken `%` sequences) — skip them; Uri
+  /// errors here are ArgumentError/FormatException, not parseable data
+  /// loss (probed live on slow-manga, Phase 5).
+  String? _genreTermFrom(String href) {
+    try {
+      final path = Uri.parse(baseUrl).resolve(href).pathSegments;
+      if (path.length < 2 || path[0] != 'genres') return null;
+      return Uri.decodeComponent(path[1]);
+    } on Object {
+      return null;
+    }
+  }
 
   Future<String> _fetch(Uri uri) async {
     try {

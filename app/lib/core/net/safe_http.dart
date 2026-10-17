@@ -165,7 +165,12 @@ class SafeHttp {
     }
     List<InternetAddress> resolved;
     try {
-      resolved = await InternetAddress.lookup(host);
+      // Bounded lookup: an unresponsive resolver must not hang the whole
+      // feed (observed on a just-booted emulator). 10 s then "DNS failed".
+      resolved = await InternetAddress.lookup(host).timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => throw const SocketException('DNS timed out'),
+          );
     } on SocketException catch (e) {
       throw NetException('DNS lookup failed: ${e.message}', uri: uri);
     }

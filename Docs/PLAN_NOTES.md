@@ -104,3 +104,65 @@ Improvements:
   width/height for chapter_pages + reader aspect ratios.
 - `.gitignore`: `.git-msg-*.txt` scratch files no longer enter commits
   (messages live in git history proper).
+
+## Phase 5 (2026-10-17) — merge + browse findings
+
+- **Live tile-title reality vs Plan/07 §6:** go-manga/up-manga append Thai
+  subtitles to English titles on search/listing tiles ("Infinite Mage
+  จอมเวทไร้ขีดจำกัด"). Such pairs land at jw ≈ 0.89–0.90 → the 0.88–0.95
+  "similar" band → hinted ("คล้ายกับเรื่องอื่น?"), never auto-merged — per
+  spec. Auto-merge fires on identical titles; verified live on device with
+  2-source (My Exclusive Tower Guide slow+up, Star-Embracing Swordmaster
+  slow+dark) and 3-source (Magic Emperor up+dark+go, Disastrous Necromancer
+  dark+go+up) merged cards. The Thai↔English bridge comes from alt titles
+  at detail level (Plan/07 §2 note; lands with Phase 6 DB merge).
+- **`String.normalize` is web-only Dart** (compiles to JS
+  `String.prototype.normalize`; absent on the VM). NFC step of Plan/07 §1
+  is skipped — WordPress content is NFC in practice; NFKC-compat would
+  destroy Thai vowel marks anyway (doc's actual concern). Noted in
+  title_norm.dart.
+- **Genre browsing drift** (also in Plan/05 drift addendum): `/genres/{term}/`
+  archive pages are EMPTY shells on ts themes; the working filter is
+  `/manga/?genres={term}` (server-side, paginates, same `.bsx` tiles).
+  Genre list scraped from homepage `a[href*="/genres/"]`. Sites emit some
+  malformed hrefs → `Uri.resolve` throws ArgumentError ("Illegal percent
+  encoding") — `_genreTermFrom` skips unparseable links (was a live bug
+  found by the emulator genre-browser check).
+- **Listing tiles carry `.epxs`** (latest-chapter label) → chapterCountHint;
+  **no timestamps** in listings → latest feed interleaves sources in their
+  own newest-first order (Plan/08's "sort by newest chapter time" is
+  approximated; recorded in Plan/05).
+- **Unbounded DNS lookup hung the whole feed** on a just-booted emulator
+  (resolver not ready → `InternetAddress.lookup` blocked for minutes).
+  `safe_http._validate` now bounds lookup at 10 s → NetException → source
+  marked failed, others still load.
+- **Persisted language was never applied at startup** (Phase 1 bug surfaced
+  by the EN-flip device check): `LanguageController` constructor now calls
+  `I18nService.setLang(state)`. Verified live: settings row language=en
+  renders every Phase-5 label in English.
+- **Search history write is fire-and-forget** (`unawaited`) — results must
+  never wait on a DB round-trip (and a sqflite-ffi call can't complete
+  inside a widget-test FakeAsync zone; the test drains it with
+  `tester.runAsync`).
+- **`search_history.recent`** orders by `at DESC, rowid DESC` — same-
+  millisecond re-records otherwise tie arbitrarily.
+- **Search on submit only** (Plan/08 §1, no per-keystroke network). Browse
+  filters are session-only; restart ⇒ defaults OFF (verified live, L1).
+- Status/tag filter controls exist but are honest no-ops on browse listings
+  (no status/tags until a detail fetch — they engage with Phase 6 data).
+- **New dep:** `url_launcher 6.3.3` (allowed by 15 rule 5; long-press card
+  → open source site in browser).
+- **New tool:** `tool/genre_probe.dart` — host-side smoke for
+  `Source.genres()` (also keeps proving the "live-verify after touching
+  safe_http" rule: safe_http must stay free of Flutter imports so
+  `dart run` keeps working).
+- Shimmer skeletons from Plan/08 are static (non-animated) placeholder
+  cards — no animation package, and looping controllers hang
+  pumpAndSettle-based widget tests. Profile-mode ≥50 fps scroll check for
+  the latest feed is a phone-in-hand task (swiftshader emulator numbers
+  are meaningless), consistent with prior performance DoDs.
+- adb driving notes: screen coordinate factor 1.2 (screencap renders
+  900×2000, device is 1080×2400); `input text` uses `%s` for spaces;
+  ChoiceChip has no long-press (wrapped in GestureDetector); EN-flip via
+  `run-as com.jamej.starcodex sqlite3 files/manga_reader.db "UPDATE
+  settings SET value='en' WHERE key='language';"` + app restart.

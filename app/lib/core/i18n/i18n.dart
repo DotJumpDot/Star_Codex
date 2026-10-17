@@ -49,7 +49,12 @@ class LanguageController extends StateNotifier<String> {
   LanguageController(String initial, this._settingsDao)
       : super(I18nService.supportedLanguages.contains(initial)
             ? initial
-            : 'th');
+            : 'th') {
+    // Apply the persisted language to the static bundle on startup —
+    // without this the app always renders Thai until the user toggles
+    // (found by the Phase 5 EN-flip device check).
+    I18nService.setLang(state);
+  }
 
   final SettingsDao _settingsDao;
 

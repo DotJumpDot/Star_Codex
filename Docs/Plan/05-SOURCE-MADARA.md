@@ -33,6 +33,15 @@
 > | chapter images | `ts_reader.run({... "images":[...]})` — §5 unchanged; image host may be the site itself (`www.go-manga.com/wp-content/uploads/...`) or a CDN (`img3.flash-manga.com`) — never hardcode hosts |
 > | AJAX chapter variant | NOT observed — ts themes print chapters server-side (no `manga-chapters-holder`); drop the admin-ajax fallback |
 >
+> ### Drift addendum — 2026-10-17 (Phase 5 probes)
+>
+> | purpose | verified |
+> |---|---|
+> | genre archive `{base}/genres/{term}/` | **page body is EMPTY** (`<div class="bixbox"></div>`) — the theme ships no server-side archive; unusable |
+> | genre browsing (working) | `{base}/manga/?genres={term}` server-side filter, same `.bsx` tiles, paginates with `&page={n}` (verified: 20 tiles/page on go-manga, Thai percent-encoded terms work) |
+> | genre list | scrape homepage `a[href*="/genres/"]` — both English slugs (Action…) and Thai-named genres appear; term = percent-decoded 2nd path segment |
+> | listing chapter hint | tiles carry `.epxs` ("ตอนที่ 280") = latest chapter number → `chapterCountHint`; **listings carry NO timestamps** — latest-feed "sorted by newest chapter time" is approximated by interleaving sources in their own update order (each site's listing is newest-first) |
+>
 > Original (pre-drift) doc preserved below for audit trail.
 
 All four sites run WordPress + the **Madara** theme. One adapter, four config
