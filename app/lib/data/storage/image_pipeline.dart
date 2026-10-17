@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:crypto/crypto.dart';
 
@@ -31,9 +32,11 @@ class PageResult {
 }
 
 /// Injectable WebP compressor (real one needs the platform plugin, which is
-/// absent in unit tests).
+/// absent in unit tests). [originalW]/[originalH] express "no resize"
+/// (the Android plugin REJECTS 0-sized targets — found on-device QA
+/// 2026-10-18); [maxWidth] caps the width keeping aspect (S3).
 typedef WebpCompressor = Future<Uint8List?> Function(Uint8List bytes,
-    {int? maxWidth});
+    {int? originalW, int? originalH, int? maxWidth});
 
 /// Download → validate → hash → dedup → WebP q80 → atomic write (Plan/03).
 class ImagePipeline {
@@ -48,20 +51,47 @@ class ImagePipeline {
   final WebpCompressor _compressor;
 
   static Future<Uint8List?> _defaultCompressor(Uint8List bytes,
-      {int? maxWidth}) async {
+      {int? originalW, int? originalH, int? maxWidth}) async {
+    // The Android plugin rejects 0-sized targets ("width and height must
+    // be > 0" — found on-device QA 2026-10-18): "no resize" passes the
+    // ORIGINAL dimensions; unknown dims cannot be driven at all.
+    final w = originalW ?? 0;
+    final h = originalH ?? 0;
+    if (w <= 0 || h <= 0) {
+      if (kDebugMode) {
+        debugPrint('IMGCOMP SKIP (dims unknown, ${bytes.length}B)');
+      }
+      return null; // → caller stores original bytes
+    }
+    var targetW = w;
+    var targetH = h;
+    if (maxWidth != null && maxWidth > 0 && maxWidth < w) {
+      targetW = maxWidth;
+      targetH = (h * maxWidth / w).round();
+    }
     try {
       return await FlutterImageCompress.compressWithList(
         bytes,
         quality: 80,
         format: CompressFormat.webp,
         inSampleSize: 1,
-        // Aspect-keeping width cap (S3: default null = no resize).
-        minWidth: maxWidth ?? 0,
-        minHeight: 0,
+        minWidth: targetW,
+        minHeight: targetH,
       );
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('IMGCOMP FAIL: $e');
+      }
       return null; // weird format → caller stores original bytes
     }
+  }
+
+  static bool _sameBytes(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   Future<PageResult> fetchAndStore(String url, {String? referer}) async {
@@ -105,11 +135,17 @@ class ImagePipeline {
       stored = original;
       ext = 'gif';
     } else {
-      final webp = await _compressor(original);
-      if (webp != null && webp.isNotEmpty) {
+      final webp = await _compressor(original,
+          originalW: dims?.width, originalH: dims?.height);
+      if (webp != null && webp.isNotEmpty && !_sameBytes(webp, original)) {
         stored = webp;
         ext = 'webp';
       } else {
+        // QA instrumentation (2026-10-18 on-device): every fetch landed here.
+        if (kDebugMode) {
+          debugPrint(
+              'IMGCOMP FALLBACK null?${webp == null} empty?${webp != null && webp.isEmpty} same?${webp != null && _sameBytes(webp, original)}');
+        }
         stored = original; // compression failed → keep original (03 §4)
         ext = _extensionFor(original);
       }

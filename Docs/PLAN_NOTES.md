@@ -466,3 +466,25 @@ readers now stamp read_progress.read_at on completion.
 Regression tests added: un-opened-chapter download, times_read spam
 guard, merge-with-dropped-last-read, badge dedupe across mirrors, cover
 referer pairing, novel estimate. 165 tests green.
+
+## On-device QA (2026-10-18) — running findings
+
+- **Riverpod scope crash, browse  detail (fixed, a3a1c75).** Opening any
+  detail screen from a browse card red-screened with "dependencies were
+  overridden but the provider is not": the push site overrode
+  detailGroupProvider(-1) in a nested ProviderScope while
+  detailControllerProvider (family, no dependencies declared) watched it —
+  riverpod 2.6 asserts exactly this shape. Fixed by keying the controller
+  family on a DetailKey (id / group identity) and dropping the nested
+  scope entirely. dependencies: alone did NOT satisfy the assert.
+  Test-env corollary: series_sources.source_id FKs the seeded sources
+  table — fake sources in tests must use a seeded id (slow-manga etc.).
+- **flutter_image_compress rejects 0-sized targets (fixed).** The
+  pipeline's "no resize" passed minWidth: 0, minHeight: 0  the plugin
+  threw CompressError(unknown): width and height must be > 0 for EVERY
+  image  every blob silently stored as ORIGINAL bytes (.jpg), so no WebP
+  q80 rewrite ever happened on-device. "No resize" now passes the parsed
+  original dimensions; unknown dims skip compression. On-device re-verify
+  after fix: fresh fetches land .webp (RIFF/WEBP magic), debug-gated
+  IMGCOMP logs instrument the fallback. Per-page shrink remains the
+  compress_test measurement (?58%, Docs/README).

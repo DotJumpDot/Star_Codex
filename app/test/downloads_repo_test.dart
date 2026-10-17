@@ -84,7 +84,7 @@ void main() {
           },
         ),
         blobs: blobs,
-        compressor: (bytes, {maxWidth}) async =>
+        compressor: (bytes, {originalW, originalH, maxWidth}) async =>
             Uint8List.fromList(bytes.reversed.toList()),
       ),
     );

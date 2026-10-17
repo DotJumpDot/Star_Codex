@@ -76,7 +76,7 @@ void main() {
         ),
         blobs: blobs,
         // Fake compressor: "webp" = reversed original (deterministic).
-        compressor: (bytes, {maxWidth}) async =>
+        compressor: (bytes, {originalW, originalH, maxWidth}) async =>
             Uint8List.fromList(bytes.reversed.toList()),
       );
 
@@ -114,7 +114,7 @@ void main() {
           fetcher: (uri, options) async => okResponse(uri, gif),
         ),
         blobs: blobs,
-        compressor: (bytes, {maxWidth}) async {
+        compressor: (bytes, {originalW, originalH, maxWidth}) async {
           compressed = true;
           return bytes;
         },
