@@ -332,3 +332,33 @@ state (was a DB read per setState); webtoon prefetch-ahead is now actually
 driven by the `reader_prefetch_ahead` setting (page-change kicks N pages
 through the memo) — previously only the fixed 2500 px cacheExtent did any
 prefetching and the settings slider did nothing.
+
+## Phase 9 (2026-10-17) — Library + History
+
+- **Doc-12 collation erratum.** The spec's parenthetical "Latin titles sort
+  after Thai automatically (higher codepoints)" is inverted: Thai block
+  (U+0E00–U+0E7F) codepoints are HIGHER than Latin's, so under the spec's
+  own algorithm (strip marks → collapse → lowercase → codepoint compare)
+  lowercase Latin sorts BEFORE Thai. The exact spec algorithm is implemented
+  as written; only the parenthetical was wrong. Thai A–Z reads correctly
+  (tone marks ่ ้ ๊ ๋ and ็ ์ ํ never reorder consonants — covered by
+  test/thai_collation_test.dart).
+- New-chapter badge follows the doc-13 rule exactly: count of chapters with
+  `uploaded_at > library.last_read_at` (regardless of completion).
+- Merge/split transactions live in `LibraryRepo` (series_repo.dart was
+  already over the 400-line budget). Merge conflict rule: an absorbed
+  chapter whose (source, number) already exists on the target is DROPPED —
+  its progress/history cascade away, which is the right semantics for a
+  duplicate. Split keeps progress/history because they key off chapter ids;
+  the standalone row gets an escape `title_norm` when its display title
+  equals the parent's (same pattern as upsertFromDetail).
+- History write path centralized: `ui/reader/reader_actions.dart
+  persistReaderProgress` is the ONE place readers touch read_progress +
+  library + reading_history (doc 12 §5: history upserts at the same moment
+  completed=1 is set). Detail long-press mark-read uses the same moment.
+- History tab refreshes on shell tab re-entry (IndexedStack keeps it alive);
+  covers render cache-only (never refetch over network).
+- Widget-test gotcha added to the pile: the shell test's pumpAndSettle now
+  times out because the real Library/History screens show indeterminate
+  progress spinners while their ffi-isolate loads pend under FakeAsync —
+  drain-loop + pump instead.

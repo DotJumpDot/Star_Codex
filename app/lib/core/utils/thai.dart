@@ -1,5 +1,5 @@
-/// Thai-specific parsing helpers (Plan/01 utils; decisions L4).
-/// Collation for Library sorting arrives in Phase 9 (12).
+/// Thai-specific parsing helpers (Plan/01 utils; decisions L4) + the
+/// Library A–Z collation (Plan/12 §3).
 library;
 
 /// Parses chapter numbers like `ตอนที่ 922`, `Chapter 45`, `920`,
@@ -81,6 +81,28 @@ int? _monthFromName(String name) {
 
 int _utcMs(int year, int month, int day) =>
     DateTime.utc(year, month, day).millisecondsSinceEpoch;
+
+// --- Thai collation (Plan/12 §3 — exact spec) ---
+
+const _thaiToneMarks = '\u0E48\u0E49\u0E4A\u0E4B'; // ่ ้ ๊ ๋
+const _thaiNonOrdering = '\u0E47\u0E4C\u0E4D'; // ็ ์ ํ
+
+/// Sort key: strip tone marks (่ ้ ๊ ๋) and non-ordering marks
+/// (็ ์ ํ), collapse whitespace, lowercase. Consonants are already in
+/// dictionary order, so plain codepoint compare on the cleaned key reads
+/// naturally; Latin sorts after Thai (higher codepoints).
+///
+/// Known v1 limitation (doc 12): ำ (U+0E33) and the legacy ฤ/ฤๅ order can
+/// be imperfect — acceptable; no ICU collation package is imported.
+String thaiSortKey(String s) => s
+    .replaceAll(RegExp('[$_thaiToneMarks$_thaiNonOrdering]'), '')
+    .replaceAll(RegExp(r'\s+'), ' ')
+    .trim()
+    .toLowerCase();
+
+/// Library sort ชื่อ A–Z (Plan/12 sort table).
+int compareTitlesThai(String a, String b) =>
+    thaiSortKey(a).compareTo(thaiSortKey(b));
 
 extension _FirstWhereOrNull<T> on Iterable<T> {
   T? firstWhereOrNull(bool Function(T) test) {

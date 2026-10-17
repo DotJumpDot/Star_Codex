@@ -10,6 +10,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../core/i18n/i18n.dart';
 import '../../core/providers.dart';
+import 'reader_actions.dart';
 import '../../core/settings_provider.dart';
 import '../../data/dao/chapters_dao.dart';
 import '../../data/repo/reader_repo.dart';
@@ -221,16 +222,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   Future<void> _saveProgress(int page, {required bool completed}) async {
     final loaded = _loaded;
     if (loaded == null) return;
-    await ref
-        .read(chaptersDaoProvider)
-        .saveProgress(loaded.chapter.id!,
-            pageIndex: completed ? loaded.pages.length - 1 : page,
-            completed: completed);
-    if (completed) {
-      await ref.read(libraryDaoProvider).markRead(
-          loaded.chapter.seriesId, loaded.chapter.id!,
-          DateTime.now().millisecondsSinceEpoch);
-    }
+    await persistReaderProgress(ref, loaded.chapter,
+        pageIndex: completed ? loaded.pages.length - 1 : page,
+        completed: completed);
   }
 
   void _maybeAutoNext(

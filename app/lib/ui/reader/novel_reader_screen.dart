@@ -12,6 +12,7 @@ import '../../data/dao/chapters_dao.dart';
 import '../../data/repo/reader_repo.dart';
 import '../detail/detail_screen.dart';
 import 'chapter_picker_sheet.dart';
+import 'reader_actions.dart';
 import 'reader_settings_sheet.dart';
 
 /// Novel reader (doc 11 B): scrollable Thai text (Sarabun), adjustable
@@ -127,12 +128,8 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
   }
 
   Future<void> _saveProgress(int percent, {required bool completed}) async {
-    await ref.read(chaptersDaoProvider).saveProgress(widget.chapter.id!,
+    await persistReaderProgress(ref, widget.chapter,
         pageIndex: percent, completed: completed);
-    if (completed) {
-      await ref.read(libraryDaoProvider).markRead(widget.chapter.seriesId,
-          widget.chapter.id!, DateTime.now().millisecondsSinceEpoch);
-    }
   }
 
   Future<void> _goNext() async {

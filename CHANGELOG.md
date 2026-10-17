@@ -90,6 +90,8 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   (override > type default), ReaderRepo.resolvePage shared page fallback
   + loadNovelText (chapter_text → source fetch → persist).
 - 2026-10-17 — Phase 8 (part 2): Nekopost adapter (Plan/06) — live-probed
+- 2026-10-17 — Phase 9: Library tab (category chips + smart tabs, Thai A–Z sort, quick filters, grid/list, multi-select with merge/split/delete) + History tab (day-grouped timeline from reading_history, tap-to-resume, clear-all) with a single reader-completion write path.
+
   all endpoints (detail2 serves novels too; chapter payloads are
   AES-256-CBC "Salted__" with passphrase AeyTest via /handler/cinfo),
   pure-Dart decryptor (EVP_BytesToKey + AES, no new deps), adapter with

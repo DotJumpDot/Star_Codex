@@ -17,6 +17,7 @@ import '../browse/source_palette.dart';
 import '../reader/reader_router.dart';
 import 'chapter_list.dart';
 import 'detail_controller.dart';
+import 'detail_dialogs.dart';
 
 /// Series detail (Plan/09). Opened with an id (library) or with the browse
 /// listing group ([DetailScreen.fromGroup] — the row materializes on load).
@@ -123,6 +124,12 @@ class _Menu extends StatelessWidget {
           if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(t(context, 'detail.link_copied'))));
+        case 'merge':
+          final id = current.series.id!;
+          await showMergeDialog(
+              context, container, id, current.series.title);
+        case 'split':
+          await showSplitDialog(context, container, current.series.id!);
       }
     }
 
@@ -138,6 +145,13 @@ class _Menu extends StatelessWidget {
         PopupMenuItem(
             value: 'copy',
             child: Text(t(context, 'detail.menu.copy_link'))),
+        PopupMenuItem(
+            value: 'merge',
+            child: Text(t(context, 'detail.menu.merge'))),
+        if (current.links.length > 1)
+          PopupMenuItem(
+              value: 'split',
+              child: Text(t(context, 'detail.menu.split'))),
       ],
     );
   }

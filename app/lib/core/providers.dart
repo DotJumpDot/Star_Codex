@@ -12,6 +12,7 @@ import '../data/dao/series_dao.dart';
 import '../data/dao/settings_dao.dart';
 import '../data/dao/tags_dao.dart';
 import '../data/repo/browse_repo.dart';
+import '../data/repo/library_repo.dart';
 import '../data/repo/reader_repo.dart';
 import '../data/repo/series_repo.dart';
 import '../data/sources/source_api.dart';
@@ -107,6 +108,19 @@ final browseRepoProvider = Provider((ref) => BrowseRepo(
 /// Bottom-nav tab index — shared so detail screens can jump to Browse
 /// (tag chip tap, doc 09 §4) without lifting shell state.
 final tabIndexProvider = StateProvider<int>((ref) => 0);
+
+/// Library-tab orchestration (Plan/12): card list, Thai sort, merge/split
+/// transactions, delete flows. Null janitor is overridden nowhere — the
+/// real provider always has one.
+final libraryRepoProvider = Provider((ref) => LibraryRepo(
+      seriesDao: ref.watch(seriesDaoProvider),
+      chaptersDao: ref.watch(chaptersDaoProvider),
+      libraryDao: ref.watch(libraryDaoProvider),
+      downloadsDao: ref.watch(downloadsDaoProvider),
+      blobsDao: ref.watch(blobsDaoProvider),
+      sources: ref.watch(sourcesProvider),
+      janitor: ref.watch(cacheJanitorProvider),
+    ));
 
 /// Reader orchestration (Plan/10): page lists + source fallback + the
 /// shared 2-slot fetch queue.

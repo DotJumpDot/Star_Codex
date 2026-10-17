@@ -7,6 +7,7 @@ import '../../data/dao/chapters_dao.dart';
 import '../../data/dao/library_dao.dart';
 import '../../data/dao/settings_dao.dart';
 import '../../data/repo/browse_merge.dart' show SearchGroup;
+import '../../data/repo/library_repo.dart';
 import '../../data/repo/series_repo.dart';
 
 /// Detail screen state machine (Plan/09): one load → snapshot VM; user
@@ -20,6 +21,8 @@ class DetailController extends StateNotifier<AsyncValue<SeriesDetailVm>> {
     required this.chaptersDao,
     required this.downloadsDao,
     required this.libraryDao,
+    required this.historyDao,
+    required this.libraryRepo,
     required this.settingsDao,
   }) : _explicitId = seriesId, super(const AsyncValue.loading());
 
@@ -34,6 +37,8 @@ class DetailController extends StateNotifier<AsyncValue<SeriesDetailVm>> {
   final ChaptersDao chaptersDao;
   final DownloadsDao downloadsDao;
   final LibraryDao libraryDao;
+  final HistoryDao historyDao;
+  final LibraryRepo libraryRepo;
   final SettingsDao settingsDao;
 
   Future<int> _ensureId() async {
@@ -76,6 +81,8 @@ class DetailController extends StateNotifier<AsyncValue<SeriesDetailVm>> {
       await chaptersDao.saveProgress(chapterId,
           pageIndex: existing?.pageIndex ?? 0, completed: true, readAt: now);
       await libraryDao.markRead(seriesId, chapterId, now);
+      // Same "completed=1" moment as the readers (doc 12 §5 write path).
+      await historyDao.recordCompletion(chapterId, seriesId, now);
       state = AsyncValue.data(cur.copyWith(
         progress: {
           ...cur.progress,
@@ -159,6 +166,20 @@ class DetailController extends StateNotifier<AsyncValue<SeriesDetailVm>> {
     return added;
   }
 
+  /// Manual merge (Plan/12 §4): absorb [otherIds] into THIS series, then
+  /// re-emit so the tabs show the incoming sources. Returns false when the
+  /// merge failed (e.g. another series' link is owned elsewhere).
+  Future<void> mergeIn(List<int> otherIds) async {
+    await libraryRepo.merge(seriesId, otherIds);
+    await load();
+  }
+
+  /// แยกเรื่อง (Plan/12 §4): lift one source link onto a standalone series.
+  Future<void> splitOut(String sourceId) async {
+    await libraryRepo.split(seriesId, sourceId);
+    await load();
+  }
+
   int get seriesId {
     final id = _resolvedId ?? _explicitId;
     if (id == null) {
@@ -177,6 +198,8 @@ final detailControllerProvider = StateNotifierProvider.family<
     chaptersDao: ref.watch(chaptersDaoProvider),
     downloadsDao: ref.watch(downloadsDaoProvider),
     libraryDao: ref.watch(libraryDaoProvider),
+    historyDao: ref.watch(historyDaoProvider),
+    libraryRepo: ref.watch(libraryRepoProvider),
     settingsDao: ref.watch(settingsDaoProvider),
   );
 });

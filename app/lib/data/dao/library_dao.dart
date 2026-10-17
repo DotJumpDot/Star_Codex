@@ -87,6 +87,21 @@ class LibraryDao {
     return rows.first['id'] as int;
   }
 
+  Future<void> renameCategory(int id, String name) =>
+      db.update('categories', {'name': name}, where: 'id = ?', whereArgs: [id]);
+
+  /// ล้างหมวด (category chip long-press, Plan/12 §1): removes memberships
+  /// only — the category row and the series stay.
+  Future<void> clearCategoryMembers(int categoryId) =>
+      db.delete('category_members', where: 'category_id = ?', whereArgs: [categoryId]);
+
+  /// All members of one user category — the category-tab filter.
+  Future<Set<int>> membersOf(int categoryId) async {
+    final rows = await db.query('category_members',
+        columns: ['series_id'], where: 'category_id = ?', whereArgs: [categoryId]);
+    return {for (final r in rows) r['series_id'] as int};
+  }
+
   Future<List<Category>> categories() async =>
       (await db.query('categories', orderBy: 'sort, name'))
           .map(Category.fromRow)
@@ -150,6 +165,62 @@ class HistoryDao {
       db.delete('reading_history', where: 'chapter_id = ?', whereArgs: [chapterId]);
 
   Future<int> clear() => db.delete('reading_history');
+
+  /// Newest first, joined to chapters + series so the timeline row has
+  /// everything it renders (Plan/12 §5): dual titles, cover, chapter
+  /// number, and the series type (novel vs pages icon). Ghost-proof: a
+  /// deleted chapter cascades its history row away.
+  Future<List<HistoryRow>> recent({int limit = 500}) async {
+    final rows = await db.rawQuery('''
+      SELECT rh.chapter_id, rh.series_id, rh.read_at, rh.times_read,
+             c.number AS number,
+             s.title AS title, s.original_title AS original_title,
+             s.cover_hash AS cover_hash, s.type AS type
+      FROM reading_history rh
+      JOIN chapters c ON c.id = rh.chapter_id
+      JOIN series s   ON s.id = rh.series_id
+      ORDER BY rh.read_at DESC
+      LIMIT ?
+    ''', [limit]);
+    return rows.map(HistoryRow.fromRow).toList(growable: false);
+  }
+}
+
+/// One History-tab row (Plan/12 §5).
+class HistoryRow {
+  const HistoryRow({
+    required this.chapterId,
+    required this.seriesId,
+    required this.readAt,
+    required this.timesRead,
+    required this.number,
+    required this.title,
+    this.originalTitle,
+    this.coverHash,
+    this.type,
+  });
+
+  final int chapterId;
+  final int seriesId;
+  final int readAt;
+  final int timesRead;
+  final double number;
+  final String title;
+  final String? originalTitle;
+  final String? coverHash;
+  final String? type;
+
+  static HistoryRow fromRow(Map<String, Object?> r) => HistoryRow(
+        chapterId: r['chapter_id'] as int,
+        seriesId: r['series_id'] as int,
+        readAt: r['read_at'] as int,
+        timesRead: r['times_read'] as int,
+        number: (r['number'] as num).toDouble(),
+        title: r['title'] as String,
+        originalTitle: r['original_title'] as String?,
+        coverHash: r['cover_hash'] as String?,
+        type: r['type'] as String?,
+      );
 }
 
 /// `downloads` — pinned downloads / queue rows (Plan/02; manager in Plan/13).

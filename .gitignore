@@ -26,3 +26,6 @@ app/android/local.properties
 *.aab
 .DS_Store
 Thumbs.db
+
+# analyze/test scratch logs (phase work keeps them out of git)
+*.log

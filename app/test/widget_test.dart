@@ -40,11 +40,14 @@ Future<void> main() async {
     await tester.pumpWidget(
       ProviderScope(overrides: overrides, child: const StarCodexApp()),
     );
-    await tester.pumpAndSettle(
-      const Duration(milliseconds: 50),
-      EnginePhase.sendSemanticsUpdate,
-      const Duration(seconds: 5),
-    );
+    // The real screens (library/history) load through the ffi DB isolate —
+    // REAL async that never completes under FakeAsync, and their loading
+    // spinners animate forever. Drain + pump instead of pumpAndSettle.
+    for (var i = 0; i < 3; i++) {
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 150)));
+      await tester.pump();
+    }
 
     final bar = find.byType(NavigationBar);
     expect(bar, findsOneWidget);
@@ -60,11 +63,7 @@ Future<void> main() async {
       of: bar,
       matching: find.text(I18nService.translate('tab.settings')),
     ));
-    await tester.pumpAndSettle(
-      const Duration(milliseconds: 50),
-      EnginePhase.sendSemanticsUpdate,
-      const Duration(seconds: 5),
-    );
+    await tester.pump();
     // Settings placeholder repeats the tab title as its heading.
     expect(find.text(I18nService.translate('tab.settings')), findsNWidgets(2));
   }, timeout: const Timeout(Duration(minutes: 1)));

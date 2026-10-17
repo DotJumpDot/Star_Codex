@@ -211,6 +211,12 @@ class SeriesDao {
   Future<int> delete(int id) =>
       db.delete('series', where: 'id = ?', whereArgs: [id]);
 
+  /// Every series row (merge picker on the detail screen, Plan/12 §4).
+  Future<List<Series>> all() async =>
+      (await db.query('series', orderBy: 'title'))
+          .map(Series.fromRow)
+          .toList(growable: false);
+
   // --- series_sources ---
 
   Future<void> upsertSource(SeriesSource link) async {
