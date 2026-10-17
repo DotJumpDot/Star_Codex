@@ -23,6 +23,9 @@ class RateLimiter {
   final Set<String> _imageHostSuffixes = {
     '.flash-manga.com',
     '.cdend.com',
+    // Nekopost's split file hosts (Plan/06 §4) — image class, or a
+    // 25-page chapter serializes at 700 ms/page ≈ 18 s (cold-open DoD).
+    '.osemocphoto.com',
   };
 
   final Map<String, _HostGate> _gates = {};

@@ -178,6 +178,59 @@ void main() {
   });
 
   group('fetchPage + TaskQueue', () {
+    test('resolvePage fallback: sibling serves once, hash lands on the '
+        'ORIGINAL row, second resolve is disk-only', () async {
+      // Primary's page URL never resolves → DNS validation fails fast →
+      // resolvePage falls to the sibling whose URL the fetcher serves.
+      final c1 = seed(1, 'slow-manga', 5, 'https://a/ch5');
+      final id1 =
+          await seedChapter(c1, pageUrls: ['https://dead.invalid/p0.jpg']);
+      final c2 = seed(1, 'go-manga', 5, 'https://b/ch5');
+      final id2 =
+          await seedChapter(c2, pageUrls: ['https://www.example.com/p0.jpg']);
+
+      var downloads = 0;
+      final blobs = BlobStore(rootDir: tempRoot, blobsDao: BlobsDao(db));
+      final repoFallback = ReaderRepo(
+        sources: const [],
+        seriesDao: SeriesDao(db),
+        chaptersDao: chaptersDao,
+        blobs: blobs,
+        pipeline: ImagePipeline(
+          http: SafeHttp(
+            rateLimiter: RateLimiter(seed: 1),
+            fetcher: (uri, options) async {
+              downloads++;
+              return Response<List<int>>(
+                requestOptions: RequestOptions(path: uri.toString()),
+                statusCode: 200,
+                data: fakePng(9, 400),
+              );
+            },
+          ),
+          blobs: blobs,
+          compressor: (bytes, {maxWidth}) async =>
+              Uint8List.fromList(bytes.reversed.toList()),
+        ),
+      );
+
+      final loaded =
+          await repoFallback.loadChapter((await chaptersDao.byId(id1))!);
+      final pf = await repoFallback.resolvePage(loaded, 0);
+      expect(pf.hash, isNotNull);
+      expect(downloads, 1, reason: 'sibling fetched exactly once');
+
+      // The resolved hash is persisted onto the REQUESTED chapter's row —
+      // the next open is a plain cache hit on the original ref.
+      final rows = await chaptersDao.pages(id1);
+      expect(rows.single.contentHash, pf.hash);
+
+      final pf2 = await repoFallback.resolvePage(loaded, 0);
+      expect(pf2.hash, pf.hash);
+      expect(downloads, 1, reason: 'second resolve is disk-only');
+      expect(await chaptersDao.pages(id2), isNotEmpty);
+    });
+
     test('fetch stores blob, persists hash+dims back on chapter_pages',
         () async {
       final source = FakeSource('slow-manga');

@@ -71,7 +71,11 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
     } else if (vm == null) {
       body = const Center(child: CircularProgressIndicator());
     } else {
-      body = _DetailBody(vm: vm);
+      // Children must talk to THIS screen's controller (family key = -1
+      // when opened from a browse card — vm.series.id would resolve to a
+      // different, empty controller and every action button would
+      // dead-end).
+      body = _DetailBody(vm: vm, controllerKey: widget._key);
     }
 
     return Scaffold(
@@ -140,9 +144,10 @@ class _Menu extends StatelessWidget {
 }
 
 class _DetailBody extends ConsumerStatefulWidget {
-  const _DetailBody({required this.vm});
+  const _DetailBody({required this.vm, required this.controllerKey});
 
   final SeriesDetailVm vm;
+  final int controllerKey;
 
   @override
   ConsumerState<_DetailBody> createState() => _DetailBodyState();
@@ -237,7 +242,7 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
             ],
           ),
         ),
-        _ActionRow(vm: vm),
+        _ActionRow(vm: vm, controllerKey: widget.controllerKey),
         if (series.description != null && series.description!.isNotEmpty)
           _Description(
               vm: vm,
@@ -248,7 +253,8 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: _TagRow(tags: vm.tags),
           ),
-        Expanded(child: ChapterList(vm: vm)),
+        Expanded(
+            child: ChapterList(vm: vm, controllerKey: widget.controllerKey)),
       ],
     );
   }
@@ -277,20 +283,30 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
 }
 
 /// Cover: `series.cover_hash` blob file first; evicted → fetch the first
-/// link's cover URL through the pipeline; nothing → placeholder.
-class _Cover extends ConsumerWidget {
+/// link's cover URL through the pipeline; nothing → placeholder. The
+/// blob-row future is created once per cover hash — recreating it every
+/// build re-reads the DB on each mark-read/sort setState.
+class _Cover extends ConsumerStatefulWidget {
   const _Cover({required this.vm});
 
   final SeriesDetailVm vm;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final hash = vm.series.coverHash;
+  ConsumerState<_Cover> createState() => _CoverState();
+}
+
+class _CoverState extends ConsumerState<_Cover> {
+  Future<BlobRow?>? _future;
+
+  @override
+  Widget build(BuildContext context) {
+    final hash = widget.vm.series.coverHash;
     if (hash != null) {
       final blobs = ref.watch(blobStoreProvider);
       final dir = ref.watch(libraryDirProvider);
+      _future ??= blobs.blobRow(hash);
       return FutureBuilder<BlobRow?>(
-        future: blobs.blobRow(hash),
+        future: _future,
         builder: (context, snap) {
           final path = snap.data?.path;
           if (path == null) return _fallback(context, ref);
@@ -308,10 +324,10 @@ class _Cover extends ConsumerWidget {
   }
 
   Widget _fallback(BuildContext context, WidgetRef ref) {
-    if (vm.coverUrl != null && vm.coverReferer != null) {
+    if (widget.vm.coverUrl != null && widget.vm.coverReferer != null) {
       return CoverThumb(
-        url: vm.coverUrl!,
-        referer: vm.coverReferer!,
+        url: widget.vm.coverUrl!,
+        referer: widget.vm.coverReferer!,
         width: 120,
         height: 170,
       );
@@ -327,14 +343,15 @@ class _Cover extends ConsumerWidget {
 }
 
 class _ActionRow extends ConsumerWidget {
-  const _ActionRow({required this.vm});
+  const _ActionRow({required this.vm, required this.controllerKey});
 
   final SeriesDetailVm vm;
+  final int controllerKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final controller =
-        ref.read(detailControllerProvider(vm.series.id!).notifier);
+        ref.read(detailControllerProvider(controllerKey).notifier);
     final target = continueTarget(vm);
 
     return Padding(

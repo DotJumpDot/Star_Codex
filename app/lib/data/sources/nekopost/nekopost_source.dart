@@ -114,11 +114,11 @@ class NekopostSource implements Source {
       _latestType('m', page),
       _latestType('f', page),
     ]);
-    final seen = <int>{};
+    final seen = <String>{};
     return [
       for (final list in results)
         for (final s in list)
-          if (seen.add(s.url.hashCode)) s,
+          if (seen.add(s.url)) s,
     ];
   }
 

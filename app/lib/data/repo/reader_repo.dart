@@ -29,11 +29,13 @@ class ReaderPageRef {
 }
 
 /// A resolved page: relative path under the library root (+ dims sniffed
-/// from the original bytes, doc 03).
+/// from the original bytes, doc 03). [hash] is the content hash — callers
+/// use it to persist fallback results back onto the requested chapter.
 class PageFile {
-  const PageFile({required this.path, this.width, this.height});
+  const PageFile({required this.path, this.hash, this.width, this.height});
 
   final String path;
+  final String? hash;
   final int? width;
   final int? height;
 }
@@ -179,7 +181,8 @@ class ReaderRepo {
     final row = await blobs.blobRow(hash);
     if (row == null) return null;
     if (!await blobs.exists(hash)) return null;
-    return PageFile(path: row.path, width: ref.width, height: ref.height);
+    return PageFile(
+        path: row.path, hash: hash, width: ref.width, height: ref.height);
   }
 
   /// Resolve one page: fetch through the pipeline inside the shared queue,
@@ -196,7 +199,10 @@ class ReaderRepo {
             chapterId, ref.idx, result.width!, result.height!);
       }
       return PageFile(
-          path: result.path, width: result.width, height: result.height);
+          path: result.path,
+          hash: result.hash,
+          width: result.width,
+          height: result.height);
     });
   }
 
@@ -228,8 +234,13 @@ class ReaderRepo {
   }
 
   /// Shared page resolver for every reader mode: disk-first → own source
-  /// fetch → per-page fallback across sibling sources (07 §5). [onFallback]
-  /// fires with the serving source id for the UI badge.
+  /// fetch → per-page fallback across sibling sources (07 §5).
+  ///
+  /// Fallback details that matter for repeat reads:
+  /// - a sibling whose copy is already on disk serves WITHOUT a download;
+  /// - the resolved hash is written back onto the REQUESTED chapter's page
+  ///   row, so the next open is a plain cache hit on the original ref.
+  /// [onFallback] fires with the serving source id for the UI badge.
   Future<PageFile> resolvePage(
     LoadedChapter loaded,
     int idx, {
@@ -245,8 +256,19 @@ class ReaderRepo {
         try {
           final sibLoaded = await loadChapter(sib);
           if (idx >= sibLoaded.pages.length) continue;
-          final pf = await fetchPage(sibLoaded.chapter.id!,
-              sibLoaded.pages[idx], sibLoaded.referer);
+          final sibRef = sibLoaded.pages[idx];
+          PageFile pf;
+          final sibCached = await cachedFile(sibRef);
+          if (sibCached != null) {
+            pf = sibCached;
+          } else {
+            pf = await fetchPage(sibLoaded.chapter.id!, sibRef,
+                sibLoaded.referer);
+          }
+          if (pf.hash != null) {
+            await chaptersDao.setPageHash(
+                loaded.chapter.id!, idx, pf.hash!);
+          }
           onFallback?.call(sibLoaded.chapter.sourceId);
           return pf;
         } catch (_) {

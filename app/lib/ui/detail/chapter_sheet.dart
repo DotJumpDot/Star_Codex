@@ -19,9 +19,9 @@ Future<void> showChapterActions(
   required SeriesDetailVm vm,
   required Chapter chapter,
   required List<String> carryingSourceIds,
+  required int controllerKey,
 }) {
-  final controller =
-      ref.read(detailControllerProvider(vm.series.id!).notifier);
+  final controller = ref.read(detailControllerProvider(controllerKey).notifier);
   final downloaded = vm.downloadedChapterIds.contains(chapter.id);
 
   return showModalBottomSheet<void>(

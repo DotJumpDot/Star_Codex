@@ -18,9 +18,14 @@ import 'detail_controller.dart';
 /// series_sources member, per-chapter source dots (09 addendum), sort
 /// toggle, search-in-chapters.
 class ChapterList extends ConsumerStatefulWidget {
-  const ChapterList({super.key, required this.vm});
+  const ChapterList(
+      {super.key, required this.vm, required this.controllerKey});
 
   final SeriesDetailVm vm;
+
+  /// The screen's provider-family key (-1 when opened from browse) — NOT
+  /// vm.series.id, which resolves to a different controller there.
+  final int controllerKey;
 
   @override
   ConsumerState<ChapterList> createState() => _ChapterListState();
@@ -135,7 +140,8 @@ class _ChapterListState extends ConsumerState<ChapterList>
                     ? Icons.arrow_downward
                     : Icons.arrow_upward),
                 onPressed: () => ref
-                    .read(detailControllerProvider(vm.series.id!).notifier)
+                    .read(
+                        detailControllerProvider(widget.controllerKey).notifier)
                     .setSort(oldestFirst: !vm.sortOldestFirst),
               ),
             ],
@@ -146,7 +152,11 @@ class _ChapterListState extends ConsumerState<ChapterList>
             controller: tabs,
             children: [
               for (final link in vm.links)
-                _SourceChapters(vm: vm, link: link, query: _search.text),
+                _SourceChapters(
+                    vm: vm,
+                    link: link,
+                    query: _search.text,
+                    controllerKey: widget.controllerKey),
             ],
           ),
         ),
@@ -160,11 +170,13 @@ class _SourceChapters extends ConsumerWidget {
     required this.vm,
     required this.link,
     required this.query,
+    required this.controllerKey,
   });
 
   final SeriesDetailVm vm;
   final SeriesSource link;
   final String query;
+  final int controllerKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -194,8 +206,11 @@ class _SourceChapters extends ConsumerWidget {
     }
     return ListView.builder(
       itemCount: chapters.length,
-      itemBuilder: (context, i) =>
-          _ChapterRow(vm: vm, chapter: chapters[i], sourceId: link.sourceId),
+      itemBuilder: (context, i) => _ChapterRow(
+          vm: vm,
+          chapter: chapters[i],
+          sourceId: link.sourceId,
+          controllerKey: controllerKey),
     );
   }
 }
@@ -205,11 +220,13 @@ class _ChapterRow extends ConsumerWidget {
     required this.vm,
     required this.chapter,
     required this.sourceId,
+    required this.controllerKey,
   });
 
   final SeriesDetailVm vm;
   final Chapter chapter;
   final String sourceId;
+  final int controllerKey;
 
   /// Sources carrying this exact chapter number (epsilon), in tab order —
   /// the colored chips of the doc 09 addendum.
@@ -297,7 +314,10 @@ class _ChapterRow extends ConsumerWidget {
               .read(settingsProvider)
               .get('reader_mode_${chapter.seriesId}', 'auto')),
       onLongPress: () => showChapterActions(context, ref,
-          vm: vm, chapter: chapter, carryingSourceIds: carrying),
+          vm: vm,
+          chapter: chapter,
+          carryingSourceIds: carrying,
+          controllerKey: controllerKey),
     );
   }
 

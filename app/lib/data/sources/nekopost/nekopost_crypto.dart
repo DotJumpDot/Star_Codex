@@ -145,18 +145,21 @@ void _addRoundKey(Uint8List s, Uint8List k) {
   }
 }
 
+/// Inverse S-box, built once from [_sbox]. The naive per-byte linear
+/// search made a 24 KB cinfo payload cost ~86M iterations (~seconds on a
+/// phone) — this table makes decryption effectively free.
+final List<int> _invSboxTable = () {
+  final t = List<int>.filled(256, 0);
+  for (var i = 0; i < 256; i++) {
+    t[_sbox[i]] = i;
+  }
+  return t;
+}();
+
 void _invSubBytes(Uint8List s) {
   for (var i = 0; i < 16; i++) {
-    s[i] = _invSbox(s[i]);
+    s[i] = _invSboxTable[s[i]];
   }
-}
-
-int _invSbox(int b) {
-  // Inverse S-box derived by search — kept table-free for compactness.
-  for (var i = 0; i < 256; i++) {
-    if (_sbox[i] == b) return i;
-  }
-  throw StateError('no inverse sbox for $b');
 }
 
 void _invShiftRows(Uint8List s) {

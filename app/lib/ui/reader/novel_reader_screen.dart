@@ -66,11 +66,28 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
       final text = await _repo.loadNovelText(widget.chapter);
       final series =
           await ref.read(seriesDaoProvider).byId(widget.chapter.seriesId);
+      // page_index stores the scroll PERCENT for novels (doc 11 B).
+      final progress =
+          await ref.read(chaptersDaoProvider).progress(widget.chapter.id!);
       if (!mounted) return;
       setState(() {
         _text = text;
         _seriesTitle = series?.title;
         _error = null;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_scroll.hasClients) return;
+        final max = _scroll.position.maxScrollExtent;
+        if (max <= 0) {
+          // Whole chapter fits: no scroll events will ever fire, so the
+          // end-of-chapter state must be evaluated once here.
+          setState(() => _endVisible = true);
+          return;
+        }
+        if (progress != null && !progress.completed && progress.pageIndex > 0) {
+          _scroll
+              .jumpTo((max * progress.pageIndex / 100).clamp(0.0, max));
+        }
       });
     } catch (e) {
       if (!mounted) return;

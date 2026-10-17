@@ -47,10 +47,19 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   final _scroll = ScrollController();
 
+  /// In-flight page futures for THIS chapter. Without the memo, the
+  /// seed-prefetch and the slot's own build both resolve the early pages
+  /// — and the pipeline only dedups AFTER downloading, so that was 2x
+  /// network for every first screen. Successes stay memoized for the
+  /// screen's lifetime; failures are evicted so Retry works.
+  final _inflight = <int, Future<PageFile>>{};
+
   bool get _keepAwake =>
       ref.read(settingsProvider).getBool('reader_keep_awake', true);
   bool get _autoNext =>
       ref.read(settingsProvider).getBool('reader_auto_next', true);
+  int get _prefetchAhead =>
+      ref.read(settingsProvider).getInt('reader_prefetch_ahead', 6);
 
   ReaderRepo get _repo => ref.read(readerRepoProvider);
 
@@ -87,6 +96,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       final series = await ref
           .read(seriesDaoProvider)
           .byId(loaded.chapter.seriesId);
+      // Doc 10 DoD: reopen resumes at the saved page (±1). Completed
+      // chapters restart from the top.
+      final progress =
+          await ref.read(chaptersDaoProvider).progress(loaded.chapter.id!);
       if (!mounted) return;
       setState(() {
         _failed = false;
@@ -95,6 +108,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         _heights = [
           for (final p in loaded.pages) _estimatedHeight(p),
         ];
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_scroll.hasClients) return;
+        if (progress != null && !progress.completed && progress.pageIndex > 0) {
+          final offsets = slotOffsets(_heights);
+          final idx = progress.pageIndex.clamp(0, offsets.length - 1);
+          _scroll.jumpTo(
+              offsets[idx].clamp(0.0, _scroll.position.maxScrollExtent));
+          _currentPage = idx;
+        }
       });
       _seedPrefetch();
     } catch (_) {
@@ -113,7 +136,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   double get _slotWidth => MediaQuery.sizeOf(context).width;
 
-  /// Seed pages [0..5] into the queue (doc 10 §Prefetch).
+  /// Seed pages [0..5] into the queue (doc 10 §Prefetch), then keep
+  /// [ _prefetchAhead ] pages moving as the user scrolls (the setting
+  /// actually drives prefetch; cacheExtent alone is fixed at ~2 screens).
   void _seedPrefetch() {
     final loaded = _loaded;
     if (loaded == null) return;
@@ -122,20 +147,38 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         i++) {
       _resolvePage(i);
     }
+    _prefetchFrom(0);
+  }
+
+  void _prefetchFrom(int page) {
+    final loaded = _loaded;
+    if (loaded == null) return;
+    for (var k = 1; k <= _prefetchAhead; k++) {
+      final i = page + k;
+      if (i >= loaded.pages.length) break;
+      _resolvePage(i); // memoized — already-fetched pages are free
+    }
   }
 
   /// One page via the shared resolver: disk → own source → sibling
   /// sources (07 §5), badge the fallback source.
   Future<PageFile> _resolvePage(int idx) {
+    final existing = _inflight[idx];
+    if (existing != null) return existing;
     final loaded = _loaded!;
-    return _repo.resolvePage(loaded, idx, onFallback: (sourceId) {
+    final future = _repo.resolvePage(loaded, idx, onFallback: (sourceId) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(tFmt(
             context, 'reader.fallback_source', {'source': sourceId})),
         duration: const Duration(seconds: 2),
       ));
+    }).then<PageFile>((pf) => pf, onError: (Object e) {
+      _inflight.remove(idx);
+      throw e;
     });
+    _inflight[idx] = future;
+    return future;
   }
 
   void _onDimensions(int idx, int? w, int? h) {
@@ -154,7 +197,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
     final page = currentPageIndex(
         offsets, _heights, _scroll.offset, viewport);
-    if (page != _currentPage) setState(() => _currentPage = page);
+    if (page != _currentPage) {
+      setState(() => _currentPage = page);
+      _prefetchFrom(page);
+    }
 
     // Completed: within one viewport of the end (doc 10 §5), throttled
     // DB write at 500 ms (partial positions save continuously).

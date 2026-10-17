@@ -37,7 +37,9 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   bool _chromeVisible = true;
   bool _switching = false;
 
-  final _pageController = PageController();
+  /// Created in [_open] once the saved page is known (doc 11 DoD:
+  /// progress resumes in both modes). Null while loading.
+  PageController? _pageController;
   final _gestureKey = GlobalKey<ExtendedImageGestureState>();
   DateTime _lastSave = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime _lastOverscroll = DateTime.fromMillisecondsSinceEpoch(0);
@@ -81,11 +83,18 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
       final loaded = await _repo.loadChapter(widget.chapter);
       final series =
           await ref.read(seriesDaoProvider).byId(loaded.chapter.seriesId);
+      final progress = await ref
+          .read(chaptersDaoProvider)
+          .progress(loaded.chapter.id!);
+      final initial = progress != null && !progress.completed
+          ? progress.pageIndex.clamp(0, loaded.pages.length - 1)
+          : 0;
       if (!mounted) return;
       setState(() {
         _loaded = loaded;
         _seriesTitle = series?.title;
-        _page = 0;
+        _page = initial;
+        _pageController = PageController(initialPage: initial);
       });
     } catch (_) {
       if (!mounted) return;
@@ -163,11 +172,12 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   void _tapZone(bool forward) {
     if (_zoomed) return; // page-turn taps disabled while zoomed (doc 11 A)
     final loaded = _loaded;
-    if (loaded == null) return;
+    final controller = _pageController;
+    if (loaded == null || controller == null) return;
     final goForward = _rtl ? !forward : forward; // zones swap under RTL
     if (goForward) {
       if (_page < loaded.pages.length - 1) {
-        _pageController.nextPage(
+        controller.nextPage(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOut);
       } else {
@@ -175,7 +185,7 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
       }
     } else {
       if (_page > 0) {
-        _pageController.previousPage(
+        controller.previousPage(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOut);
       } else {
@@ -186,7 +196,7 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
 
   @override
   void dispose() {
-    _pageController.dispose();
+    _pageController?.dispose();
     _setImmersive(false);
     _setAwake(false);
     super.dispose();
@@ -218,7 +228,7 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
                 return false;
               },
               child: PageView.builder(
-                controller: _pageController,
+                controller: _pageController!,
                 reverse: _rtl,
                 itemCount: loaded.pages.length,
                 onPageChanged: _onPageChanged,
@@ -290,7 +300,7 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
             onSeek: (v) {
               final total = loaded?.pages.length ?? 1;
               final target = (v * (total - 1)).round();
-              _pageController.animateToPage(target,
+              _pageController?.animateToPage(target,
                   duration: const Duration(milliseconds: 250),
                   curve: Curves.easeOut);
             },

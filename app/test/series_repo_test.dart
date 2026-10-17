@@ -220,6 +220,18 @@ void main() {
       expect(target.sourceId, 'go-manga');
     });
 
+    test('COMPLETED last-read → Continue picks the next unread ("อ่านต่อ")',
+        () {
+      // Chapter 1 finished (any source's copy marks the NUMBER read);
+      // Continue must NOT replay ch 1's last page — it opens ch 2 from
+      // the primary link.
+      final vm = _vm(completedIds: const {11}, lastReadId: 11);
+      final target = continueTarget(vm)!;
+      expect(target.chapter.id, 12);
+      expect(target.chapter.number, 2);
+      expect(target.sourceId, 'slow-manga');
+    });
+
     test('falls back to the first unread number', () {
       final vm = _vm(completedIds: const {11}, lastReadId: null);
       final target = continueTarget(vm)!;
@@ -231,6 +243,53 @@ void main() {
       final target = continueTarget(vm)!;
       expect(target.chapter.number, 1);
       expect(target.sourceId, 'slow-manga');
+    });
+  });
+
+  group('SeriesRepo.upsertFromDetail enrichment (L7 on re-add)', () {
+    test('same title, new URL: no clobber, longest description, tags union',
+        () async {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final seriesId = await seriesDao.upsertByTitleNorm(Series(
+        title: 'Nano Machine',
+        titleNorm: normalizeTitle('Nano Machine'),
+        type: 'manhwa',
+        status: 'ongoing',
+        description: 'short desc',
+        createdAt: now,
+        updatedAt: now,
+      ));
+      await tagsDao.setForSeries(seriesId, ['Action']);
+
+      const url = 'https://slow-manga.net/nano/';
+      const detail = SourceSeriesDetail(
+        title: 'Nano Machine',
+        // no type/status here — the existing row must keep its values
+        description: 'a much longer description from the second source',
+        tags: ['Drama'],
+        chapters: [
+          SourceChapter(
+              url: 'https://slow-manga.net/nano/1',
+              title: 'ตอนที่ 1',
+              number: 1),
+        ],
+      );
+      final source = FakeSource('slow-manga', details: {url: detail});
+
+      final id = await repoWith([source]).upsertFromDetail(
+        source: source,
+        sourceUrl: url,
+        fallbackTitle: 'nano machine',
+        detail: detail,
+      );
+
+      expect(id, seriesId, reason: 'title-norm match reuses the row');
+      final series = (await seriesDao.byId(seriesId))!;
+      expect(series.description, contains('much longer'));
+      expect(series.type, 'manhwa', reason: 'null from new source must not clobber');
+      expect(series.status, 'ongoing');
+      expect(await tagsDao.tagsOf(seriesId),
+          containsAll(['Action', 'Drama']), reason: 'tags union, not replace');
     });
   });
 

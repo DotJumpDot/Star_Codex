@@ -284,3 +284,51 @@ Also this pass:
   browse-by-genre is unsupported for this source (picker shows nothing).
 - keiyoushi reference moved to `keiyoushi/extensions-source`
   (`src/th/nekopost/`, not `lib/src/...` as doc 06 guessed).
+
+## Post-Phase-8 review pass (big model, 2026-10-17)
+
+Bugs found + fixed (all regression-tested):
+
+1. **Dead action buttons on browse→detail.** The detail controller is a
+   family keyed -1 for browse entry, but the action row / sort toggle /
+   chapter sheet read `detailControllerProvider(vm.series.id)` — a
+   different, empty controller. Library toggle, sort, mark-read, download
+   actions all silently no-op'd on that path. The screen's family key is
+   now threaded through every child (`controllerKey`).
+2. **Reader never resumed** (doc 10/11 DoD). Webtoon now jump-restores the
+   saved page after layout; paged creates its PageController with
+   `initialPage` from progress; novel restores scroll by percent AND
+   evaluates end-of-chapter state once for chapters that fit one screen
+   (no scroll events ever fired there — the end button and completion
+   never triggered).
+3. **Double download of the first screens.** Seed-prefetch and the slot's
+   own build both resolved the same pages, and the pipeline dedups only
+   AFTER downloading → 2× network per early page. Per-screen inflight memo
+   (successes cached for the chapter, failures evicted so retry works).
+4. **Fallback re-downloaded forever.** resolvePage's sibling fallback
+   never checked the sibling's cached page and never wrote the hash back
+   to the ORIGINAL chapter row — every reopen re-triggered the failing
+   fetch + a fresh download. Now: sibling disk-first, resolved hash
+   persisted onto the requested chapter (next open = plain cache hit).
+5. **upsertFromDetail clobbered existing series metadata.** Same title on
+   a new URL went through upsertByTitleNorm's wholesale row UPDATE — a new
+   source with null description/status erased the union'd values, and tags
+   were REPLACED instead of unioned. Identity chain now: (source,url) link
+   → title-norm lookup (no overwrite; merge-only) → insert. Tags union.
+6. **continueTarget replayed a finished chapter.** A completed
+   last_read_chapter_id reopened its last page; Continue now falls through
+   to the first unread number.
+7. **Nekopost cold-open violated by the rate limiter.** osemocphoto hosts
+   were strict-class (700 ms/page ≈ 18 s per chapter); now image-class
+   (4 concurrent / 200 ms), same as the other sites' CDNs.
+8. **AES decrypt was ~86M iterations per chapter** (inverse S-box was a
+   256-iteration linear search per byte) — replaced with a 256-entry table
+   built once.
+
+Improvements: stale-source refresh on detail open now parallel (was
+serial ×source-count); alt titles deduped across mirrors; latest-feed
+dedupe by URL string (not hashCode); `_Cover` blob-row future cached in
+state (was a DB read per setState); webtoon prefetch-ahead is now actually
+driven by the `reader_prefetch_ahead` setting (page-change kicks N pages
+through the memo) — previously only the fixed 2500 px cacheExtent did any
+prefetching and the settings slider did nothing.

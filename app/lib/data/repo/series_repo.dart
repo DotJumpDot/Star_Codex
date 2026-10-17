@@ -120,13 +120,18 @@ class SeriesDetailVm {
 /// only when the series has no chapters at all.
 ({Chapter chapter, String sourceId})? continueTarget(SeriesDetailVm vm) {
   if (vm.lastReadChapterId != null) {
+    Chapter? lastRead;
     for (final list in vm.chaptersBySource.values) {
       for (final c in list) {
-        if (c.id == vm.lastReadChapterId) {
-          return (chapter: c, sourceId: c.sourceId);
-        }
+        if (c.id == vm.lastReadChapterId) lastRead = c;
       }
     }
+    if (lastRead != null &&
+        !(vm.progress[lastRead.id]?.completed ?? false)) {
+      return (chapter: lastRead, sourceId: lastRead.sourceId);
+    }
+    // Finished it → Continue means the NEXT unread chapter, not a replay
+    // of the final page.
   }
   final numbers = vm.chaptersByNumber.keys.toList()..sort();
   for (final n in numbers) {
@@ -161,6 +166,16 @@ String? pickOriginalTitle(String titleNorm, Iterable<String> altTitles) {
     if (isMostlyLatin(alt) && n.isNotEmpty && n != titleNorm) return alt;
   }
   return null;
+}
+
+
+/// Alt titles across mirrors repeat heavily — dedupe (trimmed, order kept).
+List<String> dedupeAltTitles(Iterable<String> raw) {
+  final seen = <String>{};
+  return [
+    for (final s in raw)
+      if (s.trim().isNotEmpty && seen.add(s.trim())) s.trim(),
+  ];
 }
 
 /// Detail-side orchestration (Plan/09 §Data flow + 07 §3.2/§4): stale-tab
@@ -199,28 +214,43 @@ class SeriesRepo {
   /// links) or links older than [chapterRefreshAfter] are refreshed on the
   /// way in; one failing source never blanks the screen (doc 09).
   Future<SeriesDetailVm> load(int seriesId) async {
-    var links = await seriesDao.sourcesOf(seriesId);
+    final links = await seriesDao.sourcesOf(seriesId);
     final now = DateTime.now().millisecondsSinceEpoch;
-    String? descriptionSourceId;
 
+    // Stale or never-fetched links refresh in parallel — different hosts
+    // don't share a rate-limit gate, and a serial loop multiplied the
+    // open latency by the number of sources.
+    final staleLinks = <SeriesSource>[];
     for (final link in links) {
       final hasChapters =
           await chaptersDao.hasForSource(seriesId, link.sourceId);
-      final stale = now - link.fetchedAt > chapterRefreshAfter.inMilliseconds;
-      if (hasChapters && !stale) continue;
-      final source = sourceById(link.sourceId);
-      if (source == null) continue;
-      try {
-        final detail = await source.detail(link.sourceUrl);
-        final supplied = await _applyDetail(seriesId, link, detail, now);
+      final stale =
+          !hasChapters || now - link.fetchedAt > chapterRefreshAfter.inMilliseconds;
+      if (stale && sourceById(link.sourceId) != null) {
+        staleLinks.add(link);
+      }
+    }
+    String? descriptionSourceId;
+    if (staleLinks.isNotEmpty) {
+      final suppliedList = await Future.wait([
+        for (final link in staleLinks)
+          () async {
+            try {
+              final detail =
+                  await sourceById(link.sourceId)!.detail(link.sourceUrl);
+              return await _applyDetail(seriesId, link, detail, now);
+            } catch (_) {
+              return null; // unreachable source: keep what's in the DB
+            }
+          }(),
+      ]);
+      for (final supplied in suppliedList) {
         descriptionSourceId ??= supplied;
-      } catch (_) {
-        // Unreachable source: keep what's already in the DB.
       }
     }
 
-    links = await seriesDao.sourcesOf(seriesId);
-    return _buildVm(seriesId, links,
+    final fresh = await seriesDao.sourcesOf(seriesId);
+    return _buildVm(seriesId, fresh,
         descriptionSourceId: descriptionSourceId);
   }
 
@@ -260,9 +290,9 @@ class SeriesRepo {
       downloadedChapterIds: await downloadsDao.downloadedForSeries(seriesId),
       inLibrary: entry != null,
       lastReadChapterId: entry?.lastReadChapterId,
-      altTitles: [
+      altTitles: dedupeAltTitles([
         for (final l in links) ...l.altTitles,
-      ],
+      ]),
         sortOldestFirst: (await settingsDao.get('chapter_sort_$seriesId')) != 'desc',
         coverUrl: coverUrl,
         coverReferer: coverReferer,
@@ -304,6 +334,15 @@ class SeriesRepo {
       fetchedAt: nowMs,
     ));
 
+    return _mergeMetadata(seriesId, link.sourceId, detail);
+  }
+
+  /// L7 metadata union onto the series row: description = longest
+  /// non-empty, type/status/origin/original_title = first non-null, tags =
+  /// UNION (mirrors report different subsets). Returns the source id when
+  /// THIS call supplied the new description, for the UI caption.
+  Future<String?> _mergeMetadata(
+      int seriesId, String sourceId, SourceSeriesDetail detail) async {
     final stored = await seriesDao.byId(seriesId);
     if (stored == null) return null;
     var series = stored;
@@ -318,7 +357,7 @@ class SeriesRepo {
         pickLongestDescription([series.description, detail.description]);
     if (description != null && description != series.description) {
       series = series.copyWith(description: description);
-      descriptionSourceId = link.sourceId;
+      descriptionSourceId = sourceId;
     }
     if (type == null && detail.type != null) type = detail.type;
     if (status == null && detail.status != null) status = detail.status;
@@ -442,8 +481,22 @@ class SeriesRepo {
       }
     }
 
-    final seriesId = existingId ??
-        await seriesDao.upsertByTitleNorm(Series(
+    // Identity order 2: same title_norm on a DIFFERENT url = same
+    // series. The row is NOT rewritten wholesale — upsertByTitleNorm would
+    // clobber an existing longer description / type / status with the new
+    // source's nulls. The L7 union happens in _mergeMetadata below.
+    final int seriesId;
+    if (existingId != null) {
+      seriesId = existingId;
+    } else {
+      final byNorm = await seriesDao.findByTitleNorm(norm);
+      if (byNorm != null) {
+        seriesId = byNorm.id!;
+        if (coverHash != null && byNorm.coverHash == null) {
+          await seriesDao.update(byNorm.copyWith(coverHash: coverHash));
+        }
+      } else {
+        seriesId = await seriesDao.insert(Series(
           title: title,
           titleNorm: norm,
           originalTitle: originalTitle,
@@ -455,6 +508,8 @@ class SeriesRepo {
           createdAt: now,
           updatedAt: now,
         ));
+      }
+    }
 
     // One transaction: a 900-chapter series must not land half-written.
     await chaptersDao.upsertAll([
@@ -483,9 +538,11 @@ class SeriesRepo {
           detail.chapters.isEmpty ? null : detail.chapters.last.uploadedAt,
       fetchedAt: now,
     ));
-    if (detail.tags.isNotEmpty) {
-      await tagsDao.setForSeries(seriesId, detail.tags);
-    }
+    // Re-adding on an EXISTING series must still enrich it (L7): a new
+    // source's longer description / missing type / extra tags land here —
+    // and tags UNION instead of replace, so the first source's tags
+    // survive.
+    await _mergeMetadata(seriesId, source.id, detail);
     return seriesId;
   }
 
