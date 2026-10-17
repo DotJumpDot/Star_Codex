@@ -4,6 +4,10 @@ import 'package:flutter/material.dart' show BuildContext;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/dao/settings_dao.dart';
+import '../providers.dart';
+import '../settings_provider.dart';
+
 /// Tiny i18n helper (Plan/01 §5).
 ///
 /// Loads `assets/i18n/th.json` and `assets/i18n/en.json` into memory at
@@ -40,15 +44,26 @@ class I18nService {
 /// Doc signature: `t(context, 'browse.title')`.
 String t(BuildContext _, String key) => I18nService.translate(key);
 
-/// Current UI language ('th' | 'en'). Persisted to the settings DB in Phase 2.
+/// Current UI language ('th' | 'en'), persisted to the settings table.
 class LanguageController extends StateNotifier<String> {
-  LanguageController() : super(I18nService.lang);
+  LanguageController(String initial, this._settingsDao)
+      : super(I18nService.supportedLanguages.contains(initial)
+            ? initial
+            : 'th');
+
+  final SettingsDao _settingsDao;
 
   void set(String lang) {
     I18nService.setLang(lang);
     state = lang;
+    _settingsDao.upsert('language', lang);
   }
 }
 
 final languageProvider =
-    StateNotifierProvider<LanguageController, String>((ref) => LanguageController());
+    StateNotifierProvider<LanguageController, String>((ref) {
+  return LanguageController(
+    AppSettings(ref.watch(initialSettingsProvider)).get('language', 'th'),
+    ref.watch(settingsDaoProvider),
+  );
+});

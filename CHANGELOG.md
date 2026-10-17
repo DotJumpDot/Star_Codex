@@ -20,4 +20,10 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   5-tab shell (Browse/Library/History/Offline/Settings) with placeholder
   screens. `flutter analyze` clean, `flutter test` green (4 tests), shell
   verified on emulator.
+- 2026-10-17 — Phase 2: database + settings — full v1 SQLite schema (17
+  tables, FK cascade on, append-only migrations), 5-source seed + 11 default
+  settings rows, 6 DAO files, Riverpod settings/language/theme persistence,
+  main() opens DB before runApp. `flutter test` green (13 tests: schema,
+  seed, unique-index, DAO round-trip, cascade delete), analyze clean,
+  on-device launch verified (manga_reader.db created, no crashes).
 

@@ -6,7 +6,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:star_codex/app.dart';
 import 'package:star_codex/core/i18n/i18n.dart';
 
-void main() {
+import 'helpers.dart';
+
+Future<void> main() async {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   // Widget tests run in a FakeAsync zone: a real google_fonts network fetch
@@ -14,7 +16,11 @@ void main() {
   // runtime fetching enabled.
   GoogleFonts.config.allowRuntimeFetching = false;
 
-  setUpAll(I18nService.load);
+  // Real async (i18n assets, in-memory DB open) must complete BEFORE
+  // testWidgets registers — inside a test body the FakeAsync zone can
+  // starve it.
+  await I18nService.load();
+  final overrides = await dbOverrides();
 
   const tabKeys = [
     'tab.browse',
@@ -31,7 +37,9 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(const ProviderScope(child: StarCodexApp()));
+    await tester.pumpWidget(
+      ProviderScope(overrides: overrides, child: const StarCodexApp()),
+    );
     await tester.pumpAndSettle(
       const Duration(milliseconds: 50),
       EnginePhase.sendSemanticsUpdate,
