@@ -1,6 +1,7 @@
 import 'dart:io' as io;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sqflite_common/utils/utils.dart' as sqflite_utils;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:star_codex/core/providers.dart';
@@ -12,6 +13,13 @@ bool _ffiInitialized = false;
 Future<Database> openTestDb() async {
   if (!_ffiInitialized) {
     sqfliteFfiInit();
+    // sqflite_common arms a 10 s "lock warning" timer per transaction;
+    // under FakeAsync the shell's extra DB readers (library/offline/
+    // updates controllers) can leave one queued at teardown and the test
+    // dies on "A Timer is still pending". The watchdog is dev-logging
+    // only — off in tests.
+    // ignore: deprecated_member_use
+    sqflite_utils.lockWarningDuration = null;
     _ffiInitialized = true;
   }
   return openDb(

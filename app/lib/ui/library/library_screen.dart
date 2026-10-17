@@ -5,7 +5,9 @@ import '../../core/i18n/i18n.dart';
 import '../../data/repo/library_cards.dart';
 import '../detail/detail_screen.dart';
 import 'library_card.dart';
+import 'updates_sheet.dart';
 import 'library_controller.dart';
+import 'updates_controller.dart';
 import 'library_sheets.dart';
 
 /// Library tab (Plan/12): category chips → toolbar (search / sort / view /
@@ -41,11 +43,18 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         actions: selectionMode
             ? _selectionActions(context, ref, state, controller)
             : [
+                // Updates check (doc 13 §B): cheap, polite, gated at 6 h.
                 IconButton(
-                  tooltip: t(context, 'library.refresh'),
+                  tooltip: t(context, 'updates.refresh'),
                   icon: const Icon(Icons.refresh),
-                  onPressed: controller.load, // updates check lands in Phase 10
+                  onPressed: () async {
+                    controller.load();
+                    await ref
+                        .read(updatesControllerProvider.notifier)
+                        .check();
+                  },
                 ),
+                const UpdatesBell(),
               ],
       ),
       body: Column(

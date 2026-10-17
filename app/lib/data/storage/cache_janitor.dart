@@ -34,8 +34,29 @@ class CacheJanitor {
     await blobs.ensureDir();
     if (withIntegrity) {
       await blobs.integrityPass();
+      await demoteBrokenDownloads();
     }
     await enforceLru();
+  }
+
+  /// Offline-tab truthfulness (doc 13 §A): a `done` download whose blobs
+  /// are GONE (file lost, LRU'd, wiped) must not stay listed. Runs after
+  /// blobs.integrityPass so missing files have already dropped their blob
+  /// rows — any done row with neither intact pages nor chapter_text is
+  /// demoted (deleted), i.e. "not downloaded" again.
+  Future<void> demoteBrokenDownloads() {
+    return db.execute('''
+      DELETE FROM downloads WHERE state = 'done' AND chapter_id IN (
+        SELECT d.chapter_id FROM downloads d
+        LEFT JOIN chapter_text ct ON ct.chapter_id = d.chapter_id
+        WHERE ct.chapter_id IS NULL AND NOT EXISTS (
+          SELECT 1 FROM chapter_pages cp
+          JOIN blobs b ON b.hash = cp.content_hash
+          WHERE cp.chapter_id = d.chapter_id
+            AND cp.content_hash IS NOT NULL
+        )
+      )
+    ''');
   }
 
   int _writesSinceRun = 0;

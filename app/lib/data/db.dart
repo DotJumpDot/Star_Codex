@@ -209,6 +209,8 @@ const _defaultSettings = {
   'filter_hide_oneshot': '0',
   'reader_mode_default': 'auto',
   'reader_prefetch_ahead': '6',
+  'downloads_wifi_only': '1',
+  'updates_last_seen': '0',
   'updates_last_run': '0',
   'novel_font_size': '18',
   'novel_line_height': '1.7',

@@ -12,9 +12,11 @@ import '../data/dao/series_dao.dart';
 import '../data/dao/settings_dao.dart';
 import '../data/dao/tags_dao.dart';
 import '../data/repo/browse_repo.dart';
+import '../data/repo/downloads_repo.dart';
 import '../data/repo/library_repo.dart';
 import '../data/repo/reader_repo.dart';
 import '../data/repo/series_repo.dart';
+import '../data/repo/updates_repo.dart';
 import '../data/sources/source_api.dart';
 import '../data/storage/blob_store.dart';
 import '../data/storage/cache_janitor.dart';
@@ -120,6 +122,33 @@ final libraryRepoProvider = Provider((ref) => LibraryRepo(
       blobsDao: ref.watch(blobsDaoProvider),
       sources: ref.watch(sourcesProvider),
       janitor: ref.watch(cacheJanitorProvider),
+    ));
+
+/// Metered-network check for the download worker (doc 13: Wi-Fi-only
+/// switch, default ON). Overridden in main() with connectivity_plus;
+/// null in tests (the check is skipped → queue always allowed).
+final unmeteredCheckProvider =
+    Provider<Future<bool> Function()?>((ref) => null);
+
+/// Downloads queue engine (Plan/13 §A): foreground worker + snapshot
+/// stream. The 1 s timer starts in main() — tests drive tick() directly.
+final downloadsRepoProvider = Provider((ref) => DownloadsRepo(
+      readerRepo: ref.watch(readerRepoProvider),
+      seriesDao: ref.watch(seriesDaoProvider),
+      chaptersDao: ref.watch(chaptersDaoProvider),
+      downloadsDao: ref.watch(downloadsDaoProvider),
+      settingsDao: ref.watch(settingsDaoProvider),
+      janitor: ref.watch(cacheJanitorProvider),
+      isUnmetered: ref.watch(unmeteredCheckProvider),
+    ));
+
+/// Chapter-updates checker (Plan/13 §B).
+final updatesRepoProvider = Provider((ref) => UpdatesRepo(
+      sources: ref.watch(sourcesProvider),
+      seriesDao: ref.watch(seriesDaoProvider),
+      chaptersDao: ref.watch(chaptersDaoProvider),
+      libraryDao: ref.watch(libraryDaoProvider),
+      settingsDao: ref.watch(settingsDaoProvider),
     ));
 
 /// Reader orchestration (Plan/10): page lists + source fallback + the

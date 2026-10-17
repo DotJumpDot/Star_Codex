@@ -170,6 +170,19 @@ class ChaptersDao {
     return rows.isNotEmpty;
   }
 
+  /// (id, number) pairs for explicit ids — the Offline tab's per-chapter
+  /// delete picker.
+  Future<List<(int, double)>> byIds(List<int> ids) async {
+    if (ids.isEmpty) return const [];
+    final rows = await db.query('chapters',
+        columns: ['id', 'number'],
+        where: 'id IN (${ids.join(',')})',
+        orderBy: 'number');
+    return [
+      for (final r in rows) (r['id'] as int, (r['number'] as num).toDouble()),
+    ];
+  }
+
   /// Newest first (display order for the detail screen).
   Future<List<Chapter>> listForSeries(int seriesId) async {
     final rows = await db.query('chapters',
@@ -245,6 +258,12 @@ class ChaptersDao {
   /// Mark fetched pages with their content hash after pipeline write (03).
   Future<void> setPageHash(int chapterId, int idx, String contentHash) =>
       db.update('chapter_pages', {'content_hash': contentHash},
+          where: 'chapter_id = ? AND idx = ?', whereArgs: [chapterId, idx]);
+
+  /// Stored (WebP) size of one page — the download sheet's size estimate
+  /// reads real sizes once pages exist (doc 13 §A).
+  Future<void> setPageBytes(int chapterId, int idx, int bytes) =>
+      db.update('chapter_pages', {'bytes': bytes},
           where: 'chapter_id = ? AND idx = ?', whereArgs: [chapterId, idx]);
 
   /// Store dims sniffed from the original bytes — the reader reserves the

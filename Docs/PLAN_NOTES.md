@@ -362,3 +362,33 @@ prefetching and the settings slider did nothing.
   times out because the real Library/History screens show indeterminate
   progress spinners while their ffi-isolate loads pend under FakeAsync —
   drain-loop + pump instead.
+
+## Phase 10 (2026-10-17) — Downloads + Offline + updates
+
+- **connectivity_plus resolved to 7.3.2**, not the doc-era 6.x: wakelock_plus
+  1.8.1 pins dbus ^0.8.0, and connectivity_plus <7.3.2 needs dbus ^0.7.0 —
+  pub itself suggested ^7.3.2. API used is unchanged (checkConnectivity).
+- The queue engine REUSES the reader's fetch path (ReaderRepo.fetchPage /
+  loadNovelText) instead of a second pipeline caller: downloads share the
+  2-slot politeness pool, the dedup pipeline, and hash/dims persistence for
+  free. `chapter_pages.bytes` is now persisted there too (was write-only
+  schema) — the download sheet's size estimate uses real sizes once pages
+  exist, 8 MB/chapter default before that.
+- Offline-tab truthfulness is enforced twice: `CacheJanitor
+  .demoteBrokenDownloads` (startup integrity pass deletes `done` rows with
+  neither intact page blobs nor chapter_text) AND `DownloadsRepo
+  .readyOffline()` joining through `blobs` so a half-broken row can never
+  render between runs.
+- Updates feed treats `updates_last_seen = 0` (never opened) as an EMPTY
+  feed — otherwise a fresh install lights the bell with every chapter the
+  sites ever published. checkAll gates: 6 h run-gate + per-link fetched_at
+  gate; force bypasses both (pull-to-refresh).
+- Retry bookkeeping (3 strikes + doubling backoff) is in-memory in the
+  worker — the v1 worker dies with the app, matching the doc's
+  "no background service" note shown in the Offline tab.
+- **Test infra:** sqflite_common arms a 10 s transaction-lock watchdog per
+  transaction. The shell's newer DB readers (library/offline/updates) can
+  leave one queued under FakeAsync at teardown → "A Timer is still
+  pending". helpers.openTestDb now sets `sqflite_utils.lockWarningDuration
+  = null` (dev-logging only; sqflite_common added to dev_dependencies for
+  the import).

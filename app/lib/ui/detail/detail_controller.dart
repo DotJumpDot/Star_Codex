@@ -7,6 +7,7 @@ import '../../data/dao/chapters_dao.dart';
 import '../../data/dao/library_dao.dart';
 import '../../data/dao/settings_dao.dart';
 import '../../data/repo/browse_merge.dart' show SearchGroup;
+import '../../data/repo/downloads_repo.dart';
 import '../../data/repo/library_repo.dart';
 import '../../data/repo/series_repo.dart';
 
@@ -24,6 +25,7 @@ class DetailController extends StateNotifier<AsyncValue<SeriesDetailVm>> {
     required this.historyDao,
     required this.libraryRepo,
     required this.settingsDao,
+    required this.downloadsRepo,
   }) : _explicitId = seriesId, super(const AsyncValue.loading());
 
   /// Browse-card entries carry a group and NO id; the row is materialized
@@ -40,6 +42,7 @@ class DetailController extends StateNotifier<AsyncValue<SeriesDetailVm>> {
   final HistoryDao historyDao;
   final LibraryRepo libraryRepo;
   final SettingsDao settingsDao;
+  final DownloadsRepo downloadsRepo;
 
   Future<int> _ensureId() async {
     final id = _resolvedId ?? _explicitId;
@@ -119,14 +122,27 @@ class DetailController extends StateNotifier<AsyncValue<SeriesDetailVm>> {
     }
   }
 
-  Future<void> enqueueDownload(int chapterId) async {
+  Future<void> enqueueDownload(int chapterId) =>
+      enqueueDownloads([chapterId], priority: 2); // manual single > range
+
+  /// Enqueue a batch (download sheet: range / unread / all). Quota is
+  /// checked FIRST with the repo's size estimate — throws QuotaException
+  /// with the remaining free bytes on refusal (doc 13 §A).
+  Future<void> enqueueDownloads(List<int> chapterIds,
+      {int priority = 1}) async {
     final cur = state.valueOrNull;
-    if (cur == null) return;
-    await downloadsDao.enqueue(chapterId,
-        createdAt: DateTime.now().millisecondsSinceEpoch);
+    if (cur == null || chapterIds.isEmpty) return;
+    await downloadsRepo.janitor
+        .enforceQuota(await downloadsRepo.estimateBytes(chapterIds));
+    final base = DateTime.now().millisecondsSinceEpoch;
+    var i = 0;
+    for (final id in chapterIds) {
+      await downloadsDao.enqueue(id,
+          priority: priority, createdAt: base + i++);
+    }
     state = AsyncValue.data(cur.copyWith(downloadedChapterIds: {
       ...cur.downloadedChapterIds,
-      chapterId,
+      ...chapterIds,
     }));
   }
 
@@ -134,6 +150,7 @@ class DetailController extends StateNotifier<AsyncValue<SeriesDetailVm>> {
     final cur = state.valueOrNull;
     if (cur == null) return;
     await downloadsDao.delete(chapterId);
+    await downloadsRepo.janitor.recomputePins();
     final ids = {...cur.downloadedChapterIds}..remove(chapterId);
     state = AsyncValue.data(cur.copyWith(downloadedChapterIds: ids));
   }
@@ -201,6 +218,7 @@ final detailControllerProvider = StateNotifierProvider.family<
     historyDao: ref.watch(historyDaoProvider),
     libraryRepo: ref.watch(libraryRepoProvider),
     settingsDao: ref.watch(settingsDaoProvider),
+    downloadsRepo: ref.watch(downloadsRepoProvider),
   );
 });
 

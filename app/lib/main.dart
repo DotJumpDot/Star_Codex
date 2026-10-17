@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,6 +12,18 @@ import 'core/providers.dart';
 import 'data/dao/settings_dao.dart';
 import 'data/db.dart';
 import 'data/sources/source_registry.dart';
+
+/// Doc 13 §A: Wi-Fi-only downloads (default ON) — mobile data keeps the
+/// queue paused. Wi-Fi AND Ethernet count as unmetered.
+Future<bool> isUnmeteredNow() async {
+  try {
+    final results = await Connectivity().checkConnectivity();
+    return results.contains(ConnectivityResult.wifi) ||
+        results.contains(ConnectivityResult.ethernet);
+  } catch (_) {
+    return true; // plugin unavailable → don't block downloads
+  }
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,13 +43,24 @@ Future<void> main() async {
     rateLimiterProvider.overrideWithValue(rateLimiter),
     safeHttpProvider.overrideWithValue(http),
     sourcesProvider.overrideWithValue(sources),
+    unmeteredCheckProvider.overrideWithValue(isUnmeteredNow),
   ]);
   // Cache janitor 10 s after app start (Plan/03 §LRU): startup pass includes
-  // integrity (orphan/missing-file cleanup), later runs are LRU-only.
+  // integrity (orphan/missing-file cleanup + doc-13 download demotion),
+  // later runs are LRU-only.
   // Scheduled here (not in a widget) so tests never inherit a timer.
   Timer(const Duration(seconds: 10), () {
     container.read(cacheJanitorProvider).runNow(withIntegrity: true);
   });
+  // Downloads worker: 1 s tick while the app runs (doc 13 §A — v1 has no
+  // background service; the Offline tab says so).
+  container.read(downloadsRepoProvider).start();
+  // Updates check on open when stale (> 6 h, doc 13 §B) — fire and forget;
+  // the bell feed refreshes itself.
+  unawaited(container
+      .read(updatesRepoProvider)
+      .checkAll()
+      .catchError((_) => 0));
   runApp(UncontrolledProviderScope(
     container: container,
     child: const StarCodexApp(),

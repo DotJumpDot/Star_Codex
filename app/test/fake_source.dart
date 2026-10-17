@@ -5,15 +5,22 @@ import 'package:star_codex/data/sources/source_api.dart';
 class FakeSource implements Source {
   FakeSource(
     this.id, {
-    this.searchResults = const {},
-    this.latestResults = const [],
-    this.genreResults = const {},
-    this.genreList = const [],
-    this.details = const {},
-    this.pagesResults = const {},
-    this.novelTexts = const {},
+    Map<String, List<SourceSeries>>? searchResults,
+    List<SourceSeries>? latestResults,
+    Map<String, List<SourceSeries>>? genreResults,
+    List<SourceGenre>? genreList,
+    Map<String, SourceSeriesDetail>? details,
+    Map<String, List<String>>? pagesResults,
+    Map<String, String>? novelTexts,
     this.error,
-  });
+  })  : searchResults = searchResults ?? {},
+        latestResults = latestResults ?? const [],
+        genreResults = genreResults ?? {},
+        genreList = genreList ?? const [],
+        details = details ?? {},
+        // Mutable copies so tests can seed maps after construction.
+        pagesResults = Map.of(pagesResults ?? const {}),
+        novelTexts = Map.of(novelTexts ?? const {});
 
   @override
   final String id;
@@ -32,7 +39,8 @@ class FakeSource implements Source {
   final Map<String, String> novelTexts;
 
   /// When non-null, every network call throws it (Cloudflare simulation).
-  final Object? error;
+  /// Mutable so tests can flip a source offline mid-run.
+  Object? error;
 
   int searchCalls = 0;
   int detailCalls = 0;

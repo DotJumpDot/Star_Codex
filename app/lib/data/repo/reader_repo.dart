@@ -194,6 +194,7 @@ class ReaderRepo {
       final result =
           await pipeline.fetchAndStore(ref.url, referer: referer);
       await chaptersDao.setPageHash(chapterId, ref.idx, result.hash);
+      await chaptersDao.setPageBytes(chapterId, ref.idx, result.storedBytes);
       if (result.width != null && result.height != null) {
         await chaptersDao.setPageDims(
             chapterId, ref.idx, result.width!, result.height!);

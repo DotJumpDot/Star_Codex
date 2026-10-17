@@ -18,6 +18,7 @@ import '../reader/reader_router.dart';
 import 'chapter_list.dart';
 import 'detail_controller.dart';
 import 'detail_dialogs.dart';
+import 'download_sheet.dart';
 
 /// Series detail (Plan/09). Opened with an id (library) or with the browse
 /// listing group ([DetailScreen.fromGroup] — the row materializes on load).
@@ -398,11 +399,8 @@ class _ActionRow extends ConsumerWidget {
           IconButton(
             tooltip: t(context, 'detail.download'),
             icon: const Icon(Icons.download_outlined),
-            onPressed: () {
-              // Real download sheet is Phase 10 (doc 13).
-              ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(t(context, 'coming.soon'))));
-            },
+            onPressed: () => showDownloadSheet(
+                context, ref, vm, controllerKey),
           ),
         ],
       ),
