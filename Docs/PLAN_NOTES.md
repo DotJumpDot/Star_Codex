@@ -488,3 +488,4 @@ referer pairing, novel estimate. 165 tests green.
   after fix: fresh fetches land .webp (RIFF/WEBP magic), debug-gated
   IMGCOMP logs instrument the fallback. Per-page shrink remains the
   compress_test measurement (?58%, Docs/README).
+- Left as-is: racing a fast programmatic slider jump to the very end can fire auto-next before the ~500ms completed-save tick lands, so the completed chapter restarts at the top on a later manual reopen (read row was page/0). Slow-scroll path saves completed=1 correctly; the DB truth never regressed, only the pill-vs-save ordering.

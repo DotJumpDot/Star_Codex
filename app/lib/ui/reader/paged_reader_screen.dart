@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:extended_image/extended_image.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart' show SystemChrome, SystemUiMode;
@@ -41,7 +42,12 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   /// Created in [_open] once the saved page is known (doc 11 DoD:
   /// progress resumes in both modes). Null while loading.
   PageController? _pageController;
-  final _gestureKey = GlobalKey<ExtendedImageGestureState>();
+
+  /// Per-page gesture keys (QA on-device 2026-10-18: ONE shared key was
+  /// reused by every PageView child — a duplicate GlobalKey assert fired
+  /// on the first page turn (2 slots alive mid-animation) and froze the
+  /// whole build pipeline: taps dead, frame stuck at 1/N).
+  final _slotKeys = <int, GlobalKey<ExtendedImageGestureState>>{};
   DateTime _lastSave = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime _lastOverscroll = DateTime.fromMillisecondsSinceEpoch(0);
 
@@ -162,15 +168,24 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   }
 
   bool get _zoomed {
-    final details = _gestureKey.currentState?.gestureDetails;
+    final key = _slotKeys[_page];
+    final details = key?.currentState?.gestureDetails;
     return details != null && (details.totalScale ?? 1.0) > 1.05;
   }
 
   void _tapZone(bool forward) {
+    if (_zoomed && kDebugMode) {
+      debugPrint('PAGED tapZone BLOCKED zoomed=true scale='
+          '${_slotKeys[_page]?.currentState?.gestureDetails?.totalScale}');
+    }
     if (_zoomed) return; // page-turn taps disabled while zoomed (doc 11 A)
     final loaded = _loaded;
     final controller = _pageController;
-    if (loaded == null || controller == null) return;
+    if (loaded == null || controller == null) {
+      if (kDebugMode) debugPrint('PAGED tapZone BLOCKED null guard');
+      return;
+    }
+    if (kDebugMode) debugPrint('PAGED tapZone forward=$forward page=$_page');
     final goForward = _rtl ? !forward : forward; // zones swap under RTL
     if (goForward) {
       if (_page < loaded.pages.length - 1) {
@@ -231,8 +246,9 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
                 onPageChanged: _onPageChanged,
                 itemBuilder: (context, i) => _PageSlotPaged(
                   page: loaded.pages[i],
+                  index: i,
                   resolve: () => _repo.resolvePage(loaded, i),
-                  gestureKey: _gestureKey,
+                  register: (i, key) => _slotKeys[i] = key,
                 ),
               ),
             ),
@@ -245,7 +261,10 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
                     flex: 3,
                     child: GestureDetector(
                         behavior: HitTestBehavior.translucent,
-                        onTap: () => _tapZone(false),
+                        onTap: () {
+                          if (kDebugMode) debugPrint('ZONE LEFT');
+                          _tapZone(false);
+                        },
                         child: const SizedBox.expand()),
                   ),
                   Expanded(
@@ -260,7 +279,10 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
                     flex: 3,
                     child: GestureDetector(
                         behavior: HitTestBehavior.translucent,
-                        onTap: () => _tapZone(true),
+                        onTap: () {
+                          if (kDebugMode) debugPrint('ZONE RIGHT');
+                          _tapZone(true);
+                        },
                         child: const SizedBox.expand()),
                   ),
                 ],
@@ -348,17 +370,21 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
 }
 
 /// One page: BoxFit.contain + gesture mode (double-tap zoom + pan);
-/// blurred shimmer placeholder at a 2:3 estimate while loading.
+/// blurred shimmer placeholder at a 2:3 estimate while loading. Each slot
+/// OWNS its gesture key (shared keys freeze the reader mid page-turn).
 class _PageSlotPaged extends ConsumerStatefulWidget {
   const _PageSlotPaged({
     required this.page,
+    required this.index,
     required this.resolve,
-    required this.gestureKey,
+    required this.register,
   });
 
   final ReaderPageRef page;
+  final int index;
   final Future<PageFile> Function() resolve;
-  final GlobalKey<ExtendedImageGestureState> gestureKey;
+  final void Function(int index, GlobalKey<ExtendedImageGestureState> key)
+      register;
 
   @override
   ConsumerState<_PageSlotPaged> createState() => _PageSlotPagedState();
@@ -366,11 +392,13 @@ class _PageSlotPaged extends ConsumerStatefulWidget {
 
 class _PageSlotPagedState extends ConsumerState<_PageSlotPaged> {
   late Future<PageFile?> _future;
+  final _gestureKey = GlobalKey<ExtendedImageGestureState>();
   Object? _error;
 
   @override
   void initState() {
     super.initState();
+    widget.register(widget.index, _gestureKey);
     _future = _load();
   }
 
@@ -418,7 +446,7 @@ class _PageSlotPagedState extends ConsumerState<_PageSlotPaged> {
           fit: BoxFit.contain,
           mode: ExtendedImageMode.gesture,
           clearMemoryCacheWhenDispose: true,
-          extendedImageGestureKey: widget.gestureKey,
+          extendedImageGestureKey: _gestureKey,
           loadStateChanged: (state) =>
               state.extendedImageLoadState == LoadState.loading
                   ? Container(
