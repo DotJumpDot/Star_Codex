@@ -81,5 +81,19 @@
   "relative.days": "{n} วันที่แล้ว",
   "relative.weeks": "{n} สัปดาห์ที่แล้ว",
   "relative.months": "{n} เดือนที่แล้ว",
-  "relative.years": "{n} ปีที่แล้ว"
+  "relative.years": "{n} ปีที่แล้ว",
+  "reader.page": "หน้า {n}/{total}",
+  "reader.from_source": "จาก",
+  "reader.chapter_picker": "เลือกตอน",
+  "reader.prev_chapter": "ตอนก่อนหน้า",
+  "reader.next_chapter": "ตอนถัดไป",
+  "reader.settings": "ตั้งค่าตัวอ่าน",
+  "reader.keep_awake": "ห้ามปิดหน้าจอขณะอ่าน",
+  "reader.auto_next": "เปิดตอนถัดไปอัตโนมัติ",
+  "reader.prefetch_ahead": "โหลดหน้าล่วงหน้า",
+  "reader.next_toast": "ตอนถัดไปใน {n} วิ",
+  "reader.cancel": "ยกเลิก",
+  "reader.end": "จบแล้ว — ไม่มีตอนถัดไป",
+  "reader.error_page": "โหลดหน้านี้ไม่สำเร็จ",
+  "reader.fallback_source": "กำลังอ่านจาก {source}"
 }

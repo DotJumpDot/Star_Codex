@@ -12,6 +12,7 @@ import '../data/dao/series_dao.dart';
 import '../data/dao/settings_dao.dart';
 import '../data/dao/tags_dao.dart';
 import '../data/repo/browse_repo.dart';
+import '../data/repo/reader_repo.dart';
 import '../data/repo/series_repo.dart';
 import '../data/sources/source_api.dart';
 import '../data/storage/blob_store.dart';
@@ -106,6 +107,16 @@ final browseRepoProvider = Provider((ref) => BrowseRepo(
 /// Bottom-nav tab index — shared so detail screens can jump to Browse
 /// (tag chip tap, doc 09 §4) without lifting shell state.
 final tabIndexProvider = StateProvider<int>((ref) => 0);
+
+/// Reader orchestration (Plan/10): page lists + source fallback + the
+/// shared 2-slot fetch queue.
+final readerRepoProvider = Provider((ref) => ReaderRepo(
+      sources: ref.watch(sourcesProvider),
+      seriesDao: ref.watch(seriesDaoProvider),
+      chaptersDao: ref.watch(chaptersDaoProvider),
+      blobs: ref.watch(blobStoreProvider),
+      pipeline: ref.watch(imagePipelineProvider),
+    ));
 
 /// Resolves the real library dir (Plan/03: getApplicationSupportDirectory()/
 /// manga_library). Called in main() before runApp.

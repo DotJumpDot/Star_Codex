@@ -67,3 +67,14 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   "อ่านจากเว็บไหน" picker, long-press sheet (mark read/unread instant,
   download queue row), continue button (last read → first unread → ch 1),
   reader router + mode stubs. 105 tests green, analyze clean.
+- 2026-10-17 — Phase 7: Webtoon reader (Plan/10) — ReaderRepo (page lists
+  from DB, source fetch + persist, whole-chapter 07 §5 fallback chain,
+  shared 2-slot TaskQueue), PageSlot (cached→instant, known-dims exact
+  height / estimate 1.9×, retry slot), ReaderScreen (immersive + wakelock,
+  scroll progress tracking via slot offsets at the 40% line, 500 ms
+  throttled read_progress writes, completion at end-viewport, 3 s
+  auto-next countdown with cancel, middle-60% chrome toggle, draggable
+  progress bar, chapter picker sheet with per-number source dots, reader
+  settings sheet: prefetch/keep-awake/auto-next), per-page source fallback
+  with "จาก X" toast, adjacent-chapter resolution (same-source preferred).
+  wakelock_plus added (rule 5 table). 116 tests green, analyze clean.

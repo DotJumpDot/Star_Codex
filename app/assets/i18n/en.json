@@ -81,5 +81,19 @@
   "relative.days": "{n} d ago",
   "relative.weeks": "{n} wk ago",
   "relative.months": "{n} mo ago",
-  "relative.years": "{n} y ago"
+  "relative.years": "{n} y ago",
+  "reader.page": "Page {n}/{total}",
+  "reader.from_source": "from",
+  "reader.chapter_picker": "Pick chapter",
+  "reader.prev_chapter": "Previous chapter",
+  "reader.next_chapter": "Next chapter",
+  "reader.settings": "Reader settings",
+  "reader.keep_awake": "Keep screen on while reading",
+  "reader.auto_next": "Auto-advance to next chapter",
+  "reader.prefetch_ahead": "Prefetch pages ahead",
+  "reader.next_toast": "Next chapter in {n} s",
+  "reader.cancel": "Cancel",
+  "reader.end": "The end — no next chapter",
+  "reader.error_page": "Failed to load this page",
+  "reader.fallback_source": "Reading from {source}"
 }

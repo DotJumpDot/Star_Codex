@@ -188,6 +188,33 @@ class ChaptersDao {
     return rows.map((r) => r['source_id'] as String).toList(growable: false);
   }
 
+  /// Other sources' copies of one chapter number, in link order — the
+  /// reader's fallback chain (doc 07 §5).
+  Future<List<Chapter>> siblings(int seriesId, double number,
+      {required String excludeSourceId}) async {
+    final rows = await db.query('chapters',
+        where:
+            'series_id = ? AND ABS(number - ?) < 1e-6 AND source_id != ?',
+        whereArgs: [seriesId, number, excludeSourceId],
+        orderBy: 'rowid');
+    return rows.map(Chapter.fromRow).toList(growable: false);
+  }
+
+  /// Nearest chapter strictly after/before [current] across all sources.
+  /// Prefers the SAME source's copy, else the first row in link order —
+  /// auto-next + the chrome prev/next buttons (doc 10 §6).
+  Future<Chapter?> adjacent(Chapter current, {required bool forward}) async {
+    final cmp = forward ? 'c.number > ?' : 'c.number < ?';
+    final order = forward ? 'c.number ASC' : 'c.number DESC';
+    final rows = await db.rawQuery('''
+      SELECT c.* FROM chapters c
+      WHERE c.series_id = ? AND $cmp
+      ORDER BY $order, (c.source_id = ?) DESC, c.rowid
+      LIMIT 1
+    ''', [current.seriesId, current.number, current.sourceId]);
+    return rows.isEmpty ? null : Chapter.fromRow(rows.first);
+  }
+
   Future<void> setPageCount(int chapterId, int pageCount) =>
       db.update('chapters', {'page_count': pageCount},
           where: 'id = ?', whereArgs: [chapterId]);
@@ -218,6 +245,13 @@ class ChaptersDao {
   /// Mark fetched pages with their content hash after pipeline write (03).
   Future<void> setPageHash(int chapterId, int idx, String contentHash) =>
       db.update('chapter_pages', {'content_hash': contentHash},
+          where: 'chapter_id = ? AND idx = ?', whereArgs: [chapterId, idx]);
+
+  /// Store dims sniffed from the original bytes — the reader reserves the
+  /// EXACT slot height on re-reads (doc 10: anti-jump).
+  Future<void> setPageDims(
+          int chapterId, int idx, int width, int height) =>
+      db.update('chapter_pages', {'width': width, 'height': height},
           where: 'chapter_id = ? AND idx = ?', whereArgs: [chapterId, idx]);
 
   // --- novel text ---

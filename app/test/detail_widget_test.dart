@@ -76,15 +76,18 @@ Future<void> main() async {
     await tester.pump();
     expect(find.byIcon(Icons.check_circle), findsWidgets);
 
-    // Tap the chapter row → reader stub in WEBTOON mode (manhwa default).
+    // Tap the chapter row → the REAL webtoon reader opens (Phase 7).
     // openReader awaits seriesDao.byId through the ffi isolate → drain.
+    // This chapter has no page rows and sourcesProvider is empty in the
+    // unit env, so the reader lands in its error state with retry.
     await tester.tap(find.textContaining('ตอนที่ 2').first);
-    await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 150)));
-    await tester.pump();
-    await tester.pump();
-    expect(find.text('เว็บตูน (เลื่อนแนวตั้ง)'), findsOneWidget);
-    expect(find.text('ตัวอ่านจะพร้อมในเฟสถัดไป'), findsOneWidget);
+    for (var i = 0; i < 4; i++) {
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 150)));
+      await tester.pump();
+    }
+    expect(find.text('เกิดข้อผิดพลาด'), findsOneWidget);
+    expect(find.byIcon(Icons.refresh), findsWidgets);
 
     // Drain the fire-and-forget progress write (ffi isolate round-trip).
     await tester.runAsync(

@@ -234,3 +234,21 @@ Also this pass:
   the root and switch to Browse (doc 09 §4). Browse filters remain
   session-only; tag enforcement on listings is still an honest no-op until
   listing data carries tags.
+
+## Phase 7 (2026-10-17) — webtoon reader
+
+- **Widget tests: wrap platform-channel calls.** wakelock_plus has no
+  handler in unit tests (invokeMethod returns null → parse error →
+  unhandled async exception). WakelockPlus/SystemChrome calls in
+  ReaderScreen go through try/catch helpers (`_setAwake`, `_setImmersive`).
+- **safe_http DNS validation runs BEFORE the injectable fetcher** — test
+  URLs must use resolvable hosts (`www.example.com` works,
+  `img.example.com` does not).
+- **Scroll math is pure** (`reader_progress.dart`): slot offsets = prefix
+  sums of slot heights; current page = first slot bottom past the 40%
+  viewport line; heights come from chapter_pages dims when known, else
+  the 1.9× estimate (doc 10), corrected in place as images load.
+- Chapter switching is `pushReplacement` — the new ReaderScreen reloads
+  everything (scroll reset per doc 10 §6).
+- reading_history upsert stays in Phase 9 (15-BUILD-ORDER); completion
+  currently writes read_progress + library.last_read_*.

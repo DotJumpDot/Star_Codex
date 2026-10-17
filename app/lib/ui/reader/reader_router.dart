@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/dao/chapters_dao.dart';
 import '../../data/dao/series_dao.dart';
+import 'reader_screen.dart';
 import 'reader_stub.dart';
 
 enum ReaderMode { webtoon, paged, novel }
@@ -16,8 +17,8 @@ ReaderMode readerModeForType(String? type) => switch (type) {
     };
 
 /// The single entry point every chapter tap funnels through (detail rows,
-/// continue button, "read from which site" picker). Phase 6 renders the
-/// stub; Phases 7/8 replace the destination behind this same signature.
+/// continue button, "read from which site" picker). Webtoon is the REAL
+/// reader since Phase 7; paged/novel remain stubs until Phase 8.
 Future<void> openReader(
   BuildContext context, {
   required Chapter chapter,
@@ -25,12 +26,15 @@ Future<void> openReader(
   required SeriesDao seriesDao,
 }) async {
   final series = await seriesDao.byId(chapter.seriesId);
+  final mode = readerModeForType(series?.type);
   if (!context.mounted) return;
   await Navigator.of(context).push(MaterialPageRoute<void>(
-    builder: (_) => ReaderStubScreen(
-      chapter: chapter,
-      sourceId: sourceId,
-      mode: readerModeForType(series?.type),
-    ),
+    builder: (_) => mode == ReaderMode.webtoon
+        ? ReaderScreen(chapter: chapter)
+        : ReaderStubScreen(
+            chapter: chapter,
+            sourceId: sourceId,
+            mode: mode,
+          ),
   ));
 }
