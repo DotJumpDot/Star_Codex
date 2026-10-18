@@ -10,7 +10,11 @@ class TagsDao {
   Future<int> getOrCreate(String name) async {
     final id = await db.insert('tags', {'name': name},
         conflictAlgorithm: ConflictAlgorithm.ignore);
-    if (id != 0) return id;
+    // QA on-device 2026-10-18: Android's insertWithOnConflict(IGNORE)
+    // returns -1 (not 0) when the row already exists — treating anything
+    // non-zero as a real rowid made novel detail loads blow up with a
+    // series_tags FOREIGN KEY failure (tag_id=-1). Reject <= 0.
+    if (id > 0) return id;
     final rows = await db.query('tags',
         columns: ['id'], where: 'name = ?', whereArgs: [name], limit: 1);
     return rows.first['id'] as int;
@@ -40,10 +44,13 @@ class TagsDao {
       await txn
           .delete('series_tags', where: 'series_id = ?', whereArgs: [seriesId]);
       for (final name in names) {
+        // ConflictIgnored inserts answer -1 on Android (0 under the test
+        // shim) — see getOrCreate above; fall back to a name lookup for
+        // both so existing tags resolve to their real rowid.
         final tagId = await txn.insert('tags', {'name': name},
             conflictAlgorithm: ConflictAlgorithm.ignore);
         int resolvedId;
-        if (tagId != 0) {
+        if (tagId > 0) {
           resolvedId = tagId;
         } else {
           final rows = await txn.query('tags',

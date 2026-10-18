@@ -90,12 +90,6 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   (override > type default), ReaderRepo.resolvePage shared page fallback
   + loadNovelText (chapter_text → source fetch → persist).
 - 2026-10-17 — Phase 8 (part 2): Nekopost adapter (Plan/06) — live-probed
-- 2026-10-17 — Phase 9: Library tab (category chips + smart tabs, Thai A–Z sort, quick filters, grid/list, multi-select with merge/split/delete) + History tab (day-grouped timeline from reading_history, tap-to-resume, clear-all) with a single reader-completion write path.
-- 2026-10-17 — Phase 10: download sheet (unread/next10/all/range + estimates + quota), foreground queue worker (pause/resume/retry/backoff, Wi-Fi-only via connectivity_plus), truthful Offline tab (ready list = files on disk, queue section, storage header), updates checker + Library bell feed with mark-seen badge.
-- 2026-10-17 — Phase 11: full Settings screen (language/theme, reader defaults, novel typography, storage with live readout + clear-unpinned, source switches/connection-test/reorder — all hot-applying), launcher icon + label, release APK builds clean. **v1.**
-
-
-
   all endpoints (detail2 serves novels too; chapter payloads are
   AES-256-CBC "Salted__" with passphrase AeyTest via /handler/cinfo),
   pure-Dart decryptor (EVP_BytesToKey + AES, no new deps), adapter with
@@ -106,3 +100,13 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   column. Fixture tests run the whole adapter offline; live
   verify_sources --source nekopost ALL OK (26 latest, Thai detail,
   26 decrypted pages, 5.9k-char novel chapter).
+- 2026-10-17 — Phase 9: Library tab (category chips + smart tabs, Thai A–Z sort, quick filters, grid/list, multi-select with merge/split/delete) + History tab (day-grouped timeline from reading_history, tap-to-resume, clear-all) with a single reader-completion write path.
+- 2026-10-17 — Phase 10: download sheet (unread/next10/all/range + estimates + quota), foreground queue worker (pause/resume/retry/backoff, Wi-Fi-only via connectivity_plus), truthful Offline tab (ready list = files on disk, queue section, storage header), updates checker + Library bell feed with mark-seen badge.
+- 2026-10-17 — Phase 11: full Settings screen (language/theme, reader defaults, novel typography, storage with live readout + clear-unpinned, source switches/connection-test/reorder — all hot-applying), launcher icon + label, release APK builds clean. **v1.**
+- 2026-10-18 — On-device QA session + review pass: 4 QA fixes (riverpod
+  DetailKey scope crash browse→detail, WebP pipeline no-op on 0-sized
+  targets, webtoon auto-next unreachable end-window + parked-at-end
+  poller, paged per-slot gesture keys), then review-pass fixes — tags FK
+  (Android insertIgnore returns −1), nekopost live int pageNo/fileName
+  payload casts, paged-reader fail-path error panel (Bug #7) + regression
+  test. 167 tests green.

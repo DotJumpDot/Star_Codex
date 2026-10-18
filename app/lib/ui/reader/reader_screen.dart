@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart'
     show ScrollCacheExtent;
@@ -134,7 +135,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             slotOffsets(_heights), _scroll.position.viewportDimension,
             DateTime.now());
       });
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) debugPrint('READER open FAIL $e');
       if (!mounted) return;
       setState(() {
         _loaded = null;

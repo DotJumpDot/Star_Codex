@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
@@ -62,6 +63,7 @@ class DetailController extends StateNotifier<AsyncValue<SeriesDetailVm>> {
       final id = await _ensureId();
       state = AsyncValue.data(await _emit(repo.load(id)));
     } catch (e, st) {
+      if (kDebugMode) debugPrint('DETAIL LOAD FAIL: $e\n$st');
       state = AsyncValue.error(e, st);
     }
   }

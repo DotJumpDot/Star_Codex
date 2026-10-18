@@ -108,6 +108,10 @@ Also append one line to [`CHANGELOG.md`](CHANGELOG.md) per phase.
   watchdog — with several controllers reading the DB it leaves a pending
   FakeTimer at teardown and the test dies on "A Timer is still pending".
   (sqflite_common is a dev_dependency for that import.)
+- **Android's `insertWithOnConflict(IGNORE)` returns −1 when the row
+  exists; the sqflite ffi test shim returns 0** — never treat "non-zero"
+  as a rowid (`id > 0`, then by-name lookup — the TagsDao −1 sentinel FK
+  crash, on-device QA 2026-10-18).
 - `FakeSource`'s result maps and `.error` are MUTABLE — seed/flip them
   mid-test (e.g. take a source offline between ticks).
 - Broadcast streams (downloads snapshots): **subscribe BEFORE driving the
@@ -116,5 +120,5 @@ Also append one line to [`CHANGELOG.md`](CHANGELOG.md) per phase.
   `DateTime.now()` twice — same-millisecond collisions make assertions
   flaky. Whole doubles interpolate as `1.0`, not `1` (`'c$number'` →
   `c1.0`) — format them.
-- Warm full suite ≈ 10 s (165 tests). If a run takes minutes, something is
+- Warm full suite ≈ 10 s (167 tests). If a run takes minutes, something is
   hanging — investigate, don't retry blindly.

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:html/parser.dart' as html_parser;
 
 import '../../../core/net/safe_http.dart';
@@ -71,11 +72,14 @@ class NekopostSource implements Source {
   /// cinfo lives OUTSIDE /api (verified live) and answers with an OpenSSL
   /// "Salted__" AES payload, not JSON.
   Future<Map<String, Object?>> _cinfo(int pid, int chapterId) async {
+    if (kDebugMode) debugPrint('NEKO cinfo START p=$pid c=$chapterId');
     final bytes = await http.postJson(
         Uri.parse('$_base/handler/cinfo'), {'p': pid, 'c': chapterId});
+    if (kDebugMode) debugPrint('NEKO cinfo BYTES ${bytes.length}');
     final decrypted =
         decryptCryptoJs(utf8.decode(bytes, allowMalformed: true));
     final decoded = jsonDecode(decrypted);
+    if (kDebugMode) debugPrint('NEKO cinfo DECODED ok');
     if (decoded is! Map<String, Object?>) {
       throw SourceException(id, SourceErrorKind.parse,
           detail: 'cinfo payload is not a map');
@@ -256,6 +260,7 @@ class NekopostSource implements Source {
 
   @override
   Future<ChapterPages> pages(String chapterUrl) async {
+    if (kDebugMode) debugPrint('NEKO pages ENTER $chapterUrl');
     final (pid, cid) = _chapterIds(chapterUrl);
     final info = await _cinfo(pid, cid);
     final items = info['pageItem'] as List<Object?>? ?? const [];
@@ -266,22 +271,41 @@ class NekopostSource implements Source {
     final base = '${_fileHost(pid)}$pid/$cid/';
     final urls = <String>[
       for (final page in sorted)
-        '$base${(page['pageName'] as String?) ?? page['fileName'] ?? ''}',
+        '$base${_fileName(page)}',
     ];
+    if (kDebugMode) debugPrint('NEKO pages mapped n=${urls.length}');
     if (urls.isEmpty || urls.any((u) => u.endsWith('/'))) {
+      if (kDebugMode) debugPrint('NEKO pages THROW bad names');
       throw SourceException(id, SourceErrorKind.parse,
           detail: 'pageItem missing file names');
     }
     return ChapterPages(imageUrls: urls);
   }
 
+  /// QA on-device 2026-10-18: live payloads use INT `pageNo`
+  /// ({pageNo: 1, fileName: "…_1.jpg", width, height}) — the previous
+  /// `as String?` casts blew up with a TypeError, which made every
+  /// image-chapter open on the nekopost source fail its candidate.
+  static String _fileName(Map<String, Object?> page) {
+    final fn = page['fileName'];
+    if (fn is String && fn.isNotEmpty) return fn;
+    final pn = page['pageName'];
+    if (pn is String && pn.isNotEmpty) return pn;
+    return '';
+  }
+
   static double _pageNo(Map<String, Object?> page) =>
-      double.tryParse(page['pageNo'] as String? ?? '') ?? 0;
+      double.tryParse('${page['pageNo']}') ?? 0;
 
   @override
   Future<String?> novelText(String chapterUrl) async {
     final (pid, cid) = _chapterIds(chapterUrl);
     final info = await _cinfo(pid, cid);
+    if (kDebugMode) {
+      debugPrint('NEKO novelText keys=${info.keys.toList()} '
+          'pageTextLen=${(info['pageText'] as String?)?.length} '
+          'novelLen=${(info['novelContent'] as String?)?.length}');
+    }
     var html = (info['pageText'] as String?) ??
         (info['novelContent'] as String?) ??
         '';

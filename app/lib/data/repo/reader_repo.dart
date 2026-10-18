@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:collection';
 
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
+
 import '../dao/chapters_dao.dart';
 import '../dao/series_dao.dart';
 import '../sources/source_api.dart';
@@ -115,21 +117,30 @@ class ReaderRepo {
   /// fallback across the sibling sources that carry the same number (07
   /// §5). Throws when every candidate fails.
   Future<LoadedChapter> loadChapter(Chapter chapter) async {
+    if (kDebugMode) debugPrint('LOADCH enter ch=${chapter.id}');
     final candidates = [chapter, ...await siblings(chapter)];
     Object? lastError;
     for (final candidate in candidates) {
       final source = sourceById(candidate.sourceId);
       try {
         final pages = await _pageList(candidate, source);
+        if (kDebugMode) {
+          debugPrint('LOADCH ok src=${candidate.sourceId} '
+              'n=${pages.length}');
+        }
         return LoadedChapter(
           chapter: candidate,
           pages: pages,
           referer: source?.referer ?? '',
         );
       } catch (e) {
+        if (kDebugMode) {
+          debugPrint('LOADCH candidate FAIL src=${candidate.sourceId}: $e');
+        }
         lastError = e;
       }
     }
+    if (kDebugMode) debugPrint('LOADCH all failed err=$lastError');
     throw SourceException(chapter.sourceId, SourceErrorKind.notFound,
         detail: 'all sources failed for chapter '
             '${chapter.number} ($lastError)');

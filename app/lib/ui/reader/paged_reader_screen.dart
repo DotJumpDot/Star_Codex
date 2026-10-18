@@ -34,6 +34,7 @@ class PagedReaderScreen extends ConsumerStatefulWidget {
 
 class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   LoadedChapter? _loaded;
+  bool _failed = false;
   String? _seriesTitle;
   int _page = 0;
   bool _chromeVisible = true;
@@ -98,14 +99,22 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
           : 0;
       if (!mounted) return;
       setState(() {
+        _failed = false;
         _loaded = loaded;
         _seriesTitle = series?.title;
         _page = initial;
         _pageController = PageController(initialPage: initial);
       });
-    } catch (_) {
+    } catch (e) {
+      // QA on-device 2026-10-18 (Bug #7): this catch used to swallow the
+      // error into an eternal spinner — manga-type chapters route HERE,
+      // so every failed open showed "กำลังโหลด…" + หน้า 1/0 forever.
+      if (kDebugMode) debugPrint('PAGED open FAIL $e');
       if (!mounted) return;
-      setState(() => _loaded = null);
+      setState(() {
+        _loaded = null;
+        _failed = true;
+      });
     }
   }
 
@@ -222,14 +231,31 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
       body: Stack(
         children: [
           if (loaded == null)
+            // Same fail-path contract as the webtoon reader: error title +
+            // retry once _open() exhausted every candidate source.
             Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 12),
-                  Text(t(context, 'common.loading'),
+                  if (!_failed) const CircularProgressIndicator(),
+                  if (!_failed) const SizedBox(height: 12),
+                  Text(
+                      _failed
+                          ? t(context, 'common.error.title')
+                          : t(context, 'common.loading'),
                       style: const TextStyle(color: Colors.white70)),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.refresh, size: 16),
+                    label: Text(t(context, 'common.retry')),
+                    onPressed: () {
+                      setState(() {
+                        _loaded = null;
+                        _failed = false;
+                      });
+                      _open();
+                    },
+                  ),
                 ],
               ),
             )
