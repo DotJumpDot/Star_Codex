@@ -11,6 +11,7 @@ import '../../data/repo/browse_merge.dart' show SearchGroup;
 import '../../data/repo/downloads_repo.dart';
 import '../../data/repo/library_repo.dart';
 import '../../data/repo/series_repo.dart';
+import '../library/library_controller.dart';
 
 /// Detail screen state machine (Plan/09): one load → snapshot VM; user
 /// actions write through to the DB AND patch the VM so read-marks update
@@ -27,6 +28,7 @@ class DetailController extends StateNotifier<AsyncValue<SeriesDetailVm>> {
     required this.libraryRepo,
     required this.settingsDao,
     required this.downloadsRepo,
+    this.onLibraryChanged,
   }) : _explicitId = seriesId,
        super(const AsyncValue.loading());
 
@@ -45,6 +47,11 @@ class DetailController extends StateNotifier<AsyncValue<SeriesDetailVm>> {
   final LibraryRepo libraryRepo;
   final SettingsDao settingsDao;
   final DownloadsRepo downloadsRepo;
+
+  /// Add/remove must reach the library tab's kept-alive controller — the
+  /// shell mounts tabs once, so a bare DB write is invisible until the
+  /// next app start (QA on-device 2026-10-18).
+  final Future<void> Function()? onLibraryChanged;
 
   Future<int> _ensureId() async {
     final id = _resolvedId ?? _explicitId;
@@ -134,6 +141,7 @@ class DetailController extends StateNotifier<AsyncValue<SeriesDetailVm>> {
       await libraryDao.add(seriesId, DateTime.now().millisecondsSinceEpoch);
       state = AsyncValue.data(cur.copyWith(inLibrary: true));
     }
+    await onLibraryChanged?.call();
   }
 
   Future<void> enqueueDownload(int chapterId) =>
@@ -259,5 +267,7 @@ final detailControllerProvider =
         libraryRepo: ref.watch(libraryRepoProvider),
         settingsDao: ref.watch(settingsDaoProvider),
         downloadsRepo: ref.watch(downloadsRepoProvider),
+        onLibraryChanged: () =>
+            ref.read(libraryControllerProvider.notifier).load(),
       );
     });
