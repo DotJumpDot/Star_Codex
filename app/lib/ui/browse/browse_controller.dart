@@ -261,9 +261,24 @@ class BrowseController extends StateNotifier<BrowseState> {
   /// lands — the DB round-trips must never delay the listing itself.
   void _enrichInBackground(List<SearchGroup> groups) {
     if (groups.isEmpty) return;
-    unawaited(_repo.enrichGroups(groups).then((_) {
-      if (mounted) state = state.copyWith();
-    }).catchError((Object _) {}));
+    unawaited(() async {
+      try {
+        await _repo.enrichGroups(groups);
+        if (mounted) state = state.copyWith();
+        // Cards the listing alone left incomplete (madara/bully tiles
+        // carry no dates; some covers are dead/AVIF): materialize a
+        // budgeted batch in the background — dates and merged covers pop
+        // in as each card lands.
+        await _repo.materializeIncompleteGroups(groups, onCardDone: () async {
+          await _repo.enrichGroups(groups);
+          if (mounted) state = state.copyWith();
+        });
+        await _repo.enrichGroups(groups);
+        if (mounted) state = state.copyWith();
+      } catch (_) {
+        // enrichment/materialization is best-effort
+      }
+    }());
   }
 
   Future<BrowsePage> _fetch(int page) {

@@ -409,8 +409,7 @@ class SeriesRepo {
         try {
           final items = await other.search(q);
           for (final item in items) {
-            if (!merges(
-                matchTitles(candidate, TitleCandidate.fromRaw(item.title)))) {
+            if (!_probeMatches(candidate, item.title)) {
               continue;
             }
             final owner =
@@ -439,6 +438,23 @@ class SeriesRepo {
       }
     }
     return added;
+  }
+
+  /// Probe-side match: full-title merge bands, then a Latin-only retry —
+  /// several sites append Thai subtitles to the English title
+  /// ("The Poison Master of Sacheon Tang Clan สารานุกรม…") and the FULL
+  /// norms fall below the fuzzy band even though it is the same work.
+  /// Linking-only relaxation; browse card merging stays on the strict
+  /// bands. A strict Latin PREFIX that still passes exact/fuzzy is safe:
+  /// "Solo Leveling" vs "Solo Leveling Ragnarok" stays in the similar
+  /// band and keeps refusing.
+  static bool _probeMatches(TitleCandidate candidate, String itemTitle) {
+    if (merges(matchTitles(candidate, TitleCandidate.fromRaw(itemTitle)))) {
+      return true;
+    }
+    final latin = latinOnlyNorm(itemTitle);
+    if (latin == null) return false;
+    return merges(matchTitles(candidate, TitleCandidate(norm: latin)));
   }
 
   /// Create-or-merge the series row from one source's detail (Plan/07 §4).

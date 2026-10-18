@@ -38,6 +38,19 @@ String normalizeTitle(String raw) {
 /// Thai display titles (decision L5).
 bool hasThaiScript(String s) => _thaiChar.hasMatch(s);
 
+/// Normalized LATIN-ONLY variant of a mixed-script title ("Nano Machine
+/// นาโนเคมี" → "nano machine"), or null when too little remains to be a
+/// safe identity (< 12 chars — "the king" must not link everything).
+/// Cross-source probe only (SeriesRepo.probeOtherSources): several sites
+/// append Thai subtitles to the English title, and the FULL norms then
+/// fall below the fuzzy band even though it is the same work.
+String? latinOnlyNorm(String raw) {
+  final norm = normalizeTitle(
+      raw.split(' ').where((w) => !hasThaiScript(w)).join(' '));
+  if (norm.length < 12) return null;
+  return norm;
+}
+
 /// True when latin letters outnumber Thai characters (for original-title
 /// picking, L5 order 2: "majority Latin-script").
 bool isMostlyLatin(String s) {

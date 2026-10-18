@@ -210,8 +210,7 @@ class CategoryDropdown extends ConsumerWidget {
       label: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 120),
+          Flexible(
             child: Text(
               tabName(context, state.tab, state.userCategories),
               maxLines: 1,
@@ -337,7 +336,12 @@ class _Toolbar extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
       child: Row(
         children: [
-          Flexible(child: CategoryDropdown(state: state)),
+          // 3× the Spacer's flex: on a 411-logical-px screen an even split
+          // left the dropdown ~95px and "ทั้งหมด" truncated to "ทั้…".
+          Flexible(
+            flex: 3,
+            child: CategoryDropdown(state: state),
+          ),
           const SizedBox(width: 4),
           IconButton(
             tooltip: t(context, 'library.search_hint'),

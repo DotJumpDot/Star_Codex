@@ -53,8 +53,10 @@ Future<void> main() async {
     // Both cards visible on the default ทั้งหมด tab.
     expect(find.text('นาโน แมชชีน'), findsOneWidget);
     expect(find.text('นิยายสายดาร์ก'), findsOneWidget);
-    // New-chapter badge on the series with an unread fresh chapter.
-    expect(find.text('1 ตอนใหม่'), findsOneWidget);
+    // New-chapter badge on BOTH seeded series — both are never-read
+    // (no last_read_at), so every dated chapter counts as new; each has
+    // exactly 1 dated chapter → "1 ตอนใหม่" twice.
+    expect(find.text('1 ตอนใหม่'), findsNWidgets(2));
 
     // Smart tab นิยาย via the category dropdown (the sliding chip row is
     // gone — user QA 2026-10-18). pumpAndSettle is safe here: only the

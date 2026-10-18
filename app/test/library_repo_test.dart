@@ -123,7 +123,10 @@ void main() {
       final cardA = cards['Novel One']!;
       expect(cardA.chapterNumbers.length, 2);
       expect(cardA.unreadCount, 1);
-      expect(cardA.newCount, 0);
+      // Never read/visited (no last_read_at, pre-v4 last_seen_at 0):
+      // EVERY dated chapter counts as new — the first detail visit
+      // stamps last_seen_at and clears the chip.
+      expect(cardA.newCount, 2);
       expect(cardA.type, 'novel');
     });
 

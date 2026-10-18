@@ -50,6 +50,13 @@ class SearchGroup {
   int? dbLastUpdatedMs;
   List<String> dbTags = const [];
 
+  /// Cover from the materialized series' links (BrowseRepo.enrichGroups).
+  /// Listing tiles can point at dead/AVIF files while a sibling site's
+  /// cover works — after cross-probe links one, the card renders it from
+  /// here even though the listing itself never had it.
+  String? dbCoverUrl;
+  String? dbCoverReferer;
+
   /// Max chapter hint across members; null when no source reports one.
   int? get chapterCount {
     final hints = members
@@ -71,6 +78,13 @@ class SearchGroup {
     }
     return best;
   }
+
+  /// True when the card is missing a usable date or cover from what the
+  /// listing alone provided — such cards are candidates for background
+  /// materialization (detail fetch + cross-probe, BrowseRepo).
+  bool get needsMaterialization =>
+      lastUpdatedMs == null ||
+      !members.any((m) => (m.coverUrl ?? '').isNotEmpty);
 
   /// First non-null type in member (source sort) order.
   String? get type {

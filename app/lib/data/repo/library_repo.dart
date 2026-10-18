@@ -74,9 +74,9 @@ class LibraryRepo {
     // chapter and "2 ตอนใหม่" must mean two new chapters, not two copies.
     // Threshold is max(last_read_at, last_seen_at) (db v4): reading a
     // chapter OR visiting the detail page clears the chip — only chapters
-    // uploaded after BOTH re-arm it. last_seen_at 0 = pre-v4 row that was
-    // never visited (treat like NULL so the migration doesn't flood every
-    // card with one-time "new" badges).
+    // uploaded after BOTH re-arm it. No threshold at all (added to library
+    // but never read/visited — last_seen_at 0 means pre-v4 row) → every
+    // dated chapter counts as new; the first detail visit clears it.
     final lastReadById = {
       for (final r in rows)
         r['series_id'] as int: _maxOf(
@@ -92,7 +92,8 @@ class LibraryRepo {
     )) {
       final sid = r['series_id'] as int;
       final lastRead = lastReadById[sid];
-      if (lastRead != null && (r['uploaded_at'] as int) > lastRead) {
+      final at = r['uploaded_at'] as int;
+      if (lastRead == null || at > lastRead) {
         (newNumbers[sid] ??= {}).add((r['number'] as num).toDouble());
       }
     }

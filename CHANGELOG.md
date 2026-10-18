@@ -153,6 +153,21 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-19 — Feed completeness pass (on-device QA round with the user):
+  background materialization — browse cards the listing alone left
+  incomplete (no date or no renderable cover) get the open-card path run
+  budgeted in the background (detail fetch → chapters/dates → cross-probe
+  → persist), re-emitting progressively; enrichment now also surfaces a
+  DB cover for cards whose every listing tile is dead/AVIF; probe
+  matching gained a Latin-only retry so "English title + Thai subtitle"
+  listings (bully/go) link to the same series; never-read library series
+  now count every dated chapter as new (chip clears on first visit);
+  library category dropdown fixed (flex 3:1 vs Spacer — "ทั้งหมด" was
+  truncated to "ทั้…"); filter sheet 70% cap moved over the drag handle;
+  duplicate site badges on merged cards deduped. Poison Master cover +
+  date recovered live via bully/go links; "I'll Resign…" stays a
+  placeholder (slow-manga's file is gone and no other source carries the
+  title). 193 tests green.
 - 2026-10-18 — v1.2 UX batch (user feedback round 3): site-select sheet
   stays open while toggling (Done button / outside tap closes it); filter
   sheet capped at 70% height + scrollable; browse refresh button; library

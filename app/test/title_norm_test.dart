@@ -64,4 +64,22 @@ void main() {
       expect(isMostlyLatin(''), isFalse);
     });
   });
+
+  group('latinOnlyNorm (probe-side Thai-suffix retry)', () {
+    test('strips the Thai subtitle off a mixed title', () {
+      expect(
+          latinOnlyNorm(
+              'The Poison Master of Sacheon Tang Clan สารานุกรมสัตว์พิษ'),
+          'the poison master of sacheon tang clan');
+    });
+
+    test('pure-Latin titles pass through normalization', () {
+      expect(latinOnlyNorm('Nano Machine'), 'nano machine');
+    });
+
+    test('too-short remainders are rejected (< 12 chars)', () {
+      expect(latinOnlyNorm('The King กษัตริย์'), isNull);
+      expect(latinOnlyNorm('นาโน แมชชีน'), isNull);
+    });
+  });
 }

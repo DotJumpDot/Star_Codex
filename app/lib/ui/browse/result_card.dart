@@ -122,12 +122,18 @@ class ResultCard extends StatelessWidget {
                             // 2026-10-18) — per-type color, one glance.
                             if (typeLabel != null)
                               _TypeChip(label: typeLabel, type: type),
-                            for (final m in group.members)
+                            // One badge per SITE even when a source
+                            // returned the series at two URLs (a merged
+                            // card showed "Bully Manga" twice).
+                            for (final badge in {
+                              for (final m in group.members)
+                                m.sourceId: (
+                                  _sourceName(m.sourceId),
+                                  sourceDotColor(_sourceIndex(m.sourceId)),
+                                ),
+                            }.entries)
                               _SourceBadge(
-                                label: _sourceName(m.sourceId),
-                                color:
-                                    sourceDotColor(_sourceIndex(m.sourceId)),
-                              ),
+                                  label: badge.value.$1, color: badge.value.$2),
                           ],
                         ),
                       ],
@@ -170,30 +176,39 @@ class _Cover extends StatelessWidget {
     // Cover source: primary first, then any member with a cover —
     // slow-manga tiles can point at AVIF uploads or 404 thumbnails that
     // can never render, so a sibling site's JPEG must win over a dead
-    // primary (CoverThumb walks the fallback chain).
+    // primary (CoverThumb walks the fallback chain). Last resort: the
+    // materialized series' DB cover (background cross-probe may have
+    // linked a site whose listing never appeared in this feed).
     final coverMembers = <BrowseCandidate>[
       primary,
       ...group.members.where((m) => m != primary),
     ].where((m) => (m.coverUrl ?? '').isNotEmpty).toList();
-    return SizedBox(
-      width: 92,
-      height: 128,
-      child: coverMembers.isNotEmpty
-          ? CoverThumb(
-              url: coverMembers.first.coverUrl!,
-              referer: coverMembers.first.referer,
-              fallbacks: [
-                for (final m in coverMembers.skip(1)) (m.coverUrl!, m.referer),
-              ],
-              width: 92,
-              height: 128,
-            )
-          : Container(
-              color: theme.colorScheme.surfaceContainerHighest,
-              child: Icon(Icons.image_outlined,
-                  size: 24, color: theme.colorScheme.outline),
-            ),
-    );
+    final Widget cover;
+    if (coverMembers.isNotEmpty) {
+      cover = CoverThumb(
+        url: coverMembers.first.coverUrl!,
+        referer: coverMembers.first.referer,
+        fallbacks: [
+          for (final m in coverMembers.skip(1)) (m.coverUrl!, m.referer),
+        ],
+        width: 92,
+        height: 128,
+      );
+    } else if ((group.dbCoverUrl ?? '').isNotEmpty) {
+      cover = CoverThumb(
+        url: group.dbCoverUrl!,
+        referer: group.dbCoverReferer ?? '',
+        width: 92,
+        height: 128,
+      );
+    } else {
+      cover = Container(
+        color: theme.colorScheme.surfaceContainerHighest,
+        child: Icon(Icons.image_outlined,
+            size: 24, color: theme.colorScheme.outline),
+      );
+    }
+    return SizedBox(width: 92, height: 128, child: cover);
   }
 }
 

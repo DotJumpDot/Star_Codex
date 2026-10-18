@@ -16,7 +16,7 @@ import 'fake_source.dart';
 import 'helpers.dart';
 
 BrowseCandidate cand(String source, String title,
-        {int? hint, String? type, String? urlPrefix = 'x'}) =>
+        {int? hint, String? type, String? urlPrefix = 'x', String? cover}) =>
     BrowseCandidate(
       sourceId: source,
       referer: 'https://r/',
@@ -24,6 +24,7 @@ BrowseCandidate cand(String source, String title,
       title: title,
       chapterCountHint: hint,
       type: type,
+      coverUrl: cover,
     );
 
 void main() {
@@ -78,6 +79,46 @@ void main() {
       ]);
       expect(g.primary.sourceId, 'a'); // most chapters
       expect(g.displayTitle, 'โซโล่ เลเวลลิ่ง');
+    });
+  });
+
+  group('needsMaterialization (background date/cover backfill)', () {
+    test('madara-style card (cover, no date) needs it', () {
+      final g = SearchGroup([
+        cand('a', 'Baek XX', hint: 199, cover: 'https://s/c.jpg'),
+      ]);
+      expect(g.needsMaterialization, isTrue,
+          reason: 'listing tile has no date — detail fetch must backfill');
+    });
+
+    test('nekopost-style card (date + cover) is complete', () {
+      final g = SearchGroup([
+        BrowseCandidate(
+          sourceId: 'nekopost',
+          referer: 'https://r/',
+          url: 'https://s/1',
+          title: 'Nano',
+          coverUrl: 'https://s/c.jpg',
+          lastUpdatedMs: 1729000000000,
+        ),
+      ]);
+      expect(g.needsMaterialization, isFalse);
+    });
+
+    test('card with cover but DB date is complete', () {
+      final g = SearchGroup([
+        cand('a', 'Regressor', hint: 156, cover: 'https://s/c.jpg'),
+      ]);
+      g.dbLastUpdatedMs = 1729000000000;
+      expect(g.needsMaterialization, isFalse);
+    });
+
+    test('coverless card (AVIF-skipped / dead tile) needs it even with a date',
+        () {
+      final g = SearchGroup([cand('a', 'Poison Master', hint: 109)]);
+      g.dbLastUpdatedMs = 1729000000000;
+      expect(g.needsMaterialization, isTrue,
+          reason: 'cross-probe may find a sibling site cover');
     });
   });
 

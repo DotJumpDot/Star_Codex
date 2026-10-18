@@ -98,11 +98,12 @@ class BrowseRepo {
   }
 
   /// Fill each group's [SearchGroup.dbStatus]/[dbType]/[dbTags]/
-  /// [dbLastUpdatedMs] from a materialized series row (matched by the
-  /// primary member's normalized title). Listing payloads carry none of
-  /// these — without the join, the filter sheet's status/tag controls and
-  /// the card's update stamp would never fire. Callers run this
-  /// fire-and-forget so the DB round-trips never delay the listing.
+  /// [dbLastUpdatedMs] (+ db cover) from a materialized series row
+  /// (matched by the primary member's normalized title). Listing payloads
+  /// carry none of these — without the join, the filter sheet's
+  /// status/tag controls and the card's update stamp would never fire.
+  /// Callers run this fire-and-forget so the DB round-trips never delay
+  /// the listing.
   Future<void> enrichGroups(List<SearchGroup> groups) async {
     for (final g in groups.take(60)) {
       final norm = normalizeTitle(g.primary.title);
@@ -114,11 +115,77 @@ class BrowseRepo {
         g.dbType = row.type;
         g.dbLastUpdatedMs = await seriesDao.lastUpdatedAt(row.id!);
         g.dbTags = await tagsDao.tagsOf(row.id!);
+        // DB cover: first link that carries one, paired with ITS source's
+        // referer (a first link without a cover must not donate its
+        // referer to a later link's cover — same rule as library cards).
+        for (final link in await seriesDao.sourcesOf(row.id!)) {
+          if ((link.coverUrl ?? '').isNotEmpty) {
+            g.dbCoverUrl = link.coverUrl;
+            g.dbCoverReferer = sourceById(link.sourceId)?.referer;
+            break;
+          }
+        }
       } catch (_) {
         // enrichment is best-effort — never fail a listing over it
       }
     }
   }
+
+  /// Background pass over cards missing a date or cover
+  /// ([SearchGroup.needsMaterialization]): run the same path as opening
+  /// the card — primary detail → series row (chapters carry the dates) →
+  /// cross-probe other sources (a sibling site's cover can render where
+  /// the primary's tile is dead/AVIF) — without adding anything to the
+  /// library. Results persist, so each card pays this once; [onCardDone]
+  /// lets the controller re-enrich + re-render after every card so dates
+  /// and covers pop in progressively. Budget-capped per call to stay
+  /// polite; session-memoized so pagination re-runs skip done cards.
+  Future<void> materializeIncompleteGroups(
+    List<SearchGroup> groups, {
+    int budget = 8,
+    Future<void> Function()? onCardDone,
+  }) async {
+    for (final g in groups.take(40)) {
+      if (budget <= 0) break;
+      if (!g.needsMaterialization) continue;
+      if (!_materialized.add(g.primary.url)) continue;
+      budget--;
+      try {
+        final primary = g.primary;
+        final source = sourceById(primary.sourceId);
+        if (source == null) continue;
+        final seriesId = await seriesRepo.ensureSeries(g);
+        final row = await seriesDao.byId(seriesId);
+        if (row != null) {
+          await seriesRepo.probeOtherSources(
+            seriesId,
+            candidate: TitleCandidate(
+              norm: row.titleNorm,
+              altNorms: [
+                for (final m in g.members) normalizeTitle(m.title),
+              ],
+            ),
+            // One query per unlinked source — the interactive open path
+            // can afford retries with alternates, the background pass
+            // must stay polite (probeOtherSources tries queries.take(3)
+            // per source).
+            queries: <String>[g.displayTitle],
+          );
+        }
+      } catch (_) {
+        // best-effort — an unreachable source never breaks the feed
+      }
+      if (onCardDone != null) {
+        try {
+          await onCardDone();
+        } catch (_) {}
+      }
+    }
+  }
+
+  /// Primary URLs already sent to materialization this session — filter
+  /// toggles and pagination re-present the same cards constantly.
+  final _materialized = <String>{};
 
   Future<List<SourceGenre>> genres(Source source) => source.genres();
 
