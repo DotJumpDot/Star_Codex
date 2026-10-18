@@ -565,3 +565,5 @@ referer pairing, novel estimate. 165 tests green.
 - Releases go to GitHub Releases via gh (GH_TOKEN from git credential
   manager). Old releases are never auto-deleted; the "Latest" label just
   moves.
+- Release asset naming: attach as StarCodex-<version>.apk (copy/rename
+- the build output before gh release upload), not app-release.apk.

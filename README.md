@@ -10,7 +10,7 @@ Load once - read anywhere - stored light. Star Codex
 
 ## Download & install
 
-Grab `app-release.apk` from the latest
+Grab the APK (`StarCodex-<version>.apk`) from the latest
 [GitHub Release](https://github.com/DotJumpDot/Star_Codex/releases/latest)
 and install it (allow "install from unknown sources" when prompted).
 Requires Android 7.0+ (API 24). If an older debug/test build is installed,
