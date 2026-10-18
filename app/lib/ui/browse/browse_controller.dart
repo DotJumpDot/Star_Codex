@@ -267,10 +267,11 @@ class BrowseController extends StateNotifier<BrowseState> {
         if (mounted) state = state.copyWith();
         // Cards the listing alone left incomplete (madara/bully tiles
         // carry no dates; some covers are dead/AVIF): materialize a
-        // budgeted batch in the background — dates and merged covers pop
-        // in as each card lands.
-        await _repo.materializeIncompleteGroups(groups, onCardDone: () async {
-          await _repo.enrichGroups(groups);
+        // budgeted batch in the background — re-enriching JUST the
+        // finished card each time so its date/cover pops in.
+        await _repo.materializeIncompleteGroups(groups,
+            onCardDone: (done) async {
+          await _repo.enrichGroups([done]);
           if (mounted) state = state.copyWith();
         });
         await _repo.enrichGroups(groups);

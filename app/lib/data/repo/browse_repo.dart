@@ -106,11 +106,14 @@ class BrowseRepo {
   /// the listing.
   Future<void> enrichGroups(List<SearchGroup> groups) async {
     for (final g in groups.take(60)) {
-      final norm = normalizeTitle(g.primary.title);
-      if (norm.isEmpty) continue;
+      // Row lookup by the primary tile's norm, then its Latin-only
+      // variant — a solo bully card ("English title + Thai subtitle")
+      // materializes under the Latin norm, and the suffixed tile alone
+      // would never find the row again.
+      final row = await _seriesByTileNorm(normalizeTitle(g.primary.title)) ??
+          await _seriesByTileNorm(latinOnlyNorm(g.primary.title));
+      if (row == null) continue;
       try {
-        final row = await seriesDao.findByTitleNorm(norm);
-        if (row == null) continue;
         g.dbStatus = row.status;
         g.dbType = row.type;
         g.dbLastUpdatedMs = await seriesDao.lastUpdatedAt(row.id!);
@@ -131,19 +134,28 @@ class BrowseRepo {
     }
   }
 
+  Future<Series?> _seriesByTileNorm(String? norm) async {
+    if (norm == null || norm.isEmpty) return null;
+    try {
+      return await seriesDao.findByTitleNorm(norm);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Background pass over cards missing a date or cover
   /// ([SearchGroup.needsMaterialization]): run the same path as opening
   /// the card — primary detail → series row (chapters carry the dates) →
   /// cross-probe other sources (a sibling site's cover can render where
   /// the primary's tile is dead/AVIF) — without adding anything to the
   /// library. Results persist, so each card pays this once; [onCardDone]
-  /// lets the controller re-enrich + re-render after every card so dates
-  /// and covers pop in progressively. Budget-capped per call to stay
-  /// polite; session-memoized so pagination re-runs skip done cards.
+  /// receives the finished group so the caller can re-enrich JUST it
+  /// (progressive re-render). Budget-capped per call to stay polite;
+  /// session-memoized so pagination re-runs skip done cards.
   Future<void> materializeIncompleteGroups(
     List<SearchGroup> groups, {
     int budget = 8,
-    Future<void> Function()? onCardDone,
+    Future<void> Function(SearchGroup done)? onCardDone,
   }) async {
     for (final g in groups.take(40)) {
       if (budget <= 0) break;
@@ -177,7 +189,7 @@ class BrowseRepo {
       }
       if (onCardDone != null) {
         try {
-          await onCardDone();
+          await onCardDone(g);
         } catch (_) {}
       }
     }

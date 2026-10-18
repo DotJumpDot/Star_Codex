@@ -104,11 +104,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         };
     final entries =
         grouped ? collapseBySeries(visible) : const <HistorySeriesEntry>[];
-    final groups = groupByDay(
-        grouped ? [for (final e in entries) e.latest] : visible, labelFor);
-    final entryGroups = grouped
-        ? _groupEntriesByDay(entries, labelFor)
-        : const <String, List<HistorySeriesEntry>>{};
+    final entryGroups =
+        grouped ? _groupEntriesByDay(entries, labelFor) : null;
+    final rowGroups = grouped ? null : groupByDay(visible, labelFor);
     return Column(
       children: [
         Padding(
@@ -127,7 +125,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           child: grouped
               ? ListView(
                   children: [
-                    for (final g in entryGroups.entries) ...[
+                    for (final g in entryGroups!.entries) ...[
                       _DayHeader(label: g.key),
                       for (final e in g.value)
                         _GroupedHistoryTile(entry: e, onChanged: _reload),
@@ -136,7 +134,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 )
               : ListView(
                   children: [
-                    for (final g in groups.entries) ...[
+                    for (final g in rowGroups!.entries) ...[
                       _DayHeader(label: g.key),
                       for (final row in g.value) _HistoryTile(row: row),
                     ],
