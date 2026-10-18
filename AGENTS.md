@@ -3,12 +3,17 @@
 Read this before touching anything. It exists so any fresh agent session can
 pick the build up correctly without re-deriving rules.
 
+**All replies, commits, and docs are English only** (user requirement —
+never mirror hook/system text language).
+
 ## Project
 
-**Star Codex** — Flutter Android app (Thai-first UI) reading from 5 Thai
-manga sites (4× WordPress-Madara + nekopost API incl. novels). Streaming
-reading, silent WebP q80 caching, content-hash dedup. Personal local use
-only — no server, no cloud, no login.
+**Star Codex** — Flutter Android app (Thai-first UI) reading from 7 Thai
+manga/novel sources (5× WordPress-Madara/ts + bully-manga custom engine +
+nekopost API incl. novels). Streaming reading, silent WebP q80 caching,
+content-hash dedup. Personal local use only — no server, no cloud, no
+login. **v1.1.0 released** (GitHub Releases, release-signed APK); the
+repo is public.
 
 ## Startup sequence (every session)
 
@@ -16,11 +21,16 @@ only — no server, no cloud, no login.
 2. Read [`Docs/Plan/README.md`](Docs/Plan/README.md), then
    [`Docs/Plan/15-BUILD-ORDER.md`](Docs/Plan/15-BUILD-ORDER.md).
 3. Check `git log --oneline -10` and [`CHANGELOG.md`](CHANGELOG.md) (repo
-   root) for progress. All 11 build phases are complete (v1, 2026-10-17);
-   remaining work is the deferred on-device DoD pass plus anything the
-   user asks for in chat.
+   root) for progress. All 11 build phases are complete and **v1.0.0 +
+   v1.1.0 are shipped**; remaining work is whatever the user asks for in
+   chat, landing as `Phase`/`Fix`/feature commits per the discipline
+   below.
 4. [`Docs/Plan/00-DECISIONS.md`](Docs/Plan/00-DECISIONS.md) is the contract —
    it wins over any phase doc. Never violate it silently.
+5. [`Docs/PLAN_NOTES.md`](Docs/PLAN_NOTES.md) carries the post-plan
+   invariants (source quirks, db migrations v2–v4, cover fallbacks,
+   probe matching). Read its newest sections before touching sources,
+   merge logic, or the DB.
 
 ## Hard rules
 
@@ -36,16 +46,24 @@ only — no server, no cloud, no login.
 - **No codegen** (drift/freezed/build_runner). Plain classes, manual
   Riverpod providers.
 - Files under ~400 lines; split rather than grow.
-- Keep the repo clean: no build artifacts in git.
+- Keep the repo clean: no build artifacts, logs, or QA screenshots in git
+  (they are gitignored — never `git add` them).
 - If genuinely blocked on a user decision, ask in chat with a concrete
   recommendation. Otherwise decide from the docs.
-- **Cadence: after each phase batch, a big-model review pass** re-reads the
-  new code, fixes bugs, and lands one `Fix: post-Phase-N review pass (big
-  model)` commit (see git history for the pattern). Keep it.
+- **Cadence: after each user-request batch, a big-model review pass**
+  re-reads the new code, fixes bugs, and lands one
+  `Fix: post-<batch> review pass (big model)` commit (see git history for
+  the pattern). Keep it. Visual QA runs in a vision-capable (Flash)
+  session when the user asks; the big model defers emulator screenshots.
+- **Releases**: tag `v<version>` + GitHub Release with
+  `StarCodex-<version>.apk` (release-signed via the out-of-repo keystore).
+  `gh` auth in this environment: extract the PAT with
+  `printf "protocol=https\nhost=github.com\n\n" | git credential fill`
+  → export as `GH_TOKEN`. Notes are English with install steps + SHA-256.
 
 ## Git discipline (user requirement D7)
 
-Every phase ends with:
+Every phase/batch ends with:
 
 ```
 git add -A
@@ -61,26 +79,29 @@ The body MUST enumerate completed units as `- [x]` lines — the user reads
 commits as a progress report. Never amend pushed commits; post-push fixes
 are their own `Fix: <what>` commit. Remote:
 `https://github.com/DotJumpDot/Star_Codex.git`.
-Also append one line to [`CHANGELOG.md`](CHANGELOG.md) per phase.
+Also append lines to [`CHANGELOG.md`](CHANGELOG.md) per batch.
 
 ## Environment (this machine)
 
 - Flutter 3.47.7 stable at `C:\tools\flutter\bin` (on user PATH; in Git Bash
   `export PATH="/c/tools/flutter/bin:$PATH"`).
 - Android SDK at `%LOCALAPPDATA%\Android\Sdk` (platform 36, platform-tools,
-  licenses accepted). JAVA_HOME → Temurin 17.
+  licenses accepted). JAVA_HOME → Temurin 17. Release keystore descriptor:
+  `%USERPROFILE%\.android\star-codex-key.properties`.
 - Emulator AVD `StarCodex` (Pixel 7, API 36). Headless boot:
   `emulator -avd StarCodex -no-window -no-snapshot -gpu swiftshader_indirect
   -no-boot-anim -memory 3072`. Drive UI via adb (`input tap/swipe`,
-  `uiautomator dump`, `screencap`) — this is the project's "Playwright":
-  screenshot + inspect before declaring UI work done.
+  `uiautomator dump`, `screencap`) — screenshot + inspect before declaring
+  UI work done. For the USER to look at the app themselves, drop
+  `-no-window` (app installs persist across reboots; a GUI exit code of
+  2816 usually just means the user closed the window).
 - When the host is busy (user gaming etc.), boot via
   `scripts\boot-emu-low.bat [ramMB]` instead: guest RAM default 2048,
   QEMU pinned to the top 2 threads + BelowNormal priority, GPU untouched.
   Boot takes 10–20 min in that mode — that is expected, not a hang.
 - Phone-in-hand remains the judge for performance DoDs (timing, RAM).
 
-## Patch-tooling gotchas (learned the hard way — Phases 5-11)
+## Patch-tooling gotchas (learned the hard way)
 
 - **Large `python - <<'PYEOF'` heredocs corrupt** ("unterminated
   triple-quoted string") — the shell mangles big multi-line UTF-8 bodies.
@@ -90,8 +111,18 @@ Also append one line to [`CHANGELOG.md`](CHANGELOG.md) per phase.
   Edit tool.
 - Run repo-root python one-liners with an explicit `cd /c/Code/StarCodex`
   first — the Bash cwd silently resets between calls.
+- `adb` is not on the Git Bash PATH — use the full SDK paths
+  (`/c/Users/jamej/AppData/Local/Android/Sdk/platform-tools/adb.exe`).
+- `adb shell <path>` mangles device paths through MSYS conversion — prefix
+  `export MSYS_NO_PATHCONV=1` for on-device paths like `/sdcard/ui.xml`.
+- `adb shell cat <file>` corrupts BINARY output (CRLF translation) — pull
+  binaries (DB, screenshots) with `adb exec-out cat`/`adb exec-out
+  screencap` instead. Copy the app DB only after `am force-stop` (WAL
+  mid-write otherwise).
+- PowerShell from Git Bash eats `$_` unless the whole `-Command` string is
+  single-quoted; `wmic` returns nothing on this Windows build.
 
-## Testing gotchas (learned the hard way — Phases 1-11)
+## Testing gotchas (learned the hard way)
 
 - **Never pipe `flutter.bat` output** through `tr/grep/tail` in Git Bash —
   dart.exe children hold the pipe and the shell hangs. Redirect to a file:
@@ -108,6 +139,12 @@ Also append one line to [`CHANGELOG.md`](CHANGELOG.md) per phase.
   History/Offline show indeterminate spinners while ffi loads pend under
   FakeAsync). Use the drain-loop pattern instead:
   `for (...) { await tester.runAsync(() => Future.delayed(150ms)); await tester.pump(); }`.
+  Exception: it is safe when a test mounts exactly ONE screen with no
+  other tabs and its load already drained (library_widget_test does this
+  for bottom-sheet interaction).
+- A single `pump(const Duration(milliseconds: 300))` may NOT complete a
+  modal-bottom-sheet entrance for tap targeting — use `pumpAndSettle` in
+  the single-screen case above, or tap after two pumps.
 - `helpers.openTestDb` disables sqflite_common's 10 s transaction-lock
   watchdog — with several controllers reading the DB it leaves a pending
   FakeTimer at teardown and the test dies on "A Timer is still pending".
@@ -116,6 +153,12 @@ Also append one line to [`CHANGELOG.md`](CHANGELOG.md) per phase.
   exists; the sqflite ffi test shim returns 0** — never treat "non-zero"
   as a rowid (`id > 0`, then by-name lookup — the TagsDao −1 sentinel FK
   crash, on-device QA 2026-10-18).
+- **Migration tests must recreate the old-era tables**: a "pretend vN" DB
+  built by rolling a FRESH database back runs the new ALTERs against
+  columns that already exist → "duplicate column" (db_test drops and
+  rebuilds the v1-era `library` for the v4 test).
+- Dart's `List.sort` is NOT stable — never assert tail order of
+  tie-broken sorts; assert the parts the comparator actually orders.
 - `FakeSource`'s result maps and `.error` are MUTABLE — seed/flip them
   mid-test (e.g. take a source offline between ticks).
 - Broadcast streams (downloads snapshots): **subscribe BEFORE driving the
@@ -124,5 +167,5 @@ Also append one line to [`CHANGELOG.md`](CHANGELOG.md) per phase.
   `DateTime.now()` twice — same-millisecond collisions make assertions
   flaky. Whole doubles interpolate as `1.0`, not `1` (`'c$number'` →
   `c1.0`) — format them.
-- Warm full suite ≈ 10 s (168 tests). If a run takes minutes, something is
+- Warm full suite ≈ 11 s (193 tests). If a run takes minutes, something is
   hanging — investigate, don't retry blindly.

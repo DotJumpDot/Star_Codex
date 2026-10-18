@@ -661,3 +661,42 @@ referer pairing, novel estimate. 165 tests green.
   receiving `query` from the detail body.
 - On-device visual QA of the new sources + this layout is DELIBERATELY
   deferred to the next (vision-capable) session per the user.
+
+## v1.1.0 era invariants (2026-10-18/19, UX rounds + release)
+
+- **Covers**: slow-manga serves AVIF uploads (Flutter has no decoder, no
+  server negotiation) and 404 WP thumbnails (sized AND full-size gone).
+  `_bestCoverUrl` (madara) + `_cleanUrl` (bully) skip `.avif`;
+  `CoverThumb(url, referer, fallbacks)` walks sized → un-suffixed
+  full-size → sibling sites' covers and never fetches avif/svg/data:.
+  `SearchGroup.dbCoverUrl` (from enrichGroups) is the card's last resort
+  after cross-probe links a site whose listing wasn't in the feed.
+- **Background materialization** (`BrowseRepo.materializeIncompleteGroups`):
+  cards with `needsMaterialization` (no date or no renderable cover) get
+  the open-card path run budgeted (8/call, session-memoized by primary
+  URL), re-enriching just the finished card. Enrichment looks up the
+  series row by the tile norm THEN its `latinOnlyNorm` (solo bully cards
+  with Thai-suffixed titles materialize under the Latin norm).
+- **Probe Latin retry** (`SeriesRepo._probeMatches` +
+  `latinOnlyNorm(raw)`, < 12 chars → null): "English title + Thai
+  subtitle" listings link to the series after full-title bands fail.
+  Linking-only — browse card merging keeps the strict bands (sequels
+  like "Solo Leveling Ragnarok" stay in the similar band and refuse).
+- **db v4**: `library.last_seen_at` (visit stamp, 0 = pre-v4 "never
+  visited" treated as NULL). New chip = chapters with uploaded_at >
+  max(last_read_at, last_seen_at); never-read/visited ⇒ ALL dated
+  chapters are new; stamped in `_buildVm` AFTER the stale-link refresh.
+  New-chipped cards partition to the top of every library sort.
+- **Nekopost list rows**: `listChapter` carries `chapterNo` (STRING) +
+  `releaseDate`; `listProject` carries `noChapter` + `updateDate.String`
+  (sql-null struct) → `SourceSeries.lastUpdatedMs`
+  (SearchGroup prefers the DB stamp, falls back to listing stamps).
+- **History grouping** (`history_group_series`, default on):
+  `collapseBySeries` → one row per series, min–max range, tap resumes
+  latest read, long-press deletes the series' whole history.
+- **Thai status wording**: UI shows กำลังแปล; the raw site value
+  กำลังเข้า remains mapped in bully `_normalizeStatus` (it is a site
+  string, not UI text).
+- **Release v1.1.0** (tag on 3989c44): 1.1.0+3, release-signed APK
+  `StarCodex-1.1.0.apk`, English notes with SHA-256; gh authenticated
+  via the PAT from `git credential fill` (no interactive login here).
