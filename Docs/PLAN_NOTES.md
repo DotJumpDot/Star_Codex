@@ -492,3 +492,55 @@ referer pairing, novel estimate. 165 tests green.
 - **Android insertWithOnConflict(IGNORE) returns -1, the ffi test shim returns 0 (fixed, Bug #5).** TagsDao.getOrCreate / setForSeries treated any non-zero insert result as a rowid; on Android an ignored-conflict insert answers -1, so the first genuinely NEW tag name produced series_tags(tag_id=-1) -> FOREIGN KEY constraint failed -> every novel/manga detail with novel tags died with the generic error panel. Fix: only id > 0 is a rowid, otherwise fall back to the by-name lookup. Tests could not catch this: the sqflite ffi shim answers 0 on ignored conflicts (decision: no brittle -1 mock; on-device QA is the guard).
 - **Live nekopost cinfo page items use INT pageNo + fileName key (fixed, Bug #6).** Real decrypted payload shape: {"pageNo":1,"fileName":"84749_..._1.jpg","width":2281,"height":1616} - pageNo is an int (fixture had it as string), pageName does not exist. The old `page['pageNo'] as String?` sort and `pageName ?? fileName` map cast threw TypeError on every image chapter, killing the candidate. Fix: _pageNo via double.tryParse('${page['pageNo']}'), _fileName prefers non-empty fileName then legacy pageName; empty file names keep the parse-throw path. width/height are free extra metadata (future polish).
 - **Paged reader had NO fail-path UI (fixed, Bug #7).** manga-type chapters (incl. all nekopost image projects) route to PagedReaderScreen; its _open() catch swallowed errors into an eternal spinner + "1/0" chrome while webtoon/novel readers failed gracefully. Root cause of the "reader fail path never surfaces error panel" hunt: QA had analyzed the webtoon screen, but the mounted screen was the paged one. Fix mirrors the webtoon reader: _failed flag + error title + retry; regression test paged_reader_fail_test.dart (suite 167). Lesson recorded: confirm WHICH screen a route actually mounts before reading its code for a UI bug.
+
+## On-device QA (2026-10-18, completion session) - findings + environment facts
+
+- **Library tab went stale after a detail add/remove (fixed, Bug #8).** The
+  bottom shell keeps all tabs mounted, so LibraryScreen.initState's one-shot
+  load() never re-ran; DetailController.toggleLibrary wrote the DB but the
+  card only appeared after an app restart. Fix: onLibraryChanged hook on
+  DetailController, wired from the provider to
+  libraryControllerProvider.load() - matching the controller's own
+  "write through to the DB and reload" contract. Regression test
+  library_refresh_test.dart (suite 168). Live-verified both directions.
+- **Browse catalog has no offline fallback.** Under airplane mode the
+  home catalog grid shows "no results" even though series rows exist in
+  the DB - the grid renders only live-fetched latest lists. Acceptable
+  for v1; a cached-catalog mode would be the polish.
+- **reading_history rows appear only after a progress tick.** Opening a
+  chapter and viewing page 1 without paging writes no history row (the
+  completed/progress save path is the single write point). Do not use
+  history presence as a "was this chapter opened" probe.
+- **img-to-device coordinate rule misses.** The x1.2 rule (900x2000
+  screenshots -> 1080x2400 device) is necessary but not sufficient:
+  IconButton hit targets are smaller than they look (the search-field X
+  swallowed a tap that "looked" centered), and one tap during a
+  keyboard-dismiss relayout landed on the pre-relayout geometry. Rule
+  that now works: screencap AFTER every layout-changing event, re-derive
+  coordinates from the LATEST shot, and verify destructive/one-shot taps
+  with an immediate screencap or DB read.
+- **uiautomator dump on Flutter: bounds yes, text no.** Dumps list nodes
+  with correct bounds but Flutter semantics expose almost no text
+  content; use it for geometry only (the PNG-size trick or a screencap
+  still judges content).
+- **PNG size is a binary signal.** Byte-identical sizes between two
+  screencaps = the frame did not change (caught a wedged ANR dialog and
+  a not-yet-loaded screen without burning vision reads on every step).
+- **Nekopost file host is osemocphoto.** Chapter image URLs serve from
+  the osemocphoto host (not www.nekopost.net); the cinfo API host is
+  what airplane-mode DNS-failured on in the Bug #7 log chain.
+- **Nekopost novels get origin=''** (originForType covers manga kinds
+  only) - carried from the known-issues register; tab filters unaffected.
+- **adb push target paths under Git Bash need MSYS_NO_PATHCONV=1**, or
+  /data/local/tmp/... gets rewritten to C:/Program Files/Git/data/...
+  and the push fails with secure_mkdirs.
+- **Emulator under a busy host (games running).** scripts/boot-emu-low.bat
+  boots headless with a thread-affinity pin + BelowNormal priority and
+  2048 MB guest. 2 pinned threads: boots, but SystemUI ANR-loops under
+  UI driving (its own dialog becomes untappable). 4 pinned threads +
+  BelowNormal: stable working floor; still strictly leftover CPU. The
+  qemu process can be killed outright by host memory pressure (it
+  happened once) - userdata-qemu.img survives, so just re-run the
+  script. While an ANR dialog is wedged, `adb shell am broadcast -a
+  android.intent.action.CLOSE_SYSTEM_DIALOGS` dismisses it without
+  needing SystemUI's input pipeline.

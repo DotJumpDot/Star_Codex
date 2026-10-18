@@ -110,3 +110,9 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   (Android insertIgnore returns −1), nekopost live int pageNo/fileName
   payload casts, paged-reader fail-path error panel (Bug #7) + regression
   test. 167 tests green.
+- 2026-10-18 - On-device QA completion: Bug #7 confirmed live (paged
+  reader error panel + retry, both directions), library tab staleness
+  after detail add/remove found + fixed (onLibraryChanged hook, test
+  168), release journey + RAM 109 MB (indicative), low-impact emulator
+  boot tooling. All phase 4-11 DoDs verified on emulator; verdicts in
+  Docs/QA-ON-DEVICE.md.

@@ -19,10 +19,16 @@ user rule: commits allowed locally, push never._
 | Nekopost image-chapter loads (webtoon, n=43 pages) | **PASS** | shot 75, `LOADCH ok` log |
 | Bug #5 tags FK (-1 sentinel) | **FIXED on-device** (committed, review-verified) | tag list renders, §5 |
 | Bug #6 nekopost int-payload casts | **FIXED on-device** (committed, review-verified) | n=43 pages, §6 |
-| Bug #7 reader fail-path UI (spinner instead of error panel) | **FIXED + regression test** (root cause found in review pass §7; on-device confirm pending) | §7 |
-| Release build + RAM < 150 MB | **NOT STARTED this session** | §9 step 4 |
-| Phase 9 stragglers (library remove round-trip) | optional | §9 step 5 |
-| QA-ON-DEVICE.md + PLAN_NOTES + CHANGELOG + final QA commit | PENDING | §9 steps 6–7 |
+| Bug #7 reader fail-path UI (spinner instead of error panel) | **FIXED + CONFIRMED on-device (this session)** | shots 97/98, logcat `PAGED open FAIL` → retry → `LOADCH ok n=29`, §7 |
+| Release build + RAM < 150 MB | **PASS (this session)** — TOTAL PSS 109 MB after full journey | `Docs/QA-ON-DEVICE.md`, shots 111–113 |
+| Phase 9 stragglers (library remove round-trip) | **PASS (this session)** — found + fixed Bug #8 (stale library tab) on the way | shots 104/110, `library_refresh_test.dart` |
+| QA-ON-DEVICE.md + PLAN_NOTES + CHANGELOG + final QA commit | **DONE (this session)** | `Docs/QA-ON-DEVICE.md` rewritten as the formal deliverable |
+
+**Session closed 2026-10-18.** This session ran under a throttled
+emulator (host busy — user gaming) via `scripts/boot-emu-low.bat`; the
+full environment record lives in `Docs/QA-ON-DEVICE.md` + PLAN_NOTES.
+The only v1 item left open is the user-deferred phone-in-hand
+performance pass.
 
 **⚠️ Environment right now: the emulator/adbs device is GONE
 (`adb` reports no devices). The interrupted command chain may have left the
@@ -285,7 +291,11 @@ instead.
   auto-routes to webtoon — several "dead paged taps" runs were actually the
   webtoon reader where side taps are by design inert.
 
-## 9. Resume checklist (ordered)
+## 9. Resume checklist (ordered) — COMPLETE 2026-10-18
+
+All steps below were executed to completion in the closing session
+(see `Docs/QA-ON-DEVICE.md` for the verdict table). Kept for the record;
+step numbering follows the original plan:
 
 0. **Boot the AVD** headless: `emulator -avd StarCodex -no-window
    -no-snapshot -gpu swiftshader_indirect -no-boot-anim -memory 3072`;
