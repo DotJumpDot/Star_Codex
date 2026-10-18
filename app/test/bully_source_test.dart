@@ -40,6 +40,24 @@ Future<void> main() async {
         expect(s.coverUrl == null || !s.coverUrl!.contains('data:'), isTrue);
       }
     });
+
+    test('a non-http card href is skipped, never crashes the listing',
+        () {
+      // Dart's Uri.resolve is lenient with broken percent-escapes, so the
+      // real guard is the scheme check (javascript:, data:, …).
+      const bad = '<div class="mc-card">'
+          '<a href="/ok-series" class="mc-img-wrap">'
+          '<img alt="Ok Series" data-src="/img/facecat/ok-cover.jpg" class="mc-img lazy">'
+          '</a></div>'
+          '<div class="mc-card">'
+          '<a href="javascript:alert(1)" class="mc-img-wrap">'
+          '<img alt="Bad Series" class="mc-img lazy">'
+          '</a></div>';
+      final items = parseBullyListing(bad, 'https://bully-manga.com');
+      expect(items.length, 1);
+      expect(items.first.title, 'Ok Series');
+      expect(items.first.url, 'https://bully-manga.com/ok-series');
+    });
   });
 
   group('parseBullyGenres', () {

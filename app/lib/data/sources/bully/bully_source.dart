@@ -145,9 +145,9 @@ List<SourceSeries> parseBullyListing(String body, String baseUrl) {
   final out = <SourceSeries>[];
   for (final card in doc.querySelectorAll('.mc-card')) {
     final anchor = card.querySelector('a.mc-img-wrap');
-    final href = anchor?.attributes['href'] ?? '';
-    if (href.isEmpty) continue;
-    final img = anchor?.querySelector('img.mc-img');
+    final url = _resolveUrl(baseUrl, anchor?.attributes['href'] ?? '');
+    if (anchor == null || url == null) continue;
+    final img = anchor.querySelector('img.mc-img');
     final title =
         (img?.attributes['alt'] ?? card.querySelector('.mc-title')?.text ?? '')
             .trim();
@@ -160,7 +160,7 @@ List<SourceSeries> parseBullyListing(String body, String baseUrl) {
     final epText = card.querySelector('.mc-ep-num')?.text.trim();
     final hint = epText == null ? null : parseChapterNumber(epText);
     out.add(SourceSeries(
-      url: Uri.parse(baseUrl).resolve(href).toString(),
+      url: url,
       title: title,
       coverUrl: cover,
       chapterCountHint: hint?.toInt(),
@@ -179,8 +179,8 @@ List<SourceGenre> parseBullyGenres(String body) {
     final href = a.attributes['href'] ?? '';
     final name = a.text.trim();
     if (href.isEmpty || name.isEmpty) continue;
-    final segs = Uri.parse(href).pathSegments;
-    if (segs.length < 2 || segs.first != 'genres') continue;
+    final segs = _safePathSegments(href);
+    if (segs == null || segs.length < 2 || segs.first != 'genres') continue;
     final term = segs[1];
     if (term == 'all' || !seen.add(term)) continue;
     out.add(SourceGenre(name: name, term: term));
@@ -244,8 +244,8 @@ SourceSeriesDetail? parseBullyDetail(
 
   final chapters = <SourceChapter>[];
   for (final a in doc.querySelectorAll('a.sh-ep')) {
-    final href = a.attributes['href'] ?? '';
-    if (href.isEmpty) continue;
+    final url = _resolveUrl(sourceUrl, a.attributes['href'] ?? '');
+    if (url == null) continue;
     final number = double.tryParse(a.attributes['data-title'] ?? '') ??
         parseChapterNumber(a.querySelector('.sh-ep-label')?.text ?? '') ??
         parseChapterNumber(a.attributes['data-ep'] ?? '');
@@ -253,7 +253,7 @@ SourceSeriesDetail? parseBullyDetail(
     final label =
         a.querySelector('.sh-ep-label')?.text.trim() ?? 'ตอนที่ ${number.toInt()}';
     chapters.add(SourceChapter(
-      url: Uri.parse(sourceUrl).resolve(href).toString(),
+      url: url,
       title: label,
       number: number,
       uploadedAt: parseRelativeThaiDate(
@@ -290,9 +290,33 @@ List<String> parseBullyImageMap(String body, String baseUrl) {
   return urls;
 }
 
+/// Resolve [href] against [base]; malformed hrefs (raw Thai, broken %)
+/// return null instead of throwing — one bad anchor must never kill a
+/// whole listing (same policy as the Madara adapter's genre parser).
+String? _resolveUrl(String base, String href) {
+  if (href.isEmpty) return null;
+  try {
+    final resolved = Uri.parse(base).resolve(href);
+    if (!resolved.isScheme('http') && !resolved.isScheme('https')) {
+      return null;
+    }
+    return resolved.toString();
+  } on Exception {
+    return null;
+  }
+}
+
+List<String>? _safePathSegments(String href) {
+  try {
+    return Uri.parse(href).pathSegments;
+  } on Exception {
+    return null;
+  }
+}
+
 String? _cleanUrl(String? raw, String baseUrl) {
   if (raw == null || raw.isEmpty || raw.startsWith('data:')) return null;
-  return Uri.parse(baseUrl).resolve(raw).toString();
+  return _resolveUrl(baseUrl, raw);
 }
 
 String? _typeFromBadge(String? src) {
