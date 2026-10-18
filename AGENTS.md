@@ -124,5 +124,5 @@ Also append one line to [`CHANGELOG.md`](CHANGELOG.md) per phase.
   `DateTime.now()` twice — same-millisecond collisions make assertions
   flaky. Whole doubles interpolate as `1.0`, not `1` (`'c$number'` →
   `c1.0`) — format them.
-- Warm full suite ≈ 10 s (167 tests). If a run takes minutes, something is
+- Warm full suite ≈ 10 s (168 tests). If a run takes minutes, something is
   hanging — investigate, don't retry blindly.

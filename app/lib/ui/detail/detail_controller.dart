@@ -136,9 +136,11 @@ class DetailController extends StateNotifier<AsyncValue<SeriesDetailVm>> {
     if (cur == null) return;
     if (cur.inLibrary) {
       await libraryDao.remove(seriesId);
+      if (!mounted) return; // pop mid-toggle: no state write after dispose
       state = AsyncValue.data(cur.copyWith(inLibrary: false));
     } else {
       await libraryDao.add(seriesId, DateTime.now().millisecondsSinceEpoch);
+      if (!mounted) return;
       state = AsyncValue.data(cur.copyWith(inLibrary: true));
     }
     await onLibraryChanged?.call();

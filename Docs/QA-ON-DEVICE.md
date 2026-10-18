@@ -48,7 +48,7 @@ performance DoDs (AGENTS.md). Screenshots: [`qa/shots/`](qa/shots/)
 | 5 | New tag names → detail FK crash (`tag_id=-1`) | Android insertWithOnConflict(IGNORE) returns −1, ffi shim returns 0 | `4204e9e` `id > 0` guards |
 | 6 | Every nekopost image chapter eternal-spinner | live cinfo payload has int `pageNo` + `fileName` (old casts threw) | `4204e9e` `_pageNo`/`_fileName` |
 | 7 | Paged reader: failed open = eternal spinner, no error UI | manga-type chapters route to PagedReaderScreen whose catch had no `_failed` state | `4204e9e` error panel + retry + `paged_reader_fail_test.dart` |
-| 8 | **Library tab went stale after detail add/remove** — the card appeared only after an app restart | the shell keeps tabs mounted, so `LibraryScreen.initState`'s one-shot `load()` never re-ran; `DetailController.toggleLibrary` wrote the DB only | **this session** `Fix:` — `onLibraryChanged` hook (provider wires it to `libraryControllerProvider.load()`); regression test `library_refresh_test.dart`; verified live (shots 104/110) |
+| 8 | **Library tab went stale after detail add/remove** — the card appeared only after an app restart | the shell keeps tabs mounted, so `LibraryScreen.initState`'s one-shot `load()` never re-ran; `DetailController.toggleLibrary` wrote the DB only | `5706d37` — `onLibraryChanged` hook (provider wires it to `libraryControllerProvider.load()`); regression test `library_refresh_test.dart`; verified live (shots 104/110) |
 
 Bug #7 on-device confirmation protocol (this session): airplane ON →
 open ตอนที่ 2 (uncached) → DNS-fail chain in logcat (`LOADCH enter

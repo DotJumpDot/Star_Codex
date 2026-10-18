@@ -28,11 +28,8 @@ user rule: commits allowed locally, push never._
 emulator (host busy — user gaming) via `scripts/boot-emu-low.bat`; the
 full environment record lives in `Docs/QA-ON-DEVICE.md` + PLAN_NOTES.
 The only v1 item left open is the user-deferred phone-in-hand
-performance pass.
-
-**⚠️ Environment right now: the emulator/adbs device is GONE
-(`adb` reports no devices). The interrupted command chain may have left the
-AVD image with airplane-mode ON. Restart the AVD before anything else.**
+performance pass. (The emulator is intentionally OFF between sessions —
+boot it with the low-impact script when needed.)
 
 ## 1. Mission and ground rules
 
