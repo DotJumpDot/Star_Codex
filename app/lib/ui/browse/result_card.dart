@@ -155,16 +155,27 @@ class _Cover extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Cover source: primary first, then any member with a cover —
+    // slow-manga tiles can point at AVIF uploads or 404 thumbnails that
+    // can never render, so a sibling site's JPEG must win over a dead
+    // primary (CoverThumb walks the fallback chain).
+    final coverMembers = <BrowseCandidate>[
+      primary,
+      ...group.members.where((m) => m != primary),
+    ].where((m) => (m.coverUrl ?? '').isNotEmpty).toList();
     return SizedBox(
       width: 92,
       height: 128,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (primary.coverUrl != null)
+          if (coverMembers.isNotEmpty)
             CoverThumb(
-              url: primary.coverUrl!,
-              referer: primary.referer,
+              url: coverMembers.first.coverUrl!,
+              referer: coverMembers.first.referer,
+              fallbacks: [
+                for (final m in coverMembers.skip(1)) (m.coverUrl!, m.referer),
+              ],
               width: 92,
               height: 128,
             )

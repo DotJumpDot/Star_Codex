@@ -281,9 +281,10 @@ class MadaraSource implements Source {
 
   /// Best cover URL from a listing/detail <img>: lazy-loaded tiles carry a
   /// placeholder (base64 / grey gif / site logo) in `src` and the real
-  /// image in `data-src`. Prefer data-src, then src, skipping data: URIs
-  /// and svg placeholders — fixes mismatched/blank covers on dark-manga
-  /// and slow-manga tiles (on-device QA 2026-10-18).
+  /// image in `data-src`. Prefer data-src, then src, skipping data: URIs,
+  /// svg placeholders and AVIF uploads — Flutter's engine can't decode
+  /// AVIF so such covers can never render (slow-manga uploads, on-device
+  /// QA 2026-10-18; the card/hero layer falls back to sibling sites).
   String? _bestCoverUrl(html_dom.Element? img) {
     if (img == null) return null;
     for (final raw in [
@@ -292,12 +293,10 @@ class MadaraSource implements Source {
       img.attributes['src'],
     ]) {
       final v = raw?.trim();
-      if (v != null &&
-          v.isNotEmpty &&
-          !v.startsWith('data:') &&
-          !v.toLowerCase().endsWith('.svg')) {
-        return v;
-      }
+      if (v == null || v.isEmpty || v.startsWith('data:')) continue;
+      final lower = v.toLowerCase();
+      if (lower.endsWith('.svg') || lower.endsWith('.avif')) continue;
+      return v;
     }
     return null;
   }

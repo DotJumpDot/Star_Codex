@@ -317,8 +317,11 @@ List<String>? _safePathSegments(String href) {
   }
 }
 
+/// Null for anything the app can't render (data: URIs, AVIF — Flutter's
+/// engine has no AVIF decoder; callers fall through to the next candidate).
 String? _cleanUrl(String? raw, String baseUrl) {
   if (raw == null || raw.isEmpty || raw.startsWith('data:')) return null;
+  if (raw.toLowerCase().endsWith('.avif')) return null;
   return _resolveUrl(baseUrl, raw);
 }
 

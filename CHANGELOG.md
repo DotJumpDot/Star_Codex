@@ -148,3 +148,8 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   hero under the genre chips (2-line truncated snippet, expands with a
   slide on tap); ค้นหาตอน + sort arrow now occupy the row it vacated, so
   the chapter list starts one full row higher.
+- 2026-10-18 — Cover robustness: slow-manga AVIF uploads ("Poison Master
+  of Sacheon Tang Clan") and 404 WP thumbnails ("I'll Resign…") can never
+  render — parsers now skip .avif, CoverThumb walks a fallback chain
+  (un-suffixed full-size original, then sibling sites' covers for merged
+  cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.

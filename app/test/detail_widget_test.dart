@@ -53,7 +53,7 @@ Future<void> main() async {
     expect(find.text('นาโน แมชชีน'), findsNWidgets(2));
     expect(find.text('Nano Machine'), findsOneWidget);
     expect(find.text('มังงะเกาหลี'), findsOneWidget);
-    expect(find.text('กำลังเข้า'), findsOneWidget);
+    expect(find.text('กำลังแปล'), findsOneWidget);
 
     // Two sources linked; the chapter tab bar is gone — the site switcher
     // (action row) replaces it. slow-manga is the primary: hero chip +

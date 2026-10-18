@@ -41,6 +41,19 @@ Future<void> main() async {
       }
     });
 
+    test('AVIF cover candidates are skipped — src fallback wins', () {
+      // Flutter's engine has no AVIF decoder; such covers can never render.
+      const avif = '<div class="mc-card">'
+          '<a href="/x-avif" class="mc-img-wrap">'
+          '<img src="/static/images/default-cover.webp" '
+          'data-src="/img/facecat/x-avif-cover.avif" '
+          'alt="X Avif Series" class="mc-img lazy">'
+          '</a></div>';
+      final items = parseBullyListing(avif, 'https://bully-manga.com');
+      expect(items.single.coverUrl,
+          'https://bully-manga.com/static/images/default-cover.webp');
+    });
+
     test('a non-http card href is skipped, never crashes the listing',
         () {
       // Dart's Uri.resolve is lenient with broken percent-escapes, so the

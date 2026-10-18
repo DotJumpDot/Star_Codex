@@ -62,10 +62,32 @@ class _DetailCoverState extends ConsumerState<DetailCover> {
   }
 
   Widget _fallback(BuildContext context, WidgetRef ref) {
-    if (widget.vm.coverUrl != null && widget.vm.coverReferer != null) {
+    final vm = widget.vm;
+    // Merged series: when this member's cover is dead (slow-manga AVIF
+    // uploads / 404 thumbnails), a sibling site's cover is the next best
+    // thing — CoverThumb walks the list.
+    final sources = ref.read(sourcesProvider);
+    String refererFor(String sourceId) =>
+        sources.where((s) => s.id == sourceId).firstOrNull?.referer ?? '';
+    final fallbacks = <(String, String)>[
+      for (final l in vm.links)
+        if (l.coverUrl != null && l.coverUrl != vm.coverUrl)
+          (l.coverUrl!, refererFor(l.sourceId)),
+    ];
+    if (vm.coverUrl != null && vm.coverReferer != null) {
       return CoverThumb(
-        url: widget.vm.coverUrl!,
-        referer: widget.vm.coverReferer!,
+        url: vm.coverUrl!,
+        referer: vm.coverReferer!,
+        fallbacks: fallbacks,
+        width: 96,
+        height: 136,
+      );
+    }
+    if (fallbacks.isNotEmpty) {
+      return CoverThumb(
+        url: fallbacks.first.$1,
+        referer: fallbacks.first.$2,
+        fallbacks: fallbacks.skip(1).toList(),
         width: 96,
         height: 136,
       );
