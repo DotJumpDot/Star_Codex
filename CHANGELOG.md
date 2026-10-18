@@ -139,3 +139,12 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   (defaults 5 GB cache / 20 GB downloads, db v2 migration); About: date
   localized, plan note removed, GitHub button added; Library toolbar
   collapsible search + denser cards. 168 tests green, on-device QA pass.
+- 2026-10-18 — Sources: fin-manga.com (same ts theme → Madara config,
+  search live) + bully-manga.com (custom static engine → new dedicated
+  adapter: /genres/all listings, /search?keyword=, JSON-LD detail,
+  a.sh-ep chapter rows with relative-Thai stamps, IMAGE_MAP page arrays);
+  db v3 seeds/migrates 7 sources. Fixture tests from live pages; 175 green.
+- 2026-10-18 — Detail compaction round 2: เรื่องย่อ toggle moved into the
+  hero under the genre chips (2-line truncated snippet, expands with a
+  slide on tap); ค้นหาตอน + sort arrow now occupy the row it vacated, so
+  the chapter list starts one full row higher.

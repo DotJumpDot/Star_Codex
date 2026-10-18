@@ -630,3 +630,34 @@ referer pairing, novel estimate. 165 tests green.
   unnecessary but "nice to have").
 - Reader pages/streaming behavior (doc 10/11 semantics: prefetch, resume,
   fallback) are untouched — only the chrome moved.
+
+## New sources + detail compaction 2 (2026-10-18, second user batch)
+
+- **bully-manga.com is NOT Madara** — custom static site. Dedicated
+  `BullyMangaSource` (data/sources/bully/): listing `/genres/all[/<page>]`
+  (`div.mc-card`, cover in `img.mc-img[data-src]`, type from
+  `/static/images/<type>.svg`, chapter hint from first `.mc-ep-num`),
+  search `/search?keyword=<q>` (filter out `-ep\d+$` chapter slugs the
+  site's index also returns), detail via JSON-LD `ComicSeries` +
+  `a.sh-genre` tags + `sh-badge-type`/`sh-badge-status` text badges +
+  full `a.sh-ep` chapter rows (`data-title` = number; note the CTA
+  anchors `sh-btn-read/latest` share ep hrefs but carry NO data-title —
+  that's why the parser keys on data-title), pages from the chapter
+  page's `IMAGE_MAP = [...]` JS array, relative Thai chapter stamps
+  ("N สัปดาห์") parsed to epoch ms. Fixtures under test/fixtures/
+  trimmed from the live pages.
+- **fin-manga.com IS the ts theme** → plain MadaraSiteConfig
+  (seriesUnderMangaPrefix false, search works — verified live; a
+  zero-hit query renders CSS-only hits, don't be fooled when probing).
+- **db v3**: `case 2:` inserts the two new source rows (INSERT OR
+  IGNORE). Dart switch cases do NOT fall through — `case 1:` ends with
+  `continue next;` chained into `next: case 2:` so v1→v3 upgrades run
+  BOTH migrations (round-trip tested in db_test).
+- **Detail compaction 2**: เรื่องย่อ toggle lives in the hero under the
+  chips (IntroductionToggle, 2-line truncated snippet so the hero stays
+  within cover height); the full text slides open below the action row
+  (IntroductionExpansion + AnimatedSize). The chapter search field +
+  sort arrow moved onto the vacated row — ChapterList is a bare list
+  receiving `query` from the detail body.
+- On-device visual QA of the new sources + this layout is DELIBERATELY
+  deferred to the next (vision-capable) session per the user.
