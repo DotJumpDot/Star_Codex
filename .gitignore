@@ -10,7 +10,7 @@ compress_test/
 PLAN_NOTES.md.local
 
 # scratch commit-message files (the messages live in git history proper)
-.git-msg-*.txt
+.git-msg-*
 
 # Flutter / Dart (pre-covers app/ once created)
 app/.dart_tool/
