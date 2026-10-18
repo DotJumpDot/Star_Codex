@@ -153,6 +153,15 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-19 — Post-v1.2 review pass (big model): enrichment now also
+  looks up the series row by the tile's Latin-only norm (solo bully
+  cards with Thai-suffixed titles were missing their DB dates/covers);
+  materialization re-enriches just the finished card instead of the whole
+  list; history screen drops a dead computation in grouped mode. 193
+  tests green.
+- 2026-10-19 — Release: v1.1.0 — version 1.1.0+3, About string cleaned,
+  release-signed APK (StarCodex-1.1.0.apk) published to GitHub Releases
+  with English notes + SHA-256.
 - 2026-10-19 — Feed completeness pass (on-device QA round with the user):
   background materialization — browse cards the listing alone left
   incomplete (no date or no renderable cover) get the open-card path run
