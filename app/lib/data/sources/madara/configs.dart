@@ -51,4 +51,11 @@ const madaraConfigs = [
     seriesUnderMangaPrefix: false,
     searchSupported: false, // Cloudflare on ?s= (2026-10-17)
   ),
+  MadaraSiteConfig(
+    id: 'fin-manga',
+    name: 'Fin-Manga',
+    baseUrl: 'https://www.fin-manga.com',
+    seriesUnderMangaPrefix: false, // /<slug>/ (probed 2026-10-18)
+    searchSupported: true,
+  ),
 ];

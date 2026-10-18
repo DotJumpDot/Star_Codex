@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../../core/net/safe_http.dart';
+import 'bully/bully_source.dart';
 import 'madara/configs.dart';
 import 'madara/madara_source.dart';
 import 'nekopost/nekopost_source.dart';
@@ -25,6 +26,8 @@ Future<List<Source>> loadSources(Database db, SafeHttp http,
         }
       case 'nekopost':
         sources.add(NekopostSource(http));
+      case 'bully':
+        sources.add(BullyMangaSource(http));
     }
   }
   return sources;

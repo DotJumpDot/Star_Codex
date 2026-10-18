@@ -5,7 +5,7 @@ import 'package:sqflite/sqflite.dart';
 /// Single SQLite database (Plan/02). All timestamps are milliseconds since
 /// epoch (int). Migrations append only: bump [dbVersion], add a `case` in
 /// [onUpgrade] — never edit v1 statements after shipping.
-const dbVersion = 2;
+const dbVersion = 3;
 const dbFileName = 'manga_reader.db';
 
 class DbException implements Exception {
@@ -48,6 +48,26 @@ Future<Database> openDb(
             await db.execute(
                 "UPDATE settings SET value = '21474836480' "
                 "WHERE key = 'total_quota_bytes' AND value = '107374182400'");
+            continue next; // Dart cases don't fall through — chain to v3
+          // v3 (2026-10-18, new sources): fin-manga + bully-manga rows for
+          // installs seeded before they existed. INSERT OR IGNORE keeps it
+          // idempotent (fresh installs already seed them).
+          next:
+          case 2:
+            for (var i = 0; i < _seededSources.length; i++) {
+              final s = _seededSources[i];
+              await db.insert(
+                  'sources',
+                  {
+                    'id': s.$1,
+                    'name': s.$2,
+                    'base_url': s.$3,
+                    'adapter': s.$4,
+                    'enabled': 1,
+                    'sort': i,
+                  },
+                  conflictAlgorithm: ConflictAlgorithm.ignore);
+            }
           // Future migrations append cases here: `case 1: ...; continue next;`
           default:
             break;
@@ -206,6 +226,11 @@ const _seededSources = [
   ('up-manga', 'Up-Manga', 'https://www.up-manga.com', 'madara'),
   ('dark-manga', 'Dark Manga', 'https://www.dark-manga.com', 'madara'),
   ('nekopost', 'Nekopost', 'https://www.nekopost.net', 'nekopost'),
+  // v1.1 (2026-10-18): user-added sites. fin-manga runs the same ts
+  // theme (madara adapter); bully-manga is a static custom site (bully
+  // adapter — see data/sources/bully/).
+  ('fin-manga', 'Fin-Manga', 'https://www.fin-manga.com', 'madara'),
+  ('bully-manga', 'Bully Manga', 'https://bully-manga.com', 'bully'),
 ];
 
 const _defaultSettings = {
