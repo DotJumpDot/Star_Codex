@@ -1,8 +1,7 @@
 import 'dart:async';
 
 import '../../core/utils/title_match.dart';
-import '../../core/utils/title_norm.dart';
-import '../dao/chapters_dao.dart';
+import '../../core/utils/title_norm.dart';import '../dao/chapters_dao.dart';
 import '../dao/library_dao.dart';
 import '../dao/search_history_dao.dart';
 import '../dao/series_dao.dart';
@@ -96,6 +95,29 @@ class BrowseRepo {
     return BrowsePage(
         groups: mergeIntoGroups(const [], _candidates(results)),
         failures: _failures(results));
+  }
+
+  /// Fill each group's [SearchGroup.dbStatus]/[dbType]/[dbTags]/
+  /// [dbLastUpdatedMs] from a materialized series row (matched by the
+  /// primary member's normalized title). Listing payloads carry none of
+  /// these — without the join, the filter sheet's status/tag controls and
+  /// the card's update stamp would never fire. Callers run this
+  /// fire-and-forget so the DB round-trips never delay the listing.
+  Future<void> enrichGroups(List<SearchGroup> groups) async {
+    for (final g in groups.take(60)) {
+      final norm = normalizeTitle(g.primary.title);
+      if (norm.isEmpty) continue;
+      try {
+        final row = await seriesDao.findByTitleNorm(norm);
+        if (row == null) continue;
+        g.dbStatus = row.status;
+        g.dbType = row.type;
+        g.dbLastUpdatedMs = await seriesDao.lastUpdatedAt(row.id!);
+        g.dbTags = await tagsDao.tagsOf(row.id!);
+      } catch (_) {
+        // enrichment is best-effort — never fail a listing over it
+      }
+    }
   }
 
   Future<List<SourceGenre>> genres(Source source) => source.genres();

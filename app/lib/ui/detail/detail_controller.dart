@@ -81,7 +81,8 @@ class DetailController extends StateNotifier<AsyncValue<SeriesDetailVm>> {
     final id = _resolvedId;
     final vm = await future;
     final sort = await settingsDao.get('chapter_sort_$id');
-    return vm.copyWith(sortOldestFirst: sort != 'desc');
+    // Newest-first default: only an explicit 'asc' keeps oldest on top.
+    return vm.copyWith(sortOldestFirst: sort == 'asc');
   }
 
   /// Long-press mark read/unread (Plan/09 §DoD: instant dots, no refetch).

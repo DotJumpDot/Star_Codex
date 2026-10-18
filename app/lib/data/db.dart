@@ -5,7 +5,7 @@ import 'package:sqflite/sqflite.dart';
 /// Single SQLite database (Plan/02). All timestamps are milliseconds since
 /// epoch (int). Migrations append only: bump [dbVersion], add a `case` in
 /// [onUpgrade] — never edit v1 statements after shipping.
-const dbVersion = 1;
+const dbVersion = 2;
 const dbFileName = 'manga_reader.db';
 
 class DbException implements Exception {
@@ -40,6 +40,14 @@ Future<Database> openDb(
       },
       onUpgrade: (db, fromVersion, toVersion) async {
         switch (fromVersion) {
+          // v2 (2026-10-18, UX overhaul): download quota default 100→20 GB
+          // (only installs still on the old default move; an explicit user
+          // value survives). Theme values migrate at runtime via
+          // themeById(), no row rewrite needed.
+          case 1:
+            await db.execute(
+                "UPDATE settings SET value = '21474836480' "
+                "WHERE key = 'total_quota_bytes' AND value = '107374182400'");
           // Future migrations append cases here: `case 1: ...; continue next;`
           default:
             break;
@@ -202,9 +210,9 @@ const _seededSources = [
 
 const _defaultSettings = {
   'language': 'th',
-  'theme': 'dark',
-  'cache_limit_bytes': '5368709120',
-  'total_quota_bytes': '107374182400',
+  'theme': 'stardust',
+  'cache_limit_bytes': '5368709120', // 5 GB reading cache
+  'total_quota_bytes': '21474836480', // 20 GB downloads
   'filter_min_chapters': '0',
   'filter_hide_oneshot': '0',
   'reader_mode_default': 'auto',
@@ -214,6 +222,7 @@ const _defaultSettings = {
   'updates_last_run': '0',
   'novel_font_size': '18',
   'novel_line_height': '1.7',
+  'novel_bg_opacity': '1.0',
 };
 
 Future<void> _seed(Database db) async {

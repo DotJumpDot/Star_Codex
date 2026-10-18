@@ -75,16 +75,30 @@ class LibraryCardView extends ConsumerWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 6, 8, 4),
+              padding: const EdgeInsets.fromLTRB(8, 6, 8, 2),
               child: Text(card.title,
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-              child: LinearProgressIndicator(
-                value: card.readFraction,
-                minHeight: 3,
-                borderRadius: BorderRadius.circular(2),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: LinearProgressIndicator(
+                      value: card.readFraction,
+                      minHeight: 3,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    tFmt(context, 'library.unread_count',
+                        {'n': '${card.unreadCount}'}),
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ],
               ),
             ),
           ],

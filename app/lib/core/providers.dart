@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/material.dart' show GlobalKey, ScaffoldState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
@@ -114,9 +115,19 @@ final browseRepoProvider = Provider((ref) => BrowseRepo(
       seriesRepo: ref.watch(seriesRepoProvider),
     ));
 
-/// Bottom-nav tab index — shared so detail screens can jump to Browse
+/// Active tab index — shared so detail screens can jump to Browse
 /// (tag chip tap, doc 09 §4) without lifting shell state.
 final tabIndexProvider = StateProvider<int>((ref) => 0);
+
+/// Global header search overlay (slides over every tab from the top
+/// right; submit jumps to Browse and runs the merged search).
+final searchOpenProvider = StateProvider<bool>((ref) => false);
+
+/// The shell's Scaffold key — created once per container so every tab's
+/// hamburger can open the navigation drawer (inner tab Scaffolds are
+/// nearer in the tree than the shell Scaffold).
+final shellScaffoldKeyProvider =
+    Provider<GlobalKey<ScaffoldState>>((ref) => GlobalKey<ScaffoldState>());
 
 /// Library-tab orchestration (Plan/12): card list, Thai sort, merge/split
 /// transactions, delete flows. Null janitor is overridden nowhere — the

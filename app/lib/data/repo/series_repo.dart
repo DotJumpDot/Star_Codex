@@ -293,7 +293,8 @@ class SeriesRepo {
       altTitles: dedupeAltTitles([
         for (final l in links) ...l.altTitles,
       ]),
-        sortOldestFirst: (await settingsDao.get('chapter_sort_$seriesId')) != 'desc',
+        sortOldestFirst:
+            (await settingsDao.get('chapter_sort_$seriesId')) == 'asc',
         coverUrl: coverUrl,
         coverReferer: coverReferer,
         tags: await tagsDao.tagsOf(seriesId),
@@ -548,7 +549,12 @@ class SeriesRepo {
 
   /// Browse card tap (Plan/09: detail opens from browse too): resolve the
   /// series id for a listing group, materializing the row on first open.
-  /// NO library insert here — that stays an explicit action.
+  /// NO library insert here — that stays an explicit action. Every OTHER
+  /// member of the group is linked in the same pass: the listing already
+  /// proved (source,url) identity, so the detail screen shows all sites
+  /// immediately (fixes "second site disappears after opening a merged
+  /// card" — previously only the primary linked, the rest waited for a
+  /// manual probe).
   Future<int> ensureSeries(SearchGroup group) async {
     final primary = group.primary;
     final source = sourceById(primary.sourceId);
@@ -557,15 +563,46 @@ class SeriesRepo {
     }
     final existing =
         await seriesDao.findSeriesIdBySourceLink(source.id, primary.url);
-    if (existing != null) return existing;
-    final detail = await source.detail(primary.url);
-    return upsertFromDetail(
-      source: source,
-      sourceUrl: primary.url,
-      fallbackTitle: group.displayTitle,
-      fallbackCoverUrl: primary.coverUrl,
-      fallbackType: group.type,
-      detail: detail,
-    );
+    final int seriesId;
+    if (existing != null) {
+      seriesId = existing;
+    } else {
+      final detail = await source.detail(primary.url);
+      seriesId = await upsertFromDetail(
+        source: source,
+        sourceUrl: primary.url,
+        fallbackTitle: group.displayTitle,
+        fallbackCoverUrl: primary.coverUrl,
+        fallbackType: group.type,
+        detail: detail,
+      );
+    }
+    // Link the remaining members (skip ones already owned by another
+    // series — a link is the stronger identity and never moves).
+    final now = DateTime.now().millisecondsSinceEpoch;
+    for (final member in group.members) {
+      if (member.sourceId == primary.sourceId &&
+          member.url == primary.url) {
+        continue;
+      }
+      final memberSource = sourceById(member.sourceId);
+      if (memberSource == null) continue;
+      try {
+        final owner = await seriesDao
+            .findSeriesIdBySourceLink(member.sourceId, member.url);
+        if (owner != null) continue; // belongs elsewhere — leave it there
+        await seriesDao.upsertSource(SeriesSource(
+          seriesId: seriesId,
+          sourceId: member.sourceId,
+          sourceUrl: member.url,
+          sourceTitle: member.title,
+          coverUrl: member.coverUrl,
+          fetchedAt: now,
+        ));
+      } catch (_) {
+        // best-effort enrichment — the primary link is what matters
+      }
+    }
+    return seriesId;
   }
 }

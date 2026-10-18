@@ -58,9 +58,9 @@ void main() {
     final rows = await db.query('settings');
     final map = {for (final r in rows) r['key'] as String: r['value'] as String};
     expect(map['language'], 'th');
-    expect(map['theme'], 'dark');
+    expect(map['theme'], 'stardust');
     expect(map['cache_limit_bytes'], '5368709120'); // 5 GiB
-    expect(map['total_quota_bytes'], '107374182400'); // 100 GiB
+    expect(map['total_quota_bytes'], '21474836480'); // 20 GiB
     expect(map['filter_min_chapters'], '0'); // OFF — decision L1
     expect(map['filter_hide_oneshot'], '0');
     expect(map['reader_mode_default'], 'auto');
@@ -68,6 +68,7 @@ void main() {
     expect(map['updates_last_run'], '0');
     expect(map['novel_font_size'], '18');
     expect(map['novel_line_height'], '1.7');
+    expect(map['novel_bg_opacity'], '1.0');
   });
 
   test('series unique index rejects duplicate title_norm', () async {

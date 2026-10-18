@@ -1,0 +1,479 @@
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/i18n/i18n.dart';
+import '../../core/providers.dart';
+import '../../core/settings_provider.dart';
+import '../../core/utils/thai.dart';
+import '../../data/dao/blobs_dao.dart';
+import '../../data/repo/series_repo.dart';
+import '../browse/browse_controller.dart';
+import '../browse/cover_thumb.dart';
+import '../browse/source_palette.dart';
+import '../reader/reader_router.dart';
+import 'detail_controller.dart';
+import 'download_sheet.dart';
+
+/// Compact hero widgets for the detail screen (split from
+/// detail_screen.dart): cover, chip row, action row (continue / heart /
+/// download / site switch), collapsible introduction.
+
+/// Cover: `series.cover_hash` blob file first; evicted → fetch the first
+/// link's cover URL through the pipeline; nothing → placeholder. The
+/// blob-row future is created once per cover hash — recreating it every
+/// build re-reads the DB on each mark-read/sort setState.
+class DetailCover extends ConsumerStatefulWidget {
+  const DetailCover({super.key, required this.vm});
+
+  final SeriesDetailVm vm;
+
+  @override
+  ConsumerState<DetailCover> createState() => _DetailCoverState();
+}
+
+class _DetailCoverState extends ConsumerState<DetailCover> {
+  Future<BlobRow?>? _future;
+
+  @override
+  Widget build(BuildContext context) {
+    final hash = widget.vm.series.coverHash;
+    if (hash != null) {
+      final blobs = ref.watch(blobStoreProvider);
+      final dir = ref.watch(libraryDirProvider);
+      _future ??= blobs.blobRow(hash);
+      return FutureBuilder<BlobRow?>(
+        future: _future,
+        builder: (context, snap) {
+          final path = snap.data?.path;
+          if (path == null) return _fallback(context, ref);
+          return Image.file(
+            File('${dir.path}/$path'),
+            width: 96,
+            height: 136,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => _fallback(context, ref),
+          );
+        },
+      );
+    }
+    return _fallback(context, ref);
+  }
+
+  Widget _fallback(BuildContext context, WidgetRef ref) {
+    if (widget.vm.coverUrl != null && widget.vm.coverReferer != null) {
+      return CoverThumb(
+        url: widget.vm.coverUrl!,
+        referer: widget.vm.coverReferer!,
+        width: 96,
+        height: 136,
+      );
+    }
+    return Container(
+      width: 96,
+      height: 136,
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: Icon(
+        Icons.image_outlined,
+        size: 32,
+        color: Theme.of(context).colorScheme.outline,
+      ),
+    );
+  }
+}
+
+/// Type / status / per-site / tag chips in ONE wrap (status + tags carry
+/// their own color so they read differently from the neutral type chip;
+/// site chips reuse the browse source palette — same color per site
+/// everywhere).
+class HeroChips extends ConsumerWidget {
+  const HeroChips({super.key, required this.vm});
+
+  final SeriesDetailVm vm;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final sources = ref.watch(sourcesProvider);
+    int registryIndex(String id) {
+      for (var i = 0; i < sources.length; i++) {
+        if (sources[i].id == id) return i;
+      }
+      return 0;
+    }
+
+    final shownTags = vm.tags.take(4).toList();
+    final moreTags = vm.tags.length - shownTags.length;
+
+    Widget neutral(String label) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            label,
+            style: theme.textTheme.labelSmall
+                ?.copyWith(fontWeight: FontWeight.w600),
+          ),
+        );
+
+    Widget tinted(String label, Color color) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.16),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: color.withValues(alpha: 0.55)),
+          ),
+          child: Text(
+            label,
+            style: theme.textTheme.labelSmall
+                ?.copyWith(fontWeight: FontWeight.w600, color: color),
+          ),
+        );
+
+    Widget site(String sourceId) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SourceDot(
+                  color: sourceDotColor(registryIndex(sourceId)), size: 8),
+              const SizedBox(width: 5),
+              Text(
+                vm.sourceNames[sourceId] ?? sourceId,
+                style: theme.textTheme.labelSmall
+                    ?.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        );
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 4,
+      children: [
+        if (vm.series.type != null)
+          neutral(t(context, 'browse.type.${vm.series.type}')),
+        if (vm.series.status != null)
+          tinted(
+            t(context, 'browse.status.${vm.series.status}'),
+            vm.series.status == 'ongoing'
+                ? const Color(0xFF43A047)
+                : Colors.blueGrey,
+          ),
+        for (final link in vm.links) site(link.sourceId),
+        // Tags: interactive (tap → browse pre-filtered) with the theme
+        // accent — "same placement, different color".
+        for (final tag in shownTags)
+          ActionChip(
+            label: Text(
+              tag,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            backgroundColor:
+                theme.colorScheme.primary.withValues(alpha: 0.10),
+            side: BorderSide(
+                color: theme.colorScheme.primary.withValues(alpha: 0.35)),
+            onPressed: () {
+              ref.read(browseControllerProvider.notifier).applyTagFilter(tag);
+              ref.read(tabIndexProvider.notifier).state = 0;
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            },
+          ),
+        if (moreTags > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              '+$moreTags',
+              style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Compact action row: Continue (small), heart (library), download, and
+/// the site switcher that replaces the old chapter-list tab bar.
+class DetailActionRow extends ConsumerWidget {
+  const DetailActionRow({
+    super.key,
+    required this.vm,
+    required this.controllerKey,
+    required this.selectedSourceId,
+    required this.onSourceSelected,
+  });
+
+  final SeriesDetailVm vm;
+  final DetailKey controllerKey;
+  final String selectedSourceId;
+  final ValueChanged<String> onSourceSelected;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final controller =
+        ref.read(detailControllerProvider(controllerKey).notifier);
+    final target = continueTarget(vm);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+              ),
+              icon: const Icon(Icons.play_arrow, size: 18),
+              label: Text(
+                target == null
+                    ? t(context, 'detail.continue_reading')
+                    : tFmt(context, 'detail.continue_with', {
+                        'n': formatChapterNumber(target.chapter.number),
+                      }),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              onPressed: target == null
+                  ? null
+                  : () {
+                      final settings = ref.read(settingsProvider);
+                      openReader(
+                        context,
+                        chapter: target.chapter,
+                        sourceId: target.sourceId,
+                        seriesDao: ref.read(seriesDaoProvider),
+                        modeOverride: effectiveModeOverride(
+                          settings.get(
+                            'reader_mode_${target.chapter.seriesId}',
+                            'auto',
+                          ),
+                          settings.get('reader_mode_default', 'auto'),
+                        ),
+                      );
+                    },
+            ),
+          ),
+          IconButton(
+            tooltip: t(
+              context,
+              vm.inLibrary ? 'detail.remove_library' : 'detail.add_library',
+            ),
+            icon: Icon(
+              vm.inLibrary ? Icons.favorite : Icons.favorite_border,
+              color:
+                  vm.inLibrary ? Theme.of(context).colorScheme.primary : null,
+            ),
+            onPressed: controller.toggleLibrary,
+          ),
+          IconButton(
+            tooltip: t(context, 'detail.download'),
+            icon: const Icon(Icons.download_outlined),
+            onPressed: () => showDownloadSheet(context, ref, vm, controllerKey),
+          ),
+          SiteSwitchButton(
+            vm: vm,
+            selectedSourceId: selectedSourceId,
+            onSelected: onSourceSelected,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Site switcher (replaces the chapter-list tab bar): current site name +
+/// colored dot; opens a menu with each site and its chapter count.
+class SiteSwitchButton extends ConsumerWidget {
+  const SiteSwitchButton({
+    super.key,
+    required this.vm,
+    required this.selectedSourceId,
+    required this.onSelected,
+  });
+
+  final SeriesDetailVm vm;
+  final String selectedSourceId;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final sources = ref.watch(sourcesProvider);
+    int registryIndex(String id) {
+      for (var i = 0; i < sources.length; i++) {
+        if (sources[i].id == id) return i;
+      }
+      return 0;
+    }
+
+    final name = vm.sourceNames[selectedSourceId] ?? selectedSourceId;
+    final count = vm.chaptersBySource[selectedSourceId]?.length ?? 0;
+    return PopupMenuButton<String>(
+      tooltip: t(context, 'detail.site_switch'),
+      position: PopupMenuPosition.under,
+      onSelected: onSelected,
+      itemBuilder: (context) => [
+        for (final link in vm.links)
+          PopupMenuItem(
+            value: link.sourceId,
+            child: Row(
+              children: [
+                SourceDot(
+                    color: sourceDotColor(registryIndex(link.sourceId))),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    vm.sourceNames[link.sourceId] ?? link.sourceId,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${vm.chaptersBySource[link.sourceId]?.length ?? 0}',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+      ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: theme.colorScheme.surfaceContainerHighest,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SourceDot(
+                color: sourceDotColor(registryIndex(selectedSourceId))),
+            const SizedBox(width: 6),
+            Text(name, style: theme.textTheme.labelMedium),
+            const SizedBox(width: 4),
+            Text(
+              '· $count',
+              style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant),
+            ),
+            const Icon(Icons.arrow_drop_down),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Collapsed-by-default introduction: a flat toggle row; expanding slides
+/// in the description (and the full tag list) via AnimatedSize.
+class IntroductionCard extends StatelessWidget {
+  const IntroductionCard({
+    super.key,
+    required this.vm,
+    required this.expanded,
+    required this.onToggle,
+  });
+
+  final SeriesDetailVm vm;
+  final bool expanded;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final captionSource = vm.descriptionSourceId != null
+        ? vm.sourceNames[vm.descriptionSourceId]
+        : null;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: Column(
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: onToggle,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+              child: Row(
+                children: [
+                  Icon(
+                    expanded ? Icons.expand_less : Icons.expand_more,
+                    size: 20,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    t(context, 'detail.introduction'),
+                    style: theme.textTheme.labelLarge?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: expanded
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          vm.series.description!,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                        if (vm.tags.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              for (final tag in vm.tags)
+                                Chip(
+                                  label: Text(
+                                    tag,
+                                    style: theme.textTheme.labelSmall,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                            ],
+                          ),
+                        ],
+                        if (captionSource != null)
+                          Text(
+                            tFmt(context, 'detail.description_from',
+                                {'source': captionSource}),
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                      ],
+                    ),
+                  )
+                : const SizedBox(width: double.infinity, height: 0),
+          ),
+        ],
+      ),
+    );
+  }
+}

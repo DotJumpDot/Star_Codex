@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/i18n/i18n.dart';
 import '../../core/providers.dart';
@@ -72,37 +73,19 @@ class _StorageSectionState extends ConsumerState<StorageSection> {
           onChanged: (v) =>
               controller.set('downloads_wifi_only', v ? '1' : '0'),
         ),
-        RadioGroup<String>(
-          groupValue: settings.get('cache_limit_bytes', '${5 * 1073741824}'),
-          onChanged: (v) =>
-              v == null ? null : controller.set('cache_limit_bytes', v),
-          child: Column(
-            children: [
-              for (final gb in const [2, 5, 10])
-                RadioListTile<String>(
-                  dense: true,
-                  value: '${gb * 1073741824}',
-                  title: Text(
-                      tFmt(context, 'settings.cache_budget', {'gb': '$gb'})),
-                ),
-            ],
-          ),
+        _GbInputTile(
+          label: t(context, 'settings.cache_budget_gb'),
+          bytes: settings.getInt('cache_limit_bytes', 5368709120),
+          minGb: 1,
+          maxGb: 50,
+          onChanged: (bytes) => controller.set('cache_limit_bytes', '$bytes'),
         ),
-        RadioGroup<String>(
-          groupValue:
-              settings.get('total_quota_bytes', '${100 * 1073741824}'),
-          onChanged: (v) =>
-              v == null ? null : controller.set('total_quota_bytes', v),
-          child: Column(
-            children: [
-              for (final gb in const [20, 50, 100, 200])
-                RadioListTile<String>(
-                  dense: true,
-                  value: '${gb * 1073741824}',
-                  title: Text(tFmt(context, 'settings.quota', {'gb': '$gb'})),
-                ),
-            ],
-          ),
+        _GbInputTile(
+          label: t(context, 'settings.quota_gb'),
+          bytes: settings.getInt('total_quota_bytes', 21474836480),
+          minGb: 1,
+          maxGb: 500,
+          onChanged: (bytes) => controller.set('total_quota_bytes', '$bytes'),
         ),
         ListTile(
           title: Text(t(context, 'settings.usage_now')),
@@ -180,6 +163,83 @@ Widget _header(BuildContext context, String title) => Padding(
     );
 
 String _gb(int bytes) => (bytes / 1073741824).toStringAsFixed(1);
+
+/// Free-number GB input (cache budget / download quota): a small numeric
+/// field with − / + steppers, written through on submit or step. Typed
+/// values clamp to [minGb]..[maxGb].
+class _GbInputTile extends StatefulWidget {
+  const _GbInputTile({
+    required this.label,
+    required this.bytes,
+    required this.minGb,
+    required this.maxGb,
+    required this.onChanged,
+  });
+
+  final String label;
+  final int bytes;
+  final int minGb;
+  final int maxGb;
+  final ValueChanged<int> onChanged;
+
+  @override
+  State<_GbInputTile> createState() => _GbInputTileState();
+}
+
+class _GbInputTileState extends State<_GbInputTile> {
+  late final TextEditingController _text =
+      TextEditingController(text: '${(widget.bytes / 1073741824).round()}');
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  void _apply(int gb) {
+    final clamped = gb.clamp(widget.minGb, widget.maxGb);
+    _text.text = '$clamped';
+    widget.onChanged(clamped * 1073741824);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      dense: true,
+      title: Text(widget.label),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.remove, size: 20),
+            onPressed: () =>
+                _apply((int.tryParse(_text.text) ?? widget.minGb) - 1),
+          ),
+          SizedBox(
+            width: 64,
+            child: TextField(
+              controller: _text,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              decoration: const InputDecoration(
+                isDense: true,
+                suffixText: 'GB',
+              ),
+              onSubmitted: (v) => _apply(int.tryParse(v) ?? widget.minGb),
+            ),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.add, size: 20),
+            onPressed: () =>
+                _apply((int.tryParse(_text.text) ?? widget.minGb) + 1),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 /// แหล่งอ่าน (doc 14): per-source switch + connection test + up/down
 /// reorder. Changes re-emit [SourcesController] so browse/search/fallback
@@ -351,20 +411,21 @@ class _SourceTileState extends ConsumerState<_SourceTile> {
   }
 }
 
-/// เกี่ยวกับ (doc 14).
+/// เกี่ยวกับ (doc 14): version + GitHub link + licenses.
 class AboutSection extends StatelessWidget {
   const AboutSection({super.key});
 
-  static const appVersion = '1.0.0 (v1)';
+  static const appVersion = '1.1.0 (v1)';
+  static const githubUrl = 'https://github.com/DotJumpDot/Star_Codex';
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         _header(context, t(context, 'settings.about')),
-        const ListTile(
-          title: Text('Star Codex'),
-          subtitle: Text('v$appVersion · สร้าง 2026-10-17'),
+        ListTile(
+          title: const Text('Star Codex'),
+          subtitle: Text('v$appVersion · 2026-10-17'),
         ),
         ListTile(
           title: Text(t(context, 'settings.personal_use')),
@@ -372,9 +433,12 @@ class AboutSection extends StatelessWidget {
               style: Theme.of(context).textTheme.labelSmall),
         ),
         ListTile(
-          title: Text(t(context, 'settings.plan_note')),
-          subtitle: Text(t(context, 'settings.plan_note_body'),
-              style: Theme.of(context).textTheme.labelSmall),
+          leading: const Icon(Icons.code),
+          title: Text(t(context, 'settings.github')),
+          subtitle: const Text('DotJumpDot/Star_Codex',
+              style: TextStyle(fontFamily: 'monospace')),
+          onTap: () =>
+              launchUrl(Uri.parse(githubUrl), mode: LaunchMode.externalApplication),
         ),
         ListTile(
           title: Text(t(context, 'settings.licenses')),

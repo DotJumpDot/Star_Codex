@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/i18n/i18n.dart';
 import '../../core/providers.dart';
+import '../../core/settings_provider.dart';
 import '../browse/browse_screen.dart';
 import '../downloads/offline_screen.dart';
 import '../library/history_screen.dart';
 import '../library/library_screen.dart';
 import '../settings/settings_screen.dart';
+import 'app_drawer.dart';
+import 'search_overlay.dart';
 
-/// Bottom navigation shell — exactly 5 tabs (decision 00 §Navigation):
-/// Browse / Library / History / Offline / Settings. The index lives in
-/// [tabIndexProvider] so pushed screens can jump to a tab (detail tag
-/// chips → browse, Plan/09 §4).
+/// Navigation shell: the five tabs live in an IndexedStack; navigation is
+/// the LEFT drawer (hamburger on every tab header, edge-swipe opt-in via
+/// `nav_edge_swipe`) and the global search overlay slides in top-right.
 class NavigationShell extends ConsumerWidget {
   const NavigationShell({super.key});
 
@@ -27,37 +28,16 @@ class NavigationShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final index = ref.watch(tabIndexProvider);
+    final edgeSwipe =
+        ref.watch(settingsProvider).getBool('nav_edge_swipe', false);
     return Scaffold(
-      body: IndexedStack(index: index, children: _pages),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: (i) =>
-            ref.read(tabIndexProvider.notifier).state = i,
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.search_outlined),
-            selectedIcon: const Icon(Icons.search),
-            label: t(context, 'tab.browse'),
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.collections_bookmark_outlined),
-            selectedIcon: const Icon(Icons.collections_bookmark),
-            label: t(context, 'tab.library'),
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.history),
-            label: t(context, 'tab.history'),
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.download_outlined),
-            selectedIcon: const Icon(Icons.download),
-            label: t(context, 'tab.offline'),
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.settings_outlined),
-            selectedIcon: const Icon(Icons.settings),
-            label: t(context, 'tab.settings'),
-          ),
+      key: ref.watch(shellScaffoldKeyProvider),
+      drawerEnableOpenDragGesture: edgeSwipe,
+      drawer: AppNavDrawer(current: index),
+      body: Stack(
+        children: [
+          IndexedStack(index: index, children: _pages),
+          const SearchOverlay(),
         ],
       ),
     );

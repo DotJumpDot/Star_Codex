@@ -118,3 +118,24 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   Docs/QA-ON-DEVICE.md.
 - 2026-10-18 - v1.0.0 released: proper release-signing keystore baseline
   (cert CN=Star Codex, stored outside repo) + first GitHub Release APK.
+- 2026-10-18 — v1.1.0 UX overhaul (user feedback batch): left navigation
+  drawer replaces the bottom bar (hamburger on every tab header, edge-swipe
+  opt-in setting, default off); global search overlay slides from the top
+  right on every tab; 20 app themes (Monokai / Monokai Night / Monokai Dark
+  Soda from CometStream + Nord/Dracula/Tokyo Night/Catppuccin/Gruvbox/Rosé
+  Pine/Solarized/Sakura/…), 12 UI fonts (Prompt from Maki Launcher + Thai
+  & Latin picks); detail page compacted (smaller hero, tags/status/sites in
+  one chip row, collapsible เรื่องย่อ, heart=add-to-library, site switcher
+  replaces chapter tabs, newest-first chapter default); download sheet gets
+  a site picker + per-chapter upload stamps; browse cards redesigned (big
+  cover + overlay chips + last-update stamps, DB-enriched status/tag
+  filters); readers: all controls move to a right-hand drawer, 3 s
+  auto-next countdown replaced by drag-past-the-end pull-to-continue with
+  resistance + progress pill; novel background opacity setting; history now
+  records the moment a chapter opens (not only on completion); Madara
+  covers prefer data-src over lazy placeholders (fixes blank/mismatched
+  covers); browse detail opens link ALL merged listing members; settings
+  split Language/Appearance/Navigation/Library + numeric GB quota inputs
+  (defaults 5 GB cache / 20 GB downloads, db v2 migration); About: date
+  localized, plan note removed, GitHub button added; Library toolbar
+  collapsible search + denser cards. 168 tests green, on-device QA pass.

@@ -3,30 +3,33 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/i18n/i18n.dart';
 import '../../core/providers.dart';
+import '../../core/utils/relative_time.dart';
 import '../../core/utils/thai.dart';
 import '../../data/dao/chapters_dao.dart';
 import '../../data/repo/series_repo.dart';
 import '../../data/storage/blob_store.dart';
 import 'detail_controller.dart';
 
-/// Detail ⬇ button → download sheet (doc 13 §A): unread / next 10 / all /
-/// pick-your-own (range + list), size estimate, quota refusal with the
-/// remaining GB.
+/// Detail ⬇ button → download sheet (doc 13 §A): site picker (the sheet
+/// used to be locked to the primary source), unread / next 10 / all /
+/// pick-your-own (range + list), per-chapter upload stamps, size
+/// estimate, quota refusal with the remaining GB.
 Future<void> showDownloadSheet(
   BuildContext context,
   WidgetRef ref,
   SeriesDetailVm vm,
   DetailKey key,
 ) async {
-  final primary = vm.primaryLink.sourceId;
-  var chapters = vm.chaptersBySource[primary] ?? const <Chapter>[];
+  var sourceId = vm.primaryLink.sourceId;
+  var chapters = vm.chaptersBySource[sourceId] ?? const <Chapter>[];
   if (chapters.isEmpty) {
     // A lazily-probed link can be "primary" by last_chapter_number yet
     // carry no chapters until opened — fall back to the first source
     // that actually has a list.
-    for (final list in vm.chaptersBySource.values) {
-      if (list.isNotEmpty) {
-        chapters = list;
+    for (final entry in vm.chaptersBySource.entries) {
+      if (entry.value.isNotEmpty) {
+        sourceId = entry.key;
+        chapters = entry.value;
         break;
       }
     }
@@ -36,14 +39,12 @@ Future<void> showDownloadSheet(
         .showSnackBar(SnackBar(content: Text(t(context, 'downloads.none'))));
     return;
   }
-  // Ascending display for range picking (the VM's list arrives number-DESC).
-  final asc = chapters.reversed.toList(growable: false);
 
   final picked = await showModalBottomSheet<Set<int>>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    builder: (context) => _DownloadSheet(vm: vm, asc: asc),
+    builder: (context) => _DownloadSheet(vm: vm, initialSourceId: sourceId),
   );
   if (picked == null || picked.isEmpty || !context.mounted) return;
 
@@ -79,16 +80,17 @@ Future<void> showDownloadSheet(
 }
 
 class _DownloadSheet extends ConsumerStatefulWidget {
-  const _DownloadSheet({required this.vm, required this.asc});
+  const _DownloadSheet({required this.vm, required this.initialSourceId});
 
   final SeriesDetailVm vm;
-  final List<Chapter> asc;
+  final String initialSourceId;
 
   @override
   ConsumerState<_DownloadSheet> createState() => _DownloadSheetState();
 }
 
 class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
+  late String _sourceId;
   final _selected = <int>{};
   int? _rangeFrom;
   int? _rangeTo;
@@ -98,8 +100,20 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
   Future<int>? _estimate;
   int _estimateForCount = -1;
 
+  @override
+  void initState() {
+    super.initState();
+    _sourceId = widget.initialSourceId;
+  }
+
+  List<Chapter> get _chapters =>
+      widget.vm.chaptersBySource[_sourceId] ?? const <Chapter>[];
+
+  /// Ascending display for range picking (the VM's list arrives number-DESC).
+  List<Chapter> get _asc => _chapters.reversed.toList(growable: false);
+
   List<int> get _unreadIds => [
-    for (final c in widget.asc)
+    for (final c in _asc)
       if (!(widget.vm.progress[c.id]?.completed ?? false)) c.id!,
   ];
 
@@ -111,9 +125,18 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
   }
 
   List<int> get _rangeIds => [
-    for (var i = 0; i < widget.asc.length; i++)
-      if (i >= _rangeFrom! && i <= _rangeTo!) widget.asc[i].id!,
+    for (var i = 0; i < _asc.length; i++)
+      if (i >= _rangeFrom! && i <= _rangeTo!) _asc[i].id!,
   ];
+
+  void _switchSource(String id) {
+    setState(() {
+      _sourceId = id;
+      _selected.clear();
+      _rangeFrom = null;
+      _rangeTo = null;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -132,12 +155,15 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  t(context, 'downloads.title'),
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
+              child: Row(
+                children: [
+                  Text(
+                    t(context, 'downloads.title'),
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const Spacer(),
+                  _sourcePicker(context),
+                ],
               ),
             ),
             Padding(
@@ -161,12 +187,11 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
                     child: Text(t(context, 'downloads.next10')),
                   ),
                   OutlinedButton(
-                    onPressed: () =>
-                        Navigator.of(context)
-                            .pop(widget.asc.map((c) => c.id!).toSet()),
+                    onPressed: () => Navigator.of(context)
+                        .pop(_asc.map((c) => c.id!).toSet()),
                     child: Text(
                       tFmt(context, 'downloads.all', {
-                        'n': '${widget.asc.length}',
+                        'n': '${_asc.length}',
                       }),
                     ),
                   ),
@@ -190,15 +215,16 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
             ),
             Expanded(
               child: ListView.builder(
-                itemCount: widget.asc.length,
+                itemCount: _asc.length,
                 itemBuilder: (context, i) {
-                  final id = widget.asc[i].id!;
+                  final id = _asc[i].id!;
                   final checked = _inRange(i) || _selected.contains(id);
                   return CheckboxListTile(
                     dense: true,
                     value: checked,
                     controlAffinity: ListTileControlAffinity.leading,
                     title: Text(_label(i)),
+                    subtitle: _stamp(i),
                     onChanged: (_) => setState(() {
                       if (_selected.contains(id)) {
                         _selected.remove(id);
@@ -244,6 +270,36 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
     );
   }
 
+  Widget _sourcePicker(BuildContext context) {
+    final vm = widget.vm;
+    if (vm.links.length <= 1) return const SizedBox.shrink();
+    return PopupMenuButton<String>(
+      tooltip: t(context, 'downloads.site'),
+      position: PopupMenuPosition.under,
+      onSelected: _switchSource,
+      itemBuilder: (context) => [
+        for (final link in vm.links)
+          PopupMenuItem(
+            value: link.sourceId,
+            child: Text(
+              '${vm.sourceNames[link.sourceId] ?? link.sourceId} · '
+              '${vm.chaptersBySource[link.sourceId]?.length ?? 0}',
+            ),
+          ),
+      ],
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            vm.sourceNames[_sourceId] ?? _sourceId,
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+          const Icon(Icons.arrow_drop_down),
+        ],
+      ),
+    );
+  }
+
   bool _inRange(int i) =>
       _rangeFrom != null &&
       _rangeTo != null &&
@@ -256,7 +312,7 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
       hint: Text(t(context, isFrom ? 'downloads.from' : 'downloads.to')),
       value: value,
       items: [
-        for (var i = 0; i < widget.asc.length; i++)
+        for (var i = 0; i < _asc.length; i++)
           DropdownMenuItem(value: i, child: Text(_label(i))),
       ],
       onChanged: (v) => setState(() {
@@ -275,10 +331,22 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
   }
 
   String _label(int i) {
-    final c = widget.asc[i];
+    final c = _asc[i];
     final num = formatChapterNumber(c.number);
     return c.title == null || c.title!.contains(num)
         ? num
         : '$num · ${c.title!}';
+  }
+
+  /// Relative upload stamp under each chapter row.
+  Widget? _stamp(int i) {
+    final at = _asc[i].uploadedAt;
+    if (at == null) return null;
+    final parts =
+        relativeParts(at, nowMs: DateTime.now().millisecondsSinceEpoch);
+    return Text(
+      tFmt(context, parts.key, parts.params),
+      style: Theme.of(context).textTheme.labelSmall,
+    );
   }
 }

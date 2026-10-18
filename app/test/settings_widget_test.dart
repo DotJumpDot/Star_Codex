@@ -53,7 +53,21 @@ Future<void> main() async {
       await tester.pump();
     }
 
+    // Theme picker → appearanceProvider + settings table (near the top —
+    // do this BEFORE scrolling down to the storage section).
+    await tester.tap(find.text('Stardust')); // appearance tile → picker dialog
+    await tester.pump();
+    await tester.tap(find.text('Monokai Night'));
+    await tester.pump();
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 200)));
+    final theme = await tester.runAsync(() => SettingsDao(db).get('theme'));
+    expect(theme, 'monokai_night');
+
     // Wi-Fi-only switch: default ON per doc 13; flipping writes through.
+    await tester.scrollUntilVisible(
+        find.text('ดาวน์โหลดผ่าน Wi-Fi เท่านั้น'), 300,
+        scrollable: find.byType(Scrollable).first);
     expect(find.text('ดาวน์โหลดผ่าน Wi-Fi เท่านั้น'), findsOneWidget);
     await tester.tap(find.text('ดาวน์โหลดผ่าน Wi-Fi เท่านั้น'));
     await tester.pump();
@@ -62,17 +76,6 @@ Future<void> main() async {
     final wifiOnly = await tester
         .runAsync(() => SettingsDao(db).get('downloads_wifi_only'));
     expect(wifiOnly, '0');
-
-    // Theme radio → appearanceProvider + settings table.
-    await tester.scrollUntilVisible(
-        find.text('ดำสนิท (OLED)'), 300,
-        scrollable: find.byType(Scrollable).first);
-    await tester.tap(find.text('ดำสนิท (OLED)'));
-    await tester.pump();
-    await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 200)));
-    final theme = await tester.runAsync(() => SettingsDao(db).get('theme'));
-    expect(theme, 'black');
 
     // Source disable: 5 seeded sources → switch one off → the live
     // registry shrinks to 4 (DoD: removed from browse/search/fallback).

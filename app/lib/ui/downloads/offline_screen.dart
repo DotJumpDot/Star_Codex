@@ -11,6 +11,7 @@ import '../../data/dao/blobs_dao.dart';
 import '../../data/repo/downloads_repo.dart';
 import 'downloads_controller.dart';
 import 'queue_section.dart';
+import '../shell/star_app_bar.dart';
 
 /// Offline tab (doc 13 §A): the TRUTHFUL ready-offline list (files on disk
 /// only) + the live download queue. "ล้างแคช" never touches this list —
@@ -51,11 +52,13 @@ class _OfflineScreenState extends ConsumerState<OfflineScreen> {
 
     final quota = ref
         .watch(settingsProvider)
-        .getInt('total_quota_bytes', 107374182400);
+        .getInt('total_quota_bytes', 21474836480);
 
     final ready = _ready;
     return Scaffold(
-      appBar: AppBar(
+      appBar: starAppBar(
+        context,
+        ref: ref,
         title: Text(t(context, 'tab.offline')),
         actions: [
           IconButton(

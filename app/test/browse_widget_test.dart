@@ -73,7 +73,10 @@ Future<void> main() async {
     // Latest feed (default view) shows the fake series.
     expect(find.text('Other Series'), findsOneWidget);
 
-    // Submit-only search (Plan/08 §1).
+    // Search lives in the header overlay now: tap the header search icon,
+    // type in the slide-in field, submit.
+    await tester.tap(find.byIcon(Icons.search).first);
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.enterText(find.byType(TextField), 'nano machine');
     await tester.testTextInput.receiveAction(TextInputAction.search);
     await tester.pump();
@@ -83,10 +86,10 @@ Future<void> main() async {
     // ONE merged card (Thai-preferred display title per L5)…
     expect(find.text('nano machine (แปลไทย)'), findsOneWidget);
     expect(find.text('Other Series'), findsNothing);
-    // …with BOTH sources badged (chip row + card badge = 2 occurrences;
-    // FakeSource.name returns its id).
-    expect(find.text('slow-manga'), findsNWidgets(2));
-    expect(find.text('go-manga'), findsNWidgets(2));
+    // …with BOTH sources badged on the card (FakeSource.name returns its
+    // id; the old chip row is gone — one badge each).
+    expect(find.text('slow-manga'), findsOneWidget);
+    expect(find.text('go-manga'), findsOneWidget);
 
     // Drain the fire-and-forget history write (ffi DB isolate round-trip
     // needs REAL async; a leftover in-flight call would trip the

@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../app.dart' show appearanceProvider;
 import '../../core/i18n/i18n.dart';
 import '../../core/settings_provider.dart';
+import '../shell/star_app_bar.dart';
+import 'appearance_section.dart';
 import 'settings_storage_sources.dart';
 
-/// Settings tab (Plan/14): grouped sections; EVERY control writes through
-/// settings_dao immediately (no Save button) and hot-applies where the
-/// consuming side is reactive (theme, language, sources).
+/// Settings tab (Plan/14, reworked): Language / Appearance / Reading /
+/// Novel / Navigation / Library sections + storage, sources, about. EVERY
+/// control writes through settings_dao immediately (no Save button) and
+/// hot-applies where the consuming side is reactive (theme, font,
+/// language, sources).
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -16,13 +19,13 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
     final lang = ref.watch(languageProvider);
-    final theme = ref.watch(appearanceProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(t(context, 'tab.settings'))),
+      appBar: starAppBar(context, ref: ref,
+          title: Text(t(context, 'tab.settings'))),
       body: ListView(
         children: [
-          _SectionHeader(t(context, 'settings.general')),
+          _SectionHeader(t(context, 'settings.language')),
           RadioGroup<String>(
             groupValue: lang,
             onChanged: (v) =>
@@ -38,22 +41,8 @@ class SettingsScreen extends ConsumerWidget {
                 ),
             ]),
           ),
-          RadioGroup<String>(
-            groupValue: theme,
-            onChanged: (v) =>
-                v == null ? null : ref.read(appearanceProvider.notifier).set(v),
-            child: Column(children: [
-              for (final (code, label) in const [
-                ('dark', 'settings.theme_dark'),
-                ('black', 'settings.theme_black'),
-                ('light', 'settings.theme_light'),
-              ])
-                RadioListTile<String>(
-                  value: code,
-                  title: Text(t(context, label)),
-                ),
-            ]),
-          ),
+
+          const AppearanceSection(),
 
           _SectionHeader(t(context, 'settings.reading')),
           RadioGroup<String>(
@@ -88,6 +77,8 @@ class SettingsScreen extends ConsumerWidget {
           ),
           SwitchListTile(
             title: Text(t(context, 'reader.auto_next')),
+            subtitle: Text(t(context, 'reader.auto_next_hint'),
+                style: Theme.of(context).textTheme.labelSmall),
             value: settings.getBool('reader_auto_next', true),
             onChanged: (v) => _set(ref, 'reader_auto_next', v ? '1' : '0'),
           ),
@@ -117,6 +108,16 @@ class SettingsScreen extends ConsumerWidget {
             onChanged: (v) =>
                 _set(ref, 'novel_line_height', v.toStringAsFixed(1)),
           ),
+          _SliderTile(
+            label: t(context, 'reader.novel.bg_opacity'),
+            value: settings.getDouble('novel_bg_opacity', 1.0),
+            min: 0.3,
+            max: 1.0,
+            divisions: 14,
+            format: (v) => '${(v * 100).round()}%',
+            onChanged: (v) =>
+                _set(ref, 'novel_bg_opacity', v.toStringAsFixed(2)),
+          ),
           RadioGroup<String>(
             groupValue: settings.get('novel_theme', 'dark'),
             onChanged: (v) => _set(ref, 'novel_theme', v),
@@ -131,6 +132,24 @@ class SettingsScreen extends ConsumerWidget {
                   title: Text(t(context, label)),
                 ),
             ]),
+          ),
+
+          _SectionHeader(t(context, 'settings.navigation')),
+          SwitchListTile(
+            title: Text(t(context, 'settings.edge_swipe')),
+            subtitle: Text(t(context, 'settings.edge_swipe_hint'),
+                style: Theme.of(context).textTheme.labelSmall),
+            value: settings.getBool('nav_edge_swipe', false),
+            onChanged: (v) => _set(ref, 'nav_edge_swipe', v ? '1' : '0'),
+          ),
+
+          _SectionHeader(t(context, 'settings.library')),
+          SwitchListTile(
+            title: Text(t(context, 'settings.hide_merge')),
+            subtitle: Text(t(context, 'settings.hide_merge_hint'),
+                style: Theme.of(context).textTheme.labelSmall),
+            value: settings.getBool('hide_merge_split', true),
+            onChanged: (v) => _set(ref, 'hide_merge_split', v ? '1' : '0'),
           ),
 
           const StorageSection(),

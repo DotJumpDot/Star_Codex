@@ -11,6 +11,7 @@ import '../../core/utils/thai.dart';
 import '../../data/dao/blobs_dao.dart';
 import '../../data/dao/library_dao.dart';
 import '../reader/reader_router.dart';
+import '../shell/star_app_bar.dart';
 
 /// History tab (Plan/12 §5): `reading_history` grouped วันนี้ / เมื่อวาน /
 /// "17 ต.ค.". Tap reopens the chapter at its saved position; long-press
@@ -54,7 +55,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
     final rows = _rows;
     return Scaffold(
-      appBar: AppBar(
+      appBar: starAppBar(
+        context,
+        ref: ref,
         title: Text(t(context, 'tab.history')),
         actions: [
           IconButton(

@@ -40,6 +40,14 @@ class SearchGroup {
   /// by [annotateSimilar] after every grouping pass.
   final List<int> similarTo = [];
 
+  /// Enriched from a materialized series row (BrowseRepo._enrich) so the
+  /// filter sheet can actually filter by status/type/tag and the card can
+  /// show a last-update stamp. Nullable — listing-only series carry none.
+  String? dbStatus;
+  String? dbType;
+  int? dbLastUpdatedMs;
+  List<String> dbTags = const [];
+
   /// Max chapter hint across members; null when no source reports one.
   int? get chapterCount {
     final hints = members
@@ -216,15 +224,22 @@ class BrowseFilters {
       );
 }
 
-/// Apply filters to grouped results. Status/tag filters are honest no-ops
-/// on browse listings (no status/tags until a detail fetch) — the controls
-/// exist per Plan/08 §3 and start filtering once detail data flows.
+/// Apply filters to grouped results. Status/tags (and type when a listing
+/// carries none) come from the DB enrichment — they filter as soon as the
+/// series row exists (visited detail / added to library), and stay honest
+/// no-ops otherwise (Plan/08 §3).
 List<SearchGroup> filterGroups(List<SearchGroup> groups, BrowseFilters f) {
   return groups.where((g) {
     final chapters = g.chapterCount ?? 0;
     if (f.hideOneshot && chapters <= 1) return false;
     if (f.minChapters > 0 && chapters < f.minChapters) return false;
-    if (f.type != null && g.type != f.type) return false;
+    final type = g.type ?? g.dbType;
+    if (f.type != null && type != f.type) return false;
+    if (f.status != null && g.dbStatus != f.status) return false;
+    if (f.tags.isNotEmpty &&
+        !f.tags.any((tag) => g.dbTags.contains(tag))) {
+      return false;
+    }
     return true;
   }).toList(growable: false);
 }

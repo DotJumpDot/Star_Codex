@@ -567,3 +567,66 @@ referer pairing, novel estimate. 165 tests green.
   moves.
 - Release asset naming: attach as StarCodex-<version>.apk (copy/rename
 - the build output before gh release upload), not app-release.apk.
+
+## v1.1.0 UX overhaul decisions (2026-10-18, user-requested batch)
+
+- **Theme registry** (`core/theme/app_themes.dart`): 20 `StarThemeSpec`s,
+  hand-picked primary/background per theme; component scheme derived via
+  `ColorScheme.fromSeed` + explicit surface-container steps (lighter on
+  dark, darker on light). Setting `theme` stores the spec id; legacy
+  v1 values `dark`/`black`/`light` migrate in `themeById()` at runtime
+  (no DB rewrite). `themeMode` is pinned to dark with a complete
+  `ThemeData` per spec so the platform brightness can never fight the
+  palette. Monokai/Monokai Night/Monokai Dark Soda/Sakura palettes come
+  from CometStream `frontend/src/index.css`.
+- **Fonts** (`core/theme/app_fonts.dart`): Google Fonts runtime only (no
+  new deps, no assets). Setting `ui_font`; latin-only families are labeled
+  in the picker (Thai renders with the fallback font per-glyph).
+- **Shell**: bottom NavigationBar GONE. Left `NavigationDrawer` + per-tab
+  `starAppBar` (hamburger opens the SHELL's Scaffold via
+  `shellScaffoldKeyProvider` — inner tab Scaffolds shadow it otherwise).
+  Edge-swipe gated by `nav_edge_swipe` (default OFF, user request).
+  Search = `searchOpenProvider` overlay sliding from the top right over
+  every tab; submit jumps to Browse + runs the merged search.
+- **Browse enrichment**: listing payloads carry no status/tags/timestamps,
+  so `BrowseRepo.enrichGroups` joins materialized series rows (by
+  primary-title norm) AFTER the page renders — fire-and-forget from
+  `BrowseController._enrichInBackground`, then a `copyWith()` re-emit
+  mutates the same `SearchGroup` instances in place. Never await it in
+  the fetch path: widget tests (FakeAsync) hang on the DB round-trips.
+  `filterGroups` now enforces status/tags/type off the enriched fields —
+  honest for any visited/added series.
+- **Detail**: chapter tab bar replaced by a site-switch `PopupMenuButton`
+  in the action row (more list height, user request); the selected source
+  id lives in `_DetailBodyState`. `SeriesRepo.ensureSeries` now links ALL
+  group members up-front (skip links owned by another series) — fixes
+  "second site disappears after opening a merged card". Chapter sort
+  default flipped to newest-first: `chapter_sort_<id>` now means
+  `'asc'` = oldest (legacy rows were only ever `'desc'`, which now reads
+  as the new default — no migration needed).
+- **Readers**: one `ReaderControlDrawer` (endDrawer, drag-open disabled)
+  holds slider/prev/next/picker + the full settings panel
+  (`reader_settings_body.dart` replaces the old bottom sheet). The chrome
+  menu button MUST open the drawer via a `GlobalKey<ScaffoldState>` —
+  `Scaffold.of(context)` from the screen's own build context cannot find
+  the Scaffold (it's below that context) and silently dead-ends.
+- **Pull-to-continue** (`pull_next.dart`): replaces the 3 s countdown
+  everywhere. Overscroll notifications accumulate into `PullNextTracker`
+  (sqrt resistance, 130 px threshold webtoon/novel, 100 px paged); commit
+  happens on `ScrollEndNotification` when armed. The next chapter is
+  resolved lazily ONCE at the end (`_ensureNext`, re-entrancy guarded) so
+  the pill knows "no next chapter" vs "keep pulling".
+- **History-on-open**: `persistReaderProgress` upserts reading_history on
+  EVERY throttled save (500 ms), not only completions;
+  HistoryDao's ±60 s same-session guard keeps times_read sane.
+- **Madara covers**: `_bestCoverUrl` prefers `data-src`/`data-lazy-src`
+  over `src` and skips `data:`/svg placeholders — lazy tiles otherwise
+  yield blank or WRONG-site covers (dark-manga/slow-manga QA).
+- **DB v2**: one-time UPDATE moving untouched `total_quota_bytes`
+  100 GB → 20 GB default (explicit user values survive). Defaults now
+  5 GB cache / 20 GB downloads with numeric ±/input GB fields.
+- **Merge/split hidden**: setting `hide_merge_split` (default ON) removes
+  ผสานเรื่อง/แยกเรื่อง from the detail ⋯ menu (user finds them
+  unnecessary but "nice to have").
+- Reader pages/streaming behavior (doc 10/11 semantics: prefetch, resume,
+  fallback) are untouched — only the chrome moved.

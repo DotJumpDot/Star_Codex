@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
@@ -230,6 +232,7 @@ class BrowseController extends StateNotifier<BrowseState> {
         // Batch empty → no more pages from any source.
         endReached: batch.groups.isEmpty,
       );
+      _enrichInBackground(batch.groups);
     } catch (_) {
       state = state.copyWith(loadingMore: false, endReached: true);
     }
@@ -245,11 +248,22 @@ class BrowseController extends StateNotifier<BrowseState> {
         page: page,
         endReached: result.groups.isEmpty,
       );
+      _enrichInBackground(result.groups);
     } catch (_) {
       // Per-source errors never reach here (guarded in the repo); a total
       // failure (no sources at all) shows the empty state.
       state = state.copyWith(loading: false, endReached: true);
     }
+  }
+
+  /// DB enrichment (status/type/tags/last-update for materialized series)
+  /// runs after the page renders and re-emits the SAME group list once it
+  /// lands — the DB round-trips must never delay the listing itself.
+  void _enrichInBackground(List<SearchGroup> groups) {
+    if (groups.isEmpty) return;
+    unawaited(_repo.enrichGroups(groups).then((_) {
+      if (mounted) state = state.copyWith();
+    }).catchError((Object _) {}));
   }
 
   Future<BrowsePage> _fetch(int page) {

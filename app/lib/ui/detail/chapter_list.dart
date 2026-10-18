@@ -7,103 +7,58 @@ import '../../core/settings_provider.dart';
 import '../../core/utils/relative_time.dart';
 import '../../core/utils/thai.dart';
 import '../../data/dao/chapters_dao.dart';
-import '../../data/dao/series_dao.dart';
 import '../../data/repo/series_repo.dart';
 import '../browse/source_palette.dart';
 import '../reader/reader_router.dart';
 import 'chapter_sheet.dart';
 import 'detail_controller.dart';
 
-/// Source switcher + chapter list (Plan/09 §5–6): one tab per
-/// series_sources member, per-chapter source dots (09 addendum), sort
-/// toggle, search-in-chapters.
+/// Chapter list for ONE selected source (the old per-source tab bar was
+/// replaced by the site switcher in the action row — same data, more room
+/// for the list). Search-in-chapters + sort toggle (newest-first default)
+/// + per-chapter source dots stay.
 class ChapterList extends ConsumerStatefulWidget {
-  const ChapterList({super.key, required this.vm, required this.controllerKey});
+  const ChapterList({
+    super.key,
+    required this.vm,
+    required this.controllerKey,
+    required this.sourceId,
+  });
+
   final SeriesDetailVm vm;
 
   /// The screen's provider-family key (-1 when opened from browse) — NOT
   /// vm.series.id, which resolves to a different controller there.
   final DetailKey controllerKey;
 
+  final String sourceId;
+
   @override
   ConsumerState<ChapterList> createState() => _ChapterListState();
 }
 
-class _ChapterListState extends ConsumerState<ChapterList>
-    with SingleTickerProviderStateMixin {
-  TabController? _tabs;
+class _ChapterListState extends ConsumerState<ChapterList> {
   final _search = TextEditingController();
 
   @override
   void dispose() {
     _search.dispose();
-    _tabs?.dispose();
     super.dispose();
-  }
-
-  TabController _controller() {
-    final length = widget.vm.links.length;
-    if (_tabs == null || _tabs!.length != length) {
-      _tabs?.dispose();
-      _tabs = TabController(length: length, vsync: this)
-        ..addListener(() {
-          if (mounted) setState(() {}); // rebuild TabBar selection
-        });
-    }
-    return _tabs!;
   }
 
   @override
   Widget build(BuildContext context) {
     final vm = widget.vm;
-    final tabs = _controller();
-    final primaryCount =
-        vm.chaptersBySource[vm.primaryLink.sourceId]?.length ?? 0;
+    final sources = ref.watch(sourcesProvider);
+    int registryIndex(String id) {
+      for (var i = 0; i < sources.length; i++) {
+        if (sources[i].id == id) return i;
+      }
+      return 0;
+    }
 
     return Column(
       children: [
-        TabBar(
-          controller: tabs,
-          isScrollable: vm.links.length > 3,
-          tabAlignment: vm.links.length > 3 ? TabAlignment.start : null,
-          tabs: [
-            for (final link in vm.links)
-              Tab(
-                height: 52,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      vm.sourceNames[link.sourceId] ?? link.sourceId,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if ((vm.chaptersBySource[link.sourceId]?.length ?? 0) >
-                        primaryCount)
-                      Container(
-                        margin: const EdgeInsets.only(top: 2),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 1,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2E7D32),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          tFmt(context, 'detail.more_chapters', {
-                            'n':
-                                '${vm.chaptersBySource[link.sourceId]!.length}',
-                          }),
-                          style: Theme.of(context).textTheme.labelSmall
-                              ?.copyWith(color: Colors.white),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-          ],
-        ),
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
           child: Row(
@@ -134,9 +89,7 @@ class _ChapterListState extends ConsumerState<ChapterList>
               IconButton(
                 tooltip: t(
                   context,
-                  vm.sortOldestFirst
-                      ? 'detail.sort.newest'
-                      : 'detail.sort.oldest',
+                  vm.sortOldestFirst ? 'detail.sort.newest' : 'detail.sort.oldest',
                 ),
                 icon: Icon(
                   vm.sortOldestFirst
@@ -144,26 +97,19 @@ class _ChapterListState extends ConsumerState<ChapterList>
                       : Icons.arrow_upward,
                 ),
                 onPressed: () => ref
-                    .read(
-                      detailControllerProvider(widget.controllerKey).notifier,
-                    )
+                    .read(detailControllerProvider(widget.controllerKey).notifier)
                     .setSort(oldestFirst: !vm.sortOldestFirst),
               ),
             ],
           ),
         ),
         Expanded(
-          child: TabBarView(
-            controller: tabs,
-            children: [
-              for (final link in vm.links)
-                _SourceChapters(
-                  vm: vm,
-                  link: link,
-                  query: _search.text,
-                  controllerKey: widget.controllerKey,
-                ),
-            ],
+          child: _SourceChapters(
+            vm: vm,
+            sourceId: widget.sourceId,
+            query: _search.text,
+            controllerKey: widget.controllerKey,
+            registryIndex: registryIndex,
           ),
         ),
       ],
@@ -174,20 +120,24 @@ class _ChapterListState extends ConsumerState<ChapterList>
 class _SourceChapters extends ConsumerWidget {
   const _SourceChapters({
     required this.vm,
-    required this.link,
+    required this.sourceId,
     required this.query,
     required this.controllerKey,
+    required this.registryIndex,
   });
 
   final SeriesDetailVm vm;
-  final SeriesSource link;
+  final String sourceId;
   final String query;
   final DetailKey controllerKey;
+
+  /// Source → index in the registry sort order (same colors as browse).
+  final int Function(String) registryIndex;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     var chapters = [
-      ...(vm.chaptersBySource[link.sourceId] ?? const <Chapter>[]),
+      ...(vm.chaptersBySource[sourceId] ?? const <Chapter>[]),
     ];
     chapters.sort(
       (a, b) => vm.sortOldestFirst
@@ -219,8 +169,9 @@ class _SourceChapters extends ConsumerWidget {
       itemBuilder: (context, i) => _ChapterRow(
         vm: vm,
         chapter: chapters[i],
-        sourceId: link.sourceId,
+        sourceId: sourceId,
         controllerKey: controllerKey,
+        registryIndex: registryIndex,
       ),
     );
   }
@@ -232,6 +183,7 @@ class _ChapterRow extends ConsumerWidget {
     required this.chapter,
     required this.sourceId,
     required this.controllerKey,
+    required this.registryIndex,
   });
 
   final SeriesDetailVm vm;
@@ -239,7 +191,10 @@ class _ChapterRow extends ConsumerWidget {
   final String sourceId;
   final DetailKey controllerKey;
 
-  /// Sources carrying this exact chapter number (epsilon), in tab order —
+  /// Source → index in the registry sort order (same colors as browse).
+  final int Function(String) registryIndex;
+
+  /// Sources carrying this exact chapter number (epsilon), in link order —
   /// the colored chips of the doc 09 addendum.
   List<String> get _carrying {
     final copies = vm.chaptersByNumber[chapter.number] ?? <Chapter>[chapter];
@@ -258,15 +213,14 @@ class _ChapterRow extends ConsumerWidget {
     final extra = _stripNumberPrefix(chapter.title);
 
     final uploadedAt = chapter.uploadedAt;
-    final dateText = uploadedAt == null
-        ? null
-        : (() {
-            final parts = relativeParts(
-              uploadedAt,
-              nowMs: DateTime.now().millisecondsSinceEpoch,
-            );
-            return tFmt(context, parts.key, parts.params);
-          })();
+    String? dateText;
+    if (uploadedAt != null) {
+      final parts = relativeParts(
+        uploadedAt,
+        nowMs: DateTime.now().millisecondsSinceEpoch,
+      );
+      dateText = tFmt(context, parts.key, parts.params);
+    }
 
     return ListTile(
       dense: true,
@@ -298,11 +252,7 @@ class _ChapterRow extends ConsumerWidget {
           for (final sid in carrying)
             Padding(
               padding: const EdgeInsets.only(left: 3),
-              child: SourceDot(
-                color: sourceDotColor(
-                  vm.links.indexWhere((l) => l.sourceId == sid),
-                ),
-              ),
+              child: SourceDot(color: sourceDotColor(registryIndex(sid))),
             ),
           if (downloaded) ...[
             const SizedBox(width: 6),

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/i18n/i18n.dart';
 import '../../data/repo/library_cards.dart';
 import '../detail/detail_screen.dart';
+import '../shell/star_app_bar.dart';
 import 'library_card.dart';
 import 'updates_sheet.dart';
 import 'library_controller.dart';
@@ -21,6 +22,8 @@ class LibraryScreen extends ConsumerStatefulWidget {
 }
 
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
+  bool _searchOpen = false;
+
   @override
   void initState() {
     super.initState();
@@ -36,9 +39,19 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final selectionMode = state.selection.isNotEmpty;
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: starAppBar(
+        context,
+        ref: ref,
+        leadingOverride: selectionMode
+            ? IconButton(
+                tooltip: t(context, 'common.cancel'),
+                icon: const Icon(Icons.close),
+                onPressed: controller.clearSelection,
+              )
+            : null,
         title: Text(selectionMode
-            ? tFmt(context, 'library.selected', {'n': '${state.selection.length}'})
+            ? tFmt(
+                context, 'library.selected', {'n': '${state.selection.length}'})
             : t(context, 'tab.library')),
         actions: selectionMode
             ? _selectionActions(context, ref, state, controller)
@@ -59,8 +72,43 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       ),
       body: Column(
         children: [
-          _CategoryChips(state: state),
-          _Toolbar(state: state),
+          // One compact row: category chips normally; the in-library
+          // search replaces it while open (fewer stacked rows was the
+          // #1 usability complaint about this page).
+          if (_searchOpen)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      autofocus: true,
+                      onChanged: controller.setSearch,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        prefixIcon: const Icon(Icons.search, size: 20),
+                        hintText: t(context, 'library.search_hint'),
+                        border: const OutlineInputBorder(),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.close, size: 18),
+                          onPressed: () {
+                            controller.setSearch('');
+                            setState(() => _searchOpen = false);
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            _CategoryChips(state: state),
+          _Toolbar(
+            state: state,
+            searchOpen: _searchOpen,
+            onSearchTap: () => setState(() => _searchOpen = !_searchOpen),
+          ),
           Divider(height: 1, color: Theme.of(context).dividerColor),
           Expanded(child: _LibraryBody(state: state)),
         ],
@@ -190,9 +238,15 @@ class _CategoryChips extends ConsumerWidget {
 }
 
 class _Toolbar extends ConsumerWidget {
-  const _Toolbar({required this.state});
+  const _Toolbar({
+    required this.state,
+    required this.searchOpen,
+    required this.onSearchTap,
+  });
 
   final LibraryState state;
+  final bool searchOpen;
+  final VoidCallback onSearchTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -201,17 +255,12 @@ class _Toolbar extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
       child: Row(
         children: [
-          Expanded(
-            child: TextField(
-              onChanged: controller.setSearch,
-              decoration: InputDecoration(
-                isDense: true,
-                prefixIcon: const Icon(Icons.search, size: 20),
-                hintText: t(context, 'library.search_hint'),
-                border: const OutlineInputBorder(),
-              ),
-            ),
+          IconButton(
+            tooltip: t(context, 'library.search_hint'),
+            icon: Icon(searchOpen ? Icons.search : Icons.search_outlined),
+            onPressed: onSearchTap,
           ),
+          const Spacer(),
           PopupMenuButton<LibrarySort>(
             tooltip: t(context, 'library.sort'),
             icon: const Icon(Icons.sort),

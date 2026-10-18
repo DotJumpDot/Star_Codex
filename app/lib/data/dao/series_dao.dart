@@ -232,6 +232,15 @@ class SeriesDao {
     return rows.map(SeriesSource.fromRow).toList(growable: false);
   }
 
+  /// Newest chapter timestamp across the series' source links — the browse
+  /// card "last update" stamp for already-materialized series.
+  Future<int?> lastUpdatedAt(int seriesId) async {
+    final rows = await db.rawQuery(
+        'SELECT MAX(last_updated_at) AS m FROM series_sources WHERE series_id = ?',
+        [seriesId]);
+    return rows.isEmpty ? null : rows.first['m'] as int?;
+  }
+
   Future<SeriesSource?> sourceLink(int seriesId, String sourceId) async {
     final rows = await db.query('series_sources',
         where: 'series_id = ? AND source_id = ?',

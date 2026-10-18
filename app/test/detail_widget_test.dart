@@ -55,11 +55,11 @@ Future<void> main() async {
     expect(find.text('มังงะเกาหลี'), findsOneWidget);
     expect(find.text('กำลังเข้า'), findsOneWidget);
 
-    // Two source tabs (Plan/09 §5); slow-manga is the primary (default
-    // tab). sourcesProvider is empty in this test → labels fall back to
-    // the source ids; each shows twice (header badge + tab).
+    // Two sources linked; the chapter tab bar is gone — the site switcher
+    // (action row) replaces it. slow-manga is the primary: hero chip +
+    // switch button = 2 labels; go-manga shows in the hero chip only.
     expect(find.text('slow-manga'), findsNWidgets(2));
-    expect(find.text('go-manga'), findsNWidgets(2));
+    expect(find.text('go-manga'), findsOneWidget);
 
     // Chapter rows of the primary tab, old→new default (doc 09 §6).
     expect(find.textContaining('ตอนที่ 1'), findsWidgets);

@@ -32,7 +32,8 @@ Future<void> main() async {
 
   // One test, no shared state between widget tests (a second test in the
   // same file hangs on font/asset caches). Timeout keeps failures fast.
-  testWidgets('shell shows 5 Thai tabs and tab switching works', (tester) async {
+  testWidgets('shell: left drawer nav + hamburger, no bottom bar',
+      (tester) async {
     tester.view.physicalSize = const Size(1080, 2340);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -49,22 +50,34 @@ Future<void> main() async {
       await tester.pump();
     }
 
-    final bar = find.byType(NavigationBar);
-    expect(bar, findsOneWidget);
+    // Bottom navigation is gone; every tab header carries the hamburger.
+    expect(find.byType(NavigationBar), findsNothing);
+    // The drawer's own subtitle proves it's not in the tree while closed.
+    expect(find.text(I18nService.translate('nav.subtitle')), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.menu).first);
+    await tester.pump(); // start the open animation
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final drawerSubtitle =
+        find.text(I18nService.translate('nav.subtitle'));
+    expect(drawerSubtitle, findsOneWidget);
     for (final key in tabKeys) {
       expect(
-        find.descendant(of: bar, matching: find.text(I18nService.translate(key))),
-        findsOneWidget,
-        reason: 'missing tab label for $key',
+        find.text(I18nService.translate(key)),
+        findsWidgets,
+        reason: 'missing drawer destination for $key',
       );
     }
 
-    await tester.tap(find.descendant(
-      of: bar,
-      matching: find.text(I18nService.translate('tab.settings')),
-    ));
-    await tester.pump();
-    // Settings placeholder repeats the tab title as its heading.
-    expect(find.text(I18nService.translate('tab.settings')), findsNWidgets(2));
+    // Tap by destination KEY — the settings tab's own header inside the
+    // IndexedStack also carries the same text, so text finders are
+    // ambiguous here.
+    await tester.tap(find.byKey(const ValueKey('nav-dest-4')));
+    await tester.pump(); // start the close animation
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 100));
+    // Settings is the active tab: its Appearance section header renders.
+    expect(find.text(I18nService.translate('settings.theme')), findsOneWidget);
   }, timeout: const Timeout(Duration(minutes: 1)));
 }

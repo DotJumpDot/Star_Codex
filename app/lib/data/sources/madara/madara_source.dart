@@ -1,3 +1,4 @@
+import 'package:html/dom.dart' as html_dom;
 import 'package:html/parser.dart' as html_parser;
 
 import '../../../core/net/net_exception.dart';
@@ -62,8 +63,7 @@ class MadaraSource implements Source {
       final href = a?.attributes['href'] ?? '';
       final title = (a?.attributes['title'] ?? a?.text ?? '').trim();
       final img = tile.querySelector('img');
-      final cover =
-          img?.attributes['src'] ?? img?.attributes['data-src'];
+      final cover = _bestCoverUrl(img);
       final type = tile.querySelector('.typename')?.text.trim();
       // `.epxs` = latest-chapter label on listing tiles ("ตอนที่ 280",
       // drift-verified 2026-10-17) — the only chapter-count signal in
@@ -112,8 +112,10 @@ class MadaraSource implements Source {
 
     final description =
         doc.querySelector('.entry-content-single')?.text.trim();
-    final cover = _absolutize(
-        doc.querySelector('.thumb img')?.attributes['src']);
+    final coverImg = doc.querySelector('.thumb img') ??
+        doc.querySelector('.summary_image img') ??
+        doc.querySelector('img.wp-post-image');
+    final cover = _absolutize(_bestCoverUrl(coverImg));
 
     // Chapters: `.eph-num > a` (div or li wrapper depending on site) —
     // site order is newest-first → reversed below.
@@ -275,6 +277,29 @@ class MadaraSource implements Source {
   String? _absolutize(String? url) {
     if (url == null || url.isEmpty) return null;
     return Uri.parse(baseUrl).resolve(url).toString();
+  }
+
+  /// Best cover URL from a listing/detail <img>: lazy-loaded tiles carry a
+  /// placeholder (base64 / grey gif / site logo) in `src` and the real
+  /// image in `data-src`. Prefer data-src, then src, skipping data: URIs
+  /// and svg placeholders — fixes mismatched/blank covers on dark-manga
+  /// and slow-manga tiles (on-device QA 2026-10-18).
+  String? _bestCoverUrl(html_dom.Element? img) {
+    if (img == null) return null;
+    for (final raw in [
+      img.attributes['data-src'],
+      img.attributes['data-lazy-src'],
+      img.attributes['src'],
+    ]) {
+      final v = raw?.trim();
+      if (v != null &&
+          v.isNotEmpty &&
+          !v.startsWith('data:') &&
+          !v.toLowerCase().endsWith('.svg')) {
+        return v;
+      }
+    }
+    return null;
   }
 
   String? _normalizeType(String? raw) {

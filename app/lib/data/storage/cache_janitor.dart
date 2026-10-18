@@ -117,7 +117,7 @@ class CacheJanitor {
   /// remaining free bytes when incoming would exceed the total quota.
   Future<void> enforceQuota(int incomingBytes) async {
     final quota = AppSettings(await settings.getAll())
-        .getInt('total_quota_bytes', 107374182400);
+        .getInt('total_quota_bytes', 21474836480);
     final pinnedTotal = await blobs.totalBytes(pinned: true);
     if (pinnedTotal + incomingBytes > quota) {
       throw QuotaException(quota - pinnedTotal);

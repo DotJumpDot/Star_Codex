@@ -6,14 +6,16 @@ import '../../core/i18n/i18n.dart';
 import '../../core/providers.dart';
 import '../../data/repo/browse_repo.dart';
 import '../detail/detail_screen.dart';
+import '../shell/star_app_bar.dart';
 import 'browse_controller.dart';
 import 'filter_sheet.dart';
-import 'genre_browser.dart';
 import 'result_card.dart';
-import 'source_chips_row.dart';
+import 'source_filter.dart';
 
-/// Browse tab (Plan/08) — the front door: search all sources at once,
-/// merged via Plan/07; latest feed when no search yet.
+/// Browse tab (Plan/08) — the front door. Search lives in the shared
+/// header (opens the global overlay); the body is results only: filter +
+/// site pickers in the app bar, one thin context row for genre mode /
+/// failed sources.
 class BrowseScreen extends ConsumerStatefulWidget {
   const BrowseScreen({super.key});
 
@@ -47,11 +49,30 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
         : null;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(t(context, 'browse.title')),
+      appBar: starAppBar(
+        context,
+        ref: ref,
+        title: Text(
+          state.mode == BrowseMode.search
+              ? state.query
+              : t(context, 'browse.title'),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         actions: [
+          SourceFilterButton(
+            sources: sources,
+            selectedIds: state.activeSourceIds,
+            failedIds: state.failedSources,
+            onToggle: controller.toggleSource,
+            onAll: controller.clearSourceFilter,
+            onGenre: (source, term) => controller.showGenre(source.id, term),
+          ),
           IconButton(
-            icon: const Icon(Icons.tune),
+            icon: Badge(
+              isLabelVisible: !state.filters.isDefault,
+              child: const Icon(Icons.tune),
+            ),
             tooltip: t(context, 'browse.filter.title'),
             onPressed: () => showBrowseFilterSheet(context),
           ),
@@ -59,33 +80,9 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-            child: _SearchBar(
-              onSubmitted: controller.submitSearch,
-              onClear: () => controller.clearSearch(),
-            ),
-          ),
-          SourceChipsRow(
-            sources: sources,
-            selectedIds: state.activeSourceIds,
-            failedIds: state.failedSources,
-            onToggle: controller.toggleSource,
-            onAll: controller.clearSourceFilter,
-            onLongPress: (source) async {
-              final term = await Navigator.of(context).push<String>(
-                MaterialPageRoute(
-                  builder: (_) => GenreBrowserScreen(source: source),
-                ),
-              );
-              if (term != null && mounted) {
-                await controller.showGenre(source.id, term);
-              }
-            },
-          ),
           if (genreHeader != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
               child: Row(
                 children: [
                   Expanded(
@@ -251,120 +248,6 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
   }
 }
 
-/// Search field: submit-only (no per-keystroke network), dropdown of the
-/// last 10 queries while focused and empty (Plan/08 §1).
-class _SearchBar extends ConsumerStatefulWidget {
-  const _SearchBar({required this.onSubmitted, required this.onClear});
-
-  final ValueChanged<String> onSubmitted;
-  final VoidCallback onClear;
-
-  @override
-  ConsumerState<_SearchBar> createState() => _SearchBarState();
-}
-
-class _SearchBarState extends ConsumerState<_SearchBar> {
-  final _text = TextEditingController();
-  final _focus = FocusNode();
-  bool _focused = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _focus.addListener(() => setState(() => _focused = _focus.hasFocus));
-  }
-
-  @override
-  void dispose() {
-    _text.dispose();
-    _focus.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        TextField(
-          controller: _text,
-          focusNode: _focus,
-          textInputAction: TextInputAction.search,
-          onSubmitted: (v) {
-            _focus.unfocus();
-            if (v.trim().isNotEmpty) widget.onSubmitted(v);
-          },
-          decoration: InputDecoration(
-            isDense: true,
-            prefixIcon: const Icon(Icons.search),
-            hintText: t(context, 'browse.search_hint'),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
-            suffixIcon: _text.text.isEmpty
-                ? null
-                : IconButton(
-                    icon: const Icon(Icons.clear, size: 20),
-                    onPressed: () {
-                      _text.clear();
-                      widget.onClear();
-                      setState(() {});
-                    },
-                  ),
-          ),
-          onChanged: (_) => setState(() {}),
-        ),
-        if (_focused && _text.text.isEmpty)
-          FutureBuilder<List<String>>(
-            future: ref.read(searchHistoryDaoProvider).recent(limit: 10),
-            builder: (context, snap) {
-              final history = snap.data ?? const [];
-              if (history.isEmpty) return const SizedBox.shrink();
-              return Align(
-                alignment: Alignment.centerLeft,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 6),
-                    Text(
-                      t(context, 'browse.history'),
-                      style: Theme.of(context).textTheme.labelSmall,
-                    ),
-                    for (final q in history)
-                      InkWell(
-                        onTap: () {
-                          _focus.unfocus();
-                          _text.text = q;
-                          widget.onSubmitted(q);
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.history,
-                                size: 16,
-                                color: Theme.of(context).colorScheme.outline,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  q,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              );
-            },
-          ),
-      ],
-    );
-  }
-}
-
 /// Static skeleton cards while loading (Plan/08: skeleton, not spinners;
 /// deliberately not animated so widget tests stay FakeAsync-safe).
 class _SkeletonList extends StatelessWidget {
@@ -377,12 +260,12 @@ class _SkeletonList extends StatelessWidget {
       itemCount: 6,
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemBuilder: (context, i) => Card(
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         child: Padding(
           padding: const EdgeInsets.all(10),
           child: Row(
             children: [
-              Container(width: 64, height: 92, color: shade),
+              Container(width: 92, height: 128, color: shade),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

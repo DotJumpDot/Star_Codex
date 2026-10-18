@@ -5,31 +5,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/i18n/i18n.dart';
 import 'core/providers.dart';
 import 'core/settings_provider.dart';
-import 'core/theme/theme.dart';
+import 'core/theme/app_fonts.dart';
+import 'core/theme/app_themes.dart';
 import 'data/dao/settings_dao.dart';
 import 'ui/shell/shell.dart';
 
-/// Appearance setting string ('dark' | 'black' | 'light'), persisted to the
-/// settings table. Default dark (D4); pure-black variant from Plan/01 §6.
-class AppearanceController extends StateNotifier<String> {
+/// Active theme id (settings key `theme`), persisted to the settings table.
+/// Legacy v1 values ('dark' | 'black' | 'light') migrate via [themeById].
+class AppearanceController extends StateNotifier<StarThemeSpec> {
   AppearanceController(String initial, this._settingsDao)
-      : super(_normalize(initial));
+      : super(themeById(initial));
 
   final SettingsDao _settingsDao;
 
-  static String _normalize(String v) =>
-      const {'dark', 'black', 'light'}.contains(v) ? v : 'dark';
-
-  void set(String v) {
-    state = _normalize(v);
-    _settingsDao.upsert('theme', state);
+  void set(String id) {
+    state = themeById(id);
+    _settingsDao.upsert('theme', state.id);
   }
 }
 
 final appearanceProvider =
-    StateNotifierProvider<AppearanceController, String>((ref) {
+    StateNotifierProvider<AppearanceController, StarThemeSpec>((ref) {
   return AppearanceController(
-    AppSettings(ref.watch(initialSettingsProvider)).get('theme', 'dark'),
+    AppSettings(ref.watch(initialSettingsProvider)).get('theme', 'stardust'),
     ref.watch(settingsDaoProvider),
   );
 });
@@ -40,14 +38,17 @@ class StarCodexApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final lang = ref.watch(languageProvider);
-    final theme = ref.watch(appearanceProvider);
-    final light = theme == 'light';
-    final pureBlack = theme == 'black';
+    final spec = ref.watch(appearanceProvider);
+    final font =
+        fontById(ref.watch(settingsProvider).get('ui_font', 'sarabun'));
+    // One complete ThemeData per spec — themeMode stays dark so platform
+    // brightness can never fight the selected palette.
+    final theme = buildTheme(spec, fontFamily: font.family);
     return MaterialApp(
       title: 'Star Codex',
-      theme: AppTheme.light(),
-      darkTheme: pureBlack ? AppTheme.dark(pureBlack: true) : AppTheme.dark(),
-      themeMode: light ? ThemeMode.light : ThemeMode.dark,
+      theme: theme,
+      darkTheme: theme,
+      themeMode: ThemeMode.dark,
       locale: Locale(lang),
       supportedLocales: const [Locale('th'), Locale('en')],
       localizationsDelegates: const [

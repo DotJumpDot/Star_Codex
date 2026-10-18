@@ -15,14 +15,16 @@ import '../../data/dao/chapters_dao.dart';
 import '../../data/repo/reader_repo.dart';
 import '../detail/detail_screen.dart';
 import 'chapter_picker_sheet.dart';
+import 'pull_next.dart';
 import 'reader_actions.dart';
 import 'reader_chrome.dart';
-import 'reader_settings_sheet.dart';
+import 'reader_drawer.dart';
+import 'reader_settings_body.dart';
 
 /// Paged reader (doc 11 A): horizontal PageView for manga-style pages,
 /// double-tap zoom + pan (ExtendedImage gesture), tap zones active only at
-/// scale 1, overscroll past the last page → next chapter. Shares the
-/// webtoon's chrome/progress/fallback plumbing.
+/// scale 1, drag past the last page (with resistance + indicator) → next
+/// chapter. Controls live in the right-hand drawer.
 class PagedReaderScreen extends ConsumerStatefulWidget {
   const PagedReaderScreen({super.key, required this.chapter});
 
@@ -40,6 +42,16 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   bool _chromeVisible = true;
   bool _switching = false;
 
+  /// See the webtoon reader: the drawer opens via the KEY (the chrome's
+  /// callback context sits above this Scaffold).
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  /// Drag-past-the-last-page state (horizontal pull, rtl-aware arrow).
+  final _pull = PullNextTracker(threshold: 100);
+  Chapter? _next;
+  bool _nextKnown = false;
+  bool _nextLookup = false;
+
   /// Created in [_open] once the saved page is known (doc 11 DoD:
   /// progress resumes in both modes). Null while loading.
   PageController? _pageController;
@@ -50,7 +62,6 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   /// whole build pipeline: taps dead, frame stuck at 1/N).
   final _slotKeys = <int, GlobalKey<ExtendedImageGestureState>>{};
   DateTime _lastSave = DateTime.fromMillisecondsSinceEpoch(0);
-  DateTime _lastOverscroll = DateTime.fromMillisecondsSinceEpoch(0);
 
   bool get _rtl =>
       ref.read(settingsProvider).getBool('reader_rtl', false);
@@ -126,30 +137,62 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   }
 
   void _onPageChanged(int page) {
-    setState(() => _page = page);
     final loaded = _loaded;
     if (loaded == null) return;
+    setState(() => _page = page);
     final now = DateTime.now();
     if (now.difference(_lastSave) >= const Duration(milliseconds: 500)) {
       _lastSave = now;
       _saveProgress(page, completed: page == loaded.pages.length - 1);
     }
+    if (page < loaded.pages.length - 1 && _pull.dragging) {
+      setState(() => _pull.cancel());
+    }
+    if (page == loaded.pages.length - 1) _ensureNext();
   }
 
-  /// Swipe past the last page → next chapter (doc 11 A), throttled so one
-  /// fling only advances once.
-  Future<void> _onOverscroll(bool atEnd) async {
-    if (!atEnd || !_autoNext || _switching) return;
-    final now = DateTime.now();
-    if (now.difference(_lastOverscroll) < const Duration(seconds: 2)) return;
-    _lastOverscroll = now;
-    await _goNext();
+  /// Forward overscroll while ON the last page = the drag-to-continue
+  /// pull. Positive overscroll is always the forward direction (PageView
+  /// accounts for `reverse` internally).
+  void _onOverscroll(double overscroll) {
+    final loaded = _loaded;
+    if (overscroll <= 0 || !_autoNext || loaded == null) return;
+    if (_page != loaded.pages.length - 1) return;
+    _ensureNext();
+    setState(() => _pull.add(overscroll));
+  }
+
+  /// Fingers up on the last page: past the threshold → next chapter.
+  Future<void> _onScrollEnd() async {
+    final loaded = _loaded;
+    if (loaded == null) return;
+    if (_page == loaded.pages.length - 1) {
+      _saveProgress(_page, completed: true);
+    }
+    if (!_pull.dragging) return;
+    final go = _pull.release();
+    setState(() {});
+    if (!go) return;
+    await _ensureNext();
+    if (!mounted) return;
+    if (_next != null) _goNext();
+  }
+
+  Future<void> _ensureNext() async {
+    if (_nextKnown || _nextLookup || _loaded == null) return;
+    _nextLookup = true;
+    final next = await _repo.adjacentChapter(_loaded!.chapter, forward: true);
+    _nextLookup = false;
+    if (!mounted) return;
+    _next = next;
+    _nextKnown = true;
+    if (_pull.dragging) setState(() {});
   }
 
   Future<void> _goNext() async {
     final loaded = _loaded;
     if (loaded == null || _switching) return;
-    final next = await _repo.adjacentChapter(loaded.chapter, forward: true);
+    final next = _nextKnown ? _next : await _repo.adjacentChapter(loaded.chapter, forward: true);
     if (next != null && mounted) {
       _switching = true;
       await _saveProgress(loaded.pages.length - 1, completed: true);
@@ -183,18 +226,12 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   }
 
   void _tapZone(bool forward) {
-    if (_zoomed && kDebugMode) {
-      debugPrint('PAGED tapZone BLOCKED zoomed=true scale='
-          '${_slotKeys[_page]?.currentState?.gestureDetails?.totalScale}');
-    }
     if (_zoomed) return; // page-turn taps disabled while zoomed (doc 11 A)
     final loaded = _loaded;
     final controller = _pageController;
     if (loaded == null || controller == null) {
-      if (kDebugMode) debugPrint('PAGED tapZone BLOCKED null guard');
       return;
     }
-    if (kDebugMode) debugPrint('PAGED tapZone forward=$forward page=$_page');
     final goForward = _rtl ? !forward : forward; // zones swap under RTL
     if (goForward) {
       if (_page < loaded.pages.length - 1) {
@@ -227,7 +264,10 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   Widget build(BuildContext context) {
     final loaded = _loaded;
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: Colors.black,
+      endDrawerEnableOpenDragGesture: false,
+      endDrawer: loaded == null ? null : _buildDrawer(loaded),
       body: Stack(
         children: [
           if (loaded == null)
@@ -260,9 +300,10 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
               ),
             )
           else ...[
-            NotificationListener<OverscrollNotification>(
+            NotificationListener<ScrollNotification>(
               onNotification: (n) {
-                _onOverscroll(n.overscroll > 0);
+                if (n is OverscrollNotification) _onOverscroll(n.overscroll);
+                if (n is ScrollEndNotification) _onScrollEnd();
                 return false;
               },
               child: PageView.builder(
@@ -287,10 +328,7 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
                     flex: 3,
                     child: GestureDetector(
                         behavior: HitTestBehavior.translucent,
-                        onTap: () {
-                          if (kDebugMode) debugPrint('ZONE LEFT');
-                          _tapZone(false);
-                        },
+                        onTap: () => _tapZone(false),
                         child: const SizedBox.expand()),
                   ),
                   Expanded(
@@ -305,52 +343,92 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
                     flex: 3,
                     child: GestureDetector(
                         behavior: HitTestBehavior.translucent,
-                        onTap: () {
-                          if (kDebugMode) debugPrint('ZONE RIGHT');
-                          _tapZone(true);
-                        },
+                        onTap: () => _tapZone(true),
                         child: const SizedBox.expand()),
                   ),
                 ],
               ),
             ),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: ReaderChrome(
+                visible: _chromeVisible,
+                title: _seriesTitle ?? widget.chapter.title ?? '',
+                sourceName: loaded.chapter.sourceId,
+                onBack: () => Navigator.of(context).pop(),
+                onTitle: () {
+                  Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) =>
+                        DetailScreen(seriesId: loaded.chapter.seriesId),
+                  ));
+                },
+                onChapters: () => _openChapterPicker(loaded),
+                onMenu: () =>
+                    _scaffoldKey.currentState?.openEndDrawer(),
+              ),
+            ),
+            if (_pull.dragging)
+              Positioned(
+                bottom: 90,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: PullNextIndicator(
+                    progress: _pull.progress,
+                    armed: _pull.armed,
+                    horizontal: true,
+                    rtl: _rtl,
+                    hasNext: !_nextKnown || _next != null,
+                  ),
+                ),
+              ),
           ],
-          ReaderChrome(
-            visible: _chromeVisible,
-            title: _seriesTitle ?? widget.chapter.title ?? '',
-            sourceName: loaded?.chapter.sourceId ?? widget.chapter.sourceId,
-            pageText: tFmt(context, 'reader.page', {
-              'n': '${_page + 1}',
-              'total': '${loaded?.pages.length ?? 0}',
-            }),
-            progress: loaded == null || loaded.pages.length <= 1
-                ? 0
-                : _page / (loaded.pages.length - 1),
-            canPrev: loaded != null,
-            canNext: loaded != null,
-            onBack: () => Navigator.of(context).pop(),
-            onTitle: () {
-              if (loaded == null) return;
-              Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) =>
-                    DetailScreen(seriesId: loaded.chapter.seriesId),
-              ));
-            },
-            onChapters: loaded == null
-                ? () {}
-                : () => _openChapterPicker(loaded),
-            onPrev: _goPrev,
-            onNext: _goNext,
-            onSettings: () => _openSettings(),
-            onSeek: (v) {
-              final total = loaded?.pages.length ?? 1;
-              final target = (v * (total - 1)).round();
-              _pageController?.animateToPage(target,
-                  duration: const Duration(milliseconds: 250),
-                  curve: Curves.easeOut);
-            },
-          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDrawer(LoadedChapter loaded) {
+    final settings = ref.read(settingsProvider);
+    final controller = ref.read(settingsProvider.notifier);
+    final seriesId = loaded.chapter.seriesId;
+    return ReaderControlDrawer(
+      pageText: tFmt(context, 'reader.page', {
+        'n': '${_page + 1}',
+        'total': '${loaded.pages.length}',
+      }),
+      progress: loaded.pages.length <= 1
+          ? 0
+          : _page / (loaded.pages.length - 1),
+      canPrev: true,
+      canNext: true,
+      onPrev: _goPrev,
+      onNext: _goNext,
+      onChapters: () => _openChapterPicker(loaded),
+      onSeek: (v) {
+        final total = loaded.pages.length;
+        final target = (v * (total - 1)).round();
+        _pageController?.animateToPage(target,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut);
+      },
+      settings: ReaderSettingsBody(
+        prefetchAhead: settings.getInt('reader_prefetch_ahead', 6),
+        keepAwake: settings.getBool('reader_keep_awake', true),
+        autoNext: settings.getBool('reader_auto_next', true),
+        rtl: settings.getBool('reader_rtl', false),
+        mode: settings.get('reader_mode_$seriesId', 'auto'),
+        onMode: (m) =>
+            controller.set('reader_mode_$seriesId', m),
+        onChanged: (prefetch, awake, autoNext, rtl) {
+          controller.set('reader_prefetch_ahead', '$prefetch');
+          controller.set('reader_keep_awake', awake ? '1' : '0');
+          controller.set('reader_auto_next', autoNext ? '1' : '0');
+          controller.set('reader_rtl', rtl ? '1' : '0');
+          _setAwake(awake);
+        },
       ),
     );
   }
@@ -368,28 +446,6 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
         Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
           builder: (_) => PagedReaderScreen(chapter: chapter),
         ));
-      },
-    );
-  }
-
-  void _openSettings() {
-    final settings = ref.read(settingsProvider);
-    final controller = ref.read(settingsProvider.notifier);
-    showReaderSettings(
-      context,
-      prefetchAhead: settings.getInt('reader_prefetch_ahead', 6),
-      keepAwake: settings.getBool('reader_keep_awake', true),
-      autoNext: settings.getBool('reader_auto_next', true),
-      rtl: settings.getBool('reader_rtl', false),
-      mode: settings.get('reader_mode_${widget.chapter.seriesId}', 'auto'),
-      onMode: (m) => controller.set(
-          'reader_mode_${widget.chapter.seriesId}', m),
-      onChanged: (prefetch, awake, autoNext, rtl) {
-        controller.set('reader_prefetch_ahead', '$prefetch');
-        controller.set('reader_keep_awake', awake ? '1' : '0');
-        controller.set('reader_auto_next', autoNext ? '1' : '0');
-        controller.set('reader_rtl', rtl ? '1' : '0');
-        _setAwake(awake);
       },
     );
   }

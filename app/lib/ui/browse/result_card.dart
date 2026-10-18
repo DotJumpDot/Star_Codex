@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../core/i18n/i18n.dart';
+import '../../core/utils/relative_time.dart';
 import '../../data/repo/browse_repo.dart';
 import '../../data/sources/source_api.dart';
 import 'cover_thumb.dart';
 import 'source_palette.dart';
 
-/// One merged result card (Plan/08 §Result card): cover from the primary
-/// source, Thai-preferred display title, type · chapters meta line, one
-/// colored badge per member source, optional similar-group expansion.
+/// One merged result card: bigger cover on the left with the site count
+/// and type chips layered over it, title + meta (chapters · last update)
+/// and per-site colored chips on the right, optional similar-group strip.
 class ResultCard extends StatelessWidget {
   const ResultCard({
     super.key,
@@ -31,10 +32,10 @@ class ResultCard extends StatelessWidget {
   final VoidCallback onLongPress;
 
   String? _typeLabel(BuildContext context, String? type) => switch (type) {
-        'manga' => t(context, 'browse.type.manga'),
-        'manhwa' => t(context, 'browse.type.manhwa'),
-        'manhua' => t(context, 'browse.type.manhua'),
-        'novel' => t(context, 'browse.type.novel'),
+        'manga' => t(context, 'browse.type_short.manga'),
+        'manhwa' => t(context, 'browse.type_short.manhwa'),
+        'manhua' => t(context, 'browse.type_short.manhua'),
+        'novel' => t(context, 'browse.type_short.novel'),
         _ => null,
       };
 
@@ -42,15 +43,24 @@ class ResultCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primary = group.primary;
+    final type = group.type ?? group.dbType;
+
+    String? updated;
+    final lastMs = group.dbLastUpdatedMs;
+    if (lastMs != null) {
+      final parts =
+          relativeParts(lastMs, nowMs: DateTime.now().millisecondsSinceEpoch);
+      updated = tFmt(context, parts.key, parts.params);
+    }
 
     final meta = <String>[
-      ?_typeLabel(context, group.type),
       if (group.chapterCount != null)
         '${group.chapterCount} ${t(context, 'browse.chapters_suffix')}',
+      ?updated,
     ].join(' · ');
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
@@ -63,19 +73,11 @@ class ResultCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (primary.coverUrl != null)
-                    CoverThumb(
-                      url: primary.coverUrl!,
-                      referer: primary.referer,
-                    )
-                  else
-                    Container(
-                      width: 64,
-                      height: 92,
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      child: Icon(Icons.image_outlined,
-                          size: 20, color: theme.colorScheme.outline),
-                    ),
+                  _Cover(
+                    group: group,
+                    primary: primary,
+                    typeLabel: _typeLabel(context, type),
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -85,13 +87,20 @@ class ResultCard extends StatelessWidget {
                           group.displayTitle,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleMedium,
+                          style: theme.textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w600),
                         ),
                         if (meta.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(meta,
-                              style: theme.textTheme.bodySmall
-                                  ?.copyWith(color: theme.colorScheme.outline)),
+                          const SizedBox(height: 3),
+                          Text(
+                            meta,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant),
+                          ),
+                        ],
+                        if (group.dbStatus != null) ...[
+                          const SizedBox(height: 6),
+                          _StatusChip(status: group.dbStatus!),
                         ],
                         const SizedBox(height: 8),
                         Wrap(
@@ -100,9 +109,10 @@ class ResultCard extends StatelessWidget {
                           children: [
                             for (final m in group.members)
                               _SourceBadge(
-                                  label: _sourceName(m.sourceId),
-                                  color:
-                                      sourceDotColor(_sourceIndex(m.sourceId))),
+                                label: _sourceName(m.sourceId),
+                                color:
+                                    sourceDotColor(_sourceIndex(m.sourceId)),
+                              ),
                           ],
                         ),
                       ],
@@ -127,6 +137,117 @@ class ResultCard extends StatelessWidget {
       if (sources[i].id == id) return i;
     }
     return 0;
+  }
+}
+
+/// Cover column: image with layered site-count + type chips.
+class _Cover extends StatelessWidget {
+  const _Cover({
+    required this.group,
+    required this.primary,
+    required this.typeLabel,
+  });
+
+  final SearchGroup group;
+  final BrowseCandidate primary;
+  final String? typeLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      width: 92,
+      height: 128,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (primary.coverUrl != null)
+            CoverThumb(
+              url: primary.coverUrl!,
+              referer: primary.referer,
+              width: 92,
+              height: 128,
+            )
+          else
+            Container(
+              color: theme.colorScheme.surfaceContainerHighest,
+              child: Icon(Icons.image_outlined,
+                  size: 24, color: theme.colorScheme.outline),
+            ),
+          Positioned(
+            top: 4,
+            left: 4,
+            child: _OverlayChip(
+              icon: Icons.public,
+              label: '${group.members.length}',
+            ),
+          ),
+          if (typeLabel != null)
+            Positioned(
+              bottom: 4,
+              left: 4,
+              child: _OverlayChip(label: typeLabel!),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OverlayChip extends StatelessWidget {
+  const _OverlayChip({this.icon, required this.label});
+
+  final IconData? icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.65),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 11, color: Colors.white),
+              const SizedBox(width: 3),
+            ],
+            Text(
+              label,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      );
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final ongoing = status == 'ongoing';
+    final color = ongoing ? const Color(0xFF43A047) : Colors.blueGrey;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.55)),
+      ),
+      child: Text(
+        t(context, 'browse.status.$status'),
+        style: TextStyle(
+            color: color, fontSize: 11, fontWeight: FontWeight.w600),
+      ),
+    );
   }
 }
 

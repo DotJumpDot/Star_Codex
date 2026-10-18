@@ -7,18 +7,22 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/i18n/i18n.dart';
 import '../../core/providers.dart';
 import '../../core/settings_provider.dart';
+import '../../core/theme/app_fonts.dart';
 import '../../core/utils/thai.dart';
 import '../../data/dao/chapters_dao.dart';
 import '../../data/repo/reader_repo.dart';
 import '../detail/detail_screen.dart';
 import 'chapter_picker_sheet.dart';
+import 'pull_next.dart';
 import 'reader_actions.dart';
-import 'reader_settings_sheet.dart';
+import 'reader_drawer.dart';
+import 'reader_settings_body.dart';
 
-/// Novel reader (doc 11 B): scrollable Thai text (Sarabun), adjustable
-/// size/leading/theme, scroll-fraction progress (page_index = percent),
-/// ≥97% or next-chapter completes, end-of-chapter button + 1.5 s dwell
-/// auto-next.
+/// Novel reader (doc 11 B): scrollable Thai text (selected UI font),
+/// adjustable size/leading/theme/background opacity, scroll-fraction
+/// progress (page_index = percent), ≥97% completes, drag-past-the-end
+/// "pull to continue" + explicit next-chapter button (the 1.5 s dwell
+/// auto-next is gone), controls in the right-hand drawer.
 class NovelReaderScreen extends ConsumerStatefulWidget {
   const NovelReaderScreen({super.key, required this.chapter});
 
@@ -37,10 +41,17 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
   int _percent = 0;
   bool _endVisible = false;
 
-  Timer? _dwellTimer;
+  /// See the webtoon reader: the drawer opens via the KEY (the chrome's
+  /// callback context sits above this Scaffold).
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  final _pull = PullNextTracker(threshold: 120);
+  Chapter? _next;
+  bool _nextKnown = false;
+  bool _nextLookup = false;
+
   final _scroll = ScrollController();
   DateTime _lastSave = DateTime.fromMillisecondsSinceEpoch(0);
-  DateTime _lastDwellCheck = DateTime.fromMillisecondsSinceEpoch(0);
 
   ReaderRepo get _repo => ref.read(readerRepoProvider);
 
@@ -49,8 +60,12 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
   double get _lineHeight =>
       ref.read(settingsProvider).getDouble('novel_line_height', 1.7);
   String get _theme => ref.read(settingsProvider).get('novel_theme', 'dark');
+  double get _bgOpacity =>
+      ref.read(settingsProvider).getDouble('novel_bg_opacity', 1.0);
   bool get _autoNext =>
       ref.read(settingsProvider).getBool('reader_auto_next', true);
+  String get _uiFontFamily =>
+      fontById(ref.read(settingsProvider).get('ui_font', 'sarabun')).family;
 
   ({Color bg, Color fg}) get _colors =>
       novelThemes[_theme] ?? novelThemes['dark']!;
@@ -108,23 +123,42 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
       _saveProgress(pct.clamp(0, 100), completed: pct >= 97);
     }
 
-    // End-of-chapter visibility + 1.5 s dwell auto-next (doc 11 B).
     final atEnd = pct >= 97 || max <= 0;
     if (atEnd != _endVisible) setState(() => _endVisible = atEnd);
-    if (atEnd && _autoNext && _dwellTimer == null && !_switching) {
-      if (now.difference(_lastDwellCheck) >= const Duration(seconds: 2)) {
-        _armDwell();
-      } else if (_dwellTimer == null) {
-        _lastDwellCheck = now;
-      }
+    if (atEnd) {
+      _ensureNext();
+    } else if (_pull.dragging) {
+      setState(() => _pull.cancel());
     }
   }
 
-  void _armDwell() {
-    _dwellTimer = Timer(const Duration(milliseconds: 1500), () {
-      _dwellTimer = null;
-      if (mounted && _endVisible && _autoNext) _goNext();
-    });
+  /// Overscroll past the bottom while at the end = pull-to-continue.
+  void _onOverscroll(double overscroll) {
+    if (overscroll <= 0 || !_autoNext || !_endVisible) return;
+    _ensureNext();
+    setState(() => _pull.add(overscroll));
+  }
+
+  Future<void> _onScrollEnd() async {
+    if (_endVisible) _saveProgress(100, completed: true);
+    if (!_pull.dragging) return;
+    final go = _pull.release();
+    setState(() {});
+    if (!go) return;
+    await _ensureNext();
+    if (!mounted) return;
+    if (_next != null) _goNext();
+  }
+
+  Future<void> _ensureNext() async {
+    if (_nextKnown || _nextLookup) return;
+    _nextLookup = true;
+    final next = await _repo.adjacentChapter(widget.chapter, forward: true);
+    _nextLookup = false;
+    if (!mounted) return;
+    _next = next;
+    _nextKnown = true;
+    if (_pull.dragging) setState(() {});
   }
 
   Future<void> _saveProgress(int percent, {required bool completed}) async {
@@ -134,7 +168,8 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
 
   Future<void> _goNext() async {
     if (_switching) return;
-    final next = await _repo.adjacentChapter(widget.chapter, forward: true);
+    final next =
+        _nextKnown ? _next : await _repo.adjacentChapter(widget.chapter, forward: true);
     if (next != null && mounted) {
       _switching = true;
       await _saveProgress(100, completed: true);
@@ -162,7 +197,6 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
 
   @override
   void dispose() {
-    _dwellTimer?.cancel();
     _scroll.dispose();
     super.dispose();
   }
@@ -174,7 +208,10 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
     final paragraphs = text?.split('\n\n') ?? const <String>[];
 
     return Scaffold(
-      backgroundColor: colors.bg,
+      key: _scaffoldKey,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      endDrawerEnableOpenDragGesture: false,
+      endDrawer: _buildDrawer(),
       body: Stack(
         children: [
           if (text == null)
@@ -208,36 +245,55 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
               ),
             )
           else
-            SingleChildScrollView(
-              controller: _scroll,
-              padding: const EdgeInsets.fromLTRB(20, 60, 20, 40),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final para in paragraphs)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 14),
-                      child: Text(
-                        para.trim().isEmpty ? '' : '\u2003${para.trim()}',
-                        style: GoogleFonts.sarabun(
-                          fontSize: _fontSize.toDouble(),
-                          height: _lineHeight,
-                          color: colors.fg,
-                        ),
-                      ),
+            // Reading surface carries the selected opacity; what shows
+            // through is the app scaffold behind it.
+            Positioned.fill(
+              child: Container(
+                color: colors.bg.withValues(alpha: _bgOpacity),
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: (n) {
+                    if (n is OverscrollNotification) {
+                      _onOverscroll(n.overscroll);
+                    }
+                    if (n is ScrollEndNotification) _onScrollEnd();
+                    return false;
+                  },
+                  child: SingleChildScrollView(
+                    controller: _scroll,
+                    padding: const EdgeInsets.fromLTRB(20, 60, 20, 40),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final para in paragraphs)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 14),
+                            child: Text(
+                              para.trim().isEmpty ? '' : '\u2003${para.trim()}',
+                              style: GoogleFonts.getFont(
+                                _uiFontFamily,
+                                fontSize: _fontSize.toDouble(),
+                                height: _lineHeight,
+                                color: colors.fg,
+                              ),
+                            ),
+                          ),
+                        if (_endVisible)
+                          Center(
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 24),
+                              child: FilledButton.icon(
+                                icon: const Icon(Icons.skip_next),
+                                label: Text(
+                                    t(context, 'reader.next_chapter')),
+                                onPressed: _goNext,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                  if (_endVisible)
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 24),
-                        child: FilledButton.icon(
-                          icon: const Icon(Icons.skip_next),
-                          label: Text(t(context, 'reader.next_chapter')),
-                          onPressed: _goNext,
-                        ),
-                      ),
-                    ),
-                ],
+                  ),
+                ),
               ),
             ),
           // Tap toggles chrome (novels have no zoom — whole surface taps).
@@ -248,32 +304,82 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
               child: const SizedBox.expand(),
             ),
           ),
-          _NovelChrome(
+          _NovelTopBar(
             visible: _chromeVisible,
             fg: colors.fg,
             title: _seriesTitle ?? widget.chapter.title ?? '',
             subtitle: tFmt(context, 'detail.chapter_number',
                 {'n': formatChapterNumber(widget.chapter.number)}),
-            percentText: '$_percent%',
-            progress: _percent / 100,
             onBack: () => Navigator.of(context).pop(),
             onTitle: () => Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => DetailScreen(seriesId: widget.chapter.seriesId),
             )),
             onChapters: () => _openChapterPicker(),
-            onPrev: _goPrev,
-            onNext: _goNext,
-            onSettings: () => _openSettings(),
-            onSeek: (v) {
-              final max = _scroll.hasClients
-                  ? _scroll.position.maxScrollExtent
-                  : 0.0;
-              _scroll.animateTo(max * v,
-                  duration: const Duration(milliseconds: 250),
-                  curve: Curves.easeOut);
-            },
+            onMenu: () => _scaffoldKey.currentState?.openEndDrawer(),
           ),
+          if (_pull.dragging)
+            Positioned(
+              bottom: 90,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: PullNextIndicator(
+                  progress: _pull.progress,
+                  armed: _pull.armed,
+                  hasNext: !_nextKnown || _next != null,
+                ),
+              ),
+            ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDrawer() {
+    final settings = ref.read(settingsProvider);
+    final controller = ref.read(settingsProvider.notifier);
+    final seriesId = widget.chapter.seriesId;
+    return ReaderControlDrawer(
+      pageText: '$_percent%',
+      progress: _percent / 100,
+      canPrev: true,
+      canNext: true,
+      onPrev: _goPrev,
+      onNext: _goNext,
+      onChapters: () => _openChapterPicker(),
+      onSeek: (v) {
+        final max = _scroll.hasClients
+            ? _scroll.position.maxScrollExtent
+            : 0.0;
+        _scroll.animateTo(max * v,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut);
+      },
+      settings: ReaderSettingsBody(
+        prefetchAhead: settings.getInt('reader_prefetch_ahead', 6),
+        keepAwake: settings.getBool('reader_keep_awake', true),
+        autoNext: settings.getBool('reader_auto_next', true),
+        rtl: settings.getBool('reader_rtl', false),
+        mode: settings.get('reader_mode_$seriesId', 'auto'),
+        onMode: (m) => controller.set('reader_mode_$seriesId', m),
+        novel: true,
+        fontSize: _fontSize,
+        lineHeight: _lineHeight,
+        novelTheme: _theme,
+        bgOpacity: _bgOpacity,
+        onNovelChanged: (font, line, theme, opacity) {
+          controller.set('novel_font_size', '$font');
+          controller.set('novel_line_height', line.toString());
+          controller.set('novel_theme', theme);
+          controller.set('novel_bg_opacity', opacity.toString());
+          setState(() {});
+        },
+        onChanged: (prefetch, awake, autoNext, rtl) {
+          controller.set('reader_prefetch_ahead', '$prefetch');
+          controller.set('reader_keep_awake', awake ? '1' : '0');
+          controller.set('reader_auto_next', autoNext ? '1' : '0');
+          controller.set('reader_rtl', rtl ? '1' : '0');
+        },
       ),
     );
   }
@@ -295,164 +401,82 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
       },
     );
   }
-
-  void _openSettings() {
-    final settings = ref.read(settingsProvider);
-    final controller = ref.read(settingsProvider.notifier);
-    showReaderSettings(
-      context,
-      prefetchAhead: settings.getInt('reader_prefetch_ahead', 6),
-      keepAwake: settings.getBool('reader_keep_awake', true),
-      autoNext: settings.getBool('reader_auto_next', true),
-      rtl: settings.getBool('reader_rtl', false),
-      mode: settings.get('reader_mode_${widget.chapter.seriesId}', 'auto'),
-      onMode: (m) =>
-          controller.set('reader_mode_${widget.chapter.seriesId}', m),
-      novel: true,
-      fontSize: _fontSize,
-      lineHeight: _lineHeight,
-      novelTheme: _theme,
-      onNovelChanged: (font, line, theme) {
-        controller.set('novel_font_size', '$font');
-        controller.set('novel_line_height', line.toString());
-        controller.set('novel_theme', theme);
-        setState(() {});
-      },
-      onChanged: (prefetch, awake, autoNext, rtl) {
-        controller.set('reader_prefetch_ahead', '$prefetch');
-        controller.set('reader_keep_awake', awake ? '1' : '0');
-        controller.set('reader_auto_next', autoNext ? '1' : '0');
-        controller.set('reader_rtl', rtl ? '1' : '0');
-      },
-    );
-  }
 }
 
-/// Novel chrome on a transparent surface tinted toward the theme fg.
-class _NovelChrome extends StatelessWidget {
-  const _NovelChrome({
+/// Novel top bar on a transparent surface tinted toward the theme fg.
+class _NovelTopBar extends StatelessWidget {
+  const _NovelTopBar({
     required this.visible,
     required this.fg,
     required this.title,
     required this.subtitle,
-    required this.percentText,
-    required this.progress,
     required this.onBack,
     required this.onTitle,
     required this.onChapters,
-    required this.onPrev,
-    required this.onNext,
-    required this.onSettings,
-    required this.onSeek,
+    required this.onMenu,
   });
 
   final bool visible;
   final Color fg;
   final String title;
   final String subtitle;
-  final String percentText;
-  final double progress;
   final VoidCallback onBack;
   final VoidCallback onTitle;
   final VoidCallback onChapters;
-  final VoidCallback onPrev;
-  final VoidCallback onNext;
-  final VoidCallback onSettings;
-  final ValueChanged<double> onSeek;
+  final VoidCallback onMenu;
 
   @override
   Widget build(BuildContext context) {
     return IgnorePointer(
       ignoring: !visible,
-      child: Column(
-        children: [
-          AnimatedSlide(
-            duration: const Duration(milliseconds: 300),
-            offset: visible ? Offset.zero : const Offset(0, -1),
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 300),
-              opacity: visible ? 1 : 0,
-              child: Container(
-                color: fg.withValues(alpha: 0.08),
-                child: SafeArea(
-                  bottom: false,
-                  child: ListTile(
-                    leading: BackButton(color: fg, onPressed: onBack),
-                    title: GestureDetector(
+      child: AnimatedSlide(
+        duration: const Duration(milliseconds: 300),
+        offset: visible ? Offset.zero : const Offset(0, -1),
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 300),
+          opacity: visible ? 1 : 0,
+          child: Container(
+            color: fg.withValues(alpha: 0.08),
+            child: SafeArea(
+              bottom: false,
+              child: Row(
+                children: [
+                  BackButton(color: fg, onPressed: onBack),
+                  Expanded(
+                    child: GestureDetector(
                       onTap: onTitle,
-                      child: Text(title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              color: fg, fontWeight: FontWeight.w600)),
-                    ),
-                    subtitle: Text(subtitle,
-                        style: TextStyle(
-                            color: fg.withValues(alpha: 0.7), fontSize: 11)),
-                    trailing: IconButton(
-                      icon: Icon(Icons.menu_book, color: fg),
-                      onPressed: onChapters,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const Spacer(),
-          AnimatedSlide(
-            duration: const Duration(milliseconds: 300),
-            offset: visible ? Offset.zero : const Offset(0, 1),
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 300),
-              opacity: visible ? 1 : 0,
-              child: Container(
-                color: fg.withValues(alpha: 0.08),
-                child: SafeArea(
-                  top: false,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SliderTheme(
-                        data: SliderTheme.of(context).copyWith(
-                          trackHeight: 2,
-                          thumbShape: const RoundSliderThumbShape(
-                              enabledThumbRadius: 6),
-                        ),
-                        child: Slider(
-                          activeColor: fg,
-                          inactiveColor: fg.withValues(alpha: 0.3),
-                          value: progress.clamp(0.0, 1.0),
-                          onChanged: onSeek,
-                        ),
-                      ),
-                      Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          IconButton(
-                              icon: Icon(Icons.skip_previous, color: fg),
-                              onPressed: onPrev),
-                          Expanded(
-                              child: Center(
-                                  child: Text(percentText,
-                                      style: TextStyle(
-                                          color: fg,
-                                          fontFeatures: const [
-                                            FontFeature.tabularFigures()
-                                          ])))),
-                          IconButton(
-                              icon: Icon(Icons.skip_next, color: fg),
-                              onPressed: onNext),
-                          IconButton(
-                              icon: Icon(Icons.settings, color: fg),
-                              onPressed: onSettings),
+                          Text(title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  color: fg, fontWeight: FontWeight.w600)),
+                          Text(subtitle,
+                              style: TextStyle(
+                                  color: fg.withValues(alpha: 0.7),
+                                  fontSize: 11)),
                         ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                  IconButton(
+                    icon: Icon(Icons.menu_book, color: fg),
+                    tooltip: t(context, 'reader.chapter_picker'),
+                    onPressed: onChapters,
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.menu, color: fg),
+                    tooltip: t(context, 'reader.controls'),
+                    onPressed: onMenu,
+                  ),
+                ],
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/i18n/i18n.dart';
+import '../../core/providers.dart';
 import '../../core/utils/thai.dart';
 import '../../data/dao/chapters_dao.dart';
 import '../../data/repo/series_repo.dart';
@@ -17,6 +18,15 @@ Future<void> showChapterPicker(
   required Chapter current,
   required void Function(Chapter chapter, String sourceId) onPick,
 }) {
+  // Registry-order source colors (consistent with browse + detail).
+  final sources = ref.read(sourcesProvider);
+  int registryIndex(String id) {
+    for (var i = 0; i < sources.length; i++) {
+      if (sources[i].id == id) return i;
+    }
+    return 0;
+  }
+
   return showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
@@ -81,9 +91,8 @@ Future<void> showChapterPicker(
                                 Padding(
                                   padding: const EdgeInsets.only(left: 3),
                                   child: SourceDot(
-                                      color: sourceDotColor(vm.links
-                                          .indexWhere((l) =>
-                                              l.sourceId == link.sourceId))),
+                                      color: sourceDotColor(
+                                          registryIndex(link.sourceId))),
                                 ),
                           ],
                         ),
