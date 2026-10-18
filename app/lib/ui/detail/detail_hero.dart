@@ -379,19 +379,71 @@ class SiteSwitchButton extends ConsumerWidget {
   }
 }
 
-/// Collapsed-by-default introduction: a flat toggle row; expanding slides
-/// in the description (and the full tag list) via AnimatedSize.
-class IntroductionCard extends StatelessWidget {
-  const IntroductionCard({
+/// Compact เรื่องย่อ toggle INSIDE the hero (under the chips): label row +
+/// a 2-line truncated snippet so the hero never grows past the cover.
+/// Tapping slides the full introduction open below the action row.
+class IntroductionToggle extends StatelessWidget {
+  const IntroductionToggle({
     super.key,
-    required this.vm,
+    required this.snippet,
     required this.expanded,
     required this.onToggle,
   });
 
-  final SeriesDetailVm vm;
+  final String snippet;
   final bool expanded;
   final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onToggle,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(
+                expanded ? Icons.expand_less : Icons.expand_more,
+                size: 18,
+                color: theme.colorScheme.primary,
+              ),
+              Text(
+                t(context, 'detail.introduction'),
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          // Truncated preview only while collapsed — the expansion shows
+          // the full text, so the snippet never duplicates it.
+          if (!expanded)
+            Text(
+              snippet,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                height: 1.25,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Slide-down panel with the FULL introduction (+ every tag) — opened by
+/// the hero [IntroductionToggle], rendered under the action row.
+class IntroductionExpansion extends StatelessWidget {
+  const IntroductionExpansion({super.key, required this.vm});
+
+  final SeriesDetailVm vm;
 
   @override
   Widget build(BuildContext context) {
@@ -400,78 +452,36 @@ class IntroductionCard extends StatelessWidget {
         ? vm.sourceNames[vm.descriptionSourceId]
         : null;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          InkWell(
-            borderRadius: BorderRadius.circular(10),
-            onTap: onToggle,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-              child: Row(
-                children: [
-                  Icon(
-                    expanded ? Icons.expand_less : Icons.expand_more,
-                    size: 20,
-                    color: theme.colorScheme.primary,
+          Text(
+            vm.series.description!,
+            style: theme.textTheme.bodySmall,
+          ),
+          if (vm.tags.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                for (final tag in vm.tags)
+                  Chip(
+                    label: Text(tag, style: theme.textTheme.labelSmall),
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    t(context, 'detail.introduction'),
-                    style: theme.textTheme.labelLarge?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.w600),
-                  ),
-                ],
+              ],
+            ),
+          ],
+          if (captionSource != null)
+            Text(
+              tFmt(context, 'detail.description_from', {'source': captionSource}),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-          ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            alignment: Alignment.topCenter,
-            child: expanded
-                ? Padding(
-                    padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          vm.series.description!,
-                          style: theme.textTheme.bodySmall,
-                        ),
-                        if (vm.tags.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 4,
-                            children: [
-                              for (final tag in vm.tags)
-                                Chip(
-                                  label: Text(
-                                    tag,
-                                    style: theme.textTheme.labelSmall,
-                                  ),
-                                  visualDensity: VisualDensity.compact,
-                                  materialTapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                ),
-                            ],
-                          ),
-                        ],
-                        if (captionSource != null)
-                          Text(
-                            tFmt(context, 'detail.description_from',
-                                {'source': captionSource}),
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                      ],
-                    ),
-                  )
-                : const SizedBox(width: double.infinity, height: 0),
-          ),
         ],
       ),
     );

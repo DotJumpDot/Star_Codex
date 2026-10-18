@@ -14,15 +14,16 @@ import 'chapter_sheet.dart';
 import 'detail_controller.dart';
 
 /// Chapter list for ONE selected source (the old per-source tab bar was
-/// replaced by the site switcher in the action row — same data, more room
-/// for the list). Search-in-chapters + sort toggle (newest-first default)
-/// + per-chapter source dots stay.
-class ChapterList extends ConsumerStatefulWidget {
+/// replaced by the site switcher in the action row). The search field and
+/// sort toggle moved UP to the detail body (they share the row the intro
+/// toggle vacated) — this widget is the bare list.
+class ChapterList extends ConsumerWidget {
   const ChapterList({
     super.key,
     required this.vm,
     required this.controllerKey,
     required this.sourceId,
+    required this.query,
   });
 
   final SeriesDetailVm vm;
@@ -33,106 +34,8 @@ class ChapterList extends ConsumerStatefulWidget {
 
   final String sourceId;
 
-  @override
-  ConsumerState<ChapterList> createState() => _ChapterListState();
-}
-
-class _ChapterListState extends ConsumerState<ChapterList> {
-  final _search = TextEditingController();
-
-  @override
-  void dispose() {
-    _search.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final vm = widget.vm;
-    final sources = ref.watch(sourcesProvider);
-    int registryIndex(String id) {
-      for (var i = 0; i < sources.length; i++) {
-        if (sources[i].id == id) return i;
-      }
-      return 0;
-    }
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _search,
-                  onChanged: (_) => setState(() {}),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    prefixIcon: const Icon(Icons.search, size: 20),
-                    hintText: t(context, 'detail.search_chapters'),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    suffixIcon: _search.text.isEmpty
-                        ? null
-                        : IconButton(
-                            icon: const Icon(Icons.clear, size: 18),
-                            onPressed: () {
-                              _search.clear();
-                              setState(() {});
-                            },
-                          ),
-                  ),
-                ),
-              ),
-              IconButton(
-                tooltip: t(
-                  context,
-                  vm.sortOldestFirst ? 'detail.sort.newest' : 'detail.sort.oldest',
-                ),
-                icon: Icon(
-                  vm.sortOldestFirst
-                      ? Icons.arrow_downward
-                      : Icons.arrow_upward,
-                ),
-                onPressed: () => ref
-                    .read(detailControllerProvider(widget.controllerKey).notifier)
-                    .setSort(oldestFirst: !vm.sortOldestFirst),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: _SourceChapters(
-            vm: vm,
-            sourceId: widget.sourceId,
-            query: _search.text,
-            controllerKey: widget.controllerKey,
-            registryIndex: registryIndex,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SourceChapters extends ConsumerWidget {
-  const _SourceChapters({
-    required this.vm,
-    required this.sourceId,
-    required this.query,
-    required this.controllerKey,
-    required this.registryIndex,
-  });
-
-  final SeriesDetailVm vm;
-  final String sourceId;
+  /// Live text from the detail body's chapter search field.
   final String query;
-  final DetailKey controllerKey;
-
-  /// Source → index in the registry sort order (same colors as browse).
-  final int Function(String) registryIndex;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -164,6 +67,14 @@ class _SourceChapters extends ConsumerWidget {
         ),
       );
     }
+    final sources = ref.watch(sourcesProvider);
+    int registryIndex(String id) {
+      for (var i = 0; i < sources.length; i++) {
+        if (sources[i].id == id) return i;
+      }
+      return 0;
+    }
+
     return ListView.builder(
       itemCount: chapters.length,
       itemBuilder: (context, i) => _ChapterRow(

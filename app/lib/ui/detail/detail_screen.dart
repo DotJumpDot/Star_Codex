@@ -180,12 +180,21 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
   bool _altExpanded = false;
   bool _introExpanded = false;
   String? _selectedSourceId;
+  final _chapterSearch = TextEditingController();
+
+  @override
+  void dispose() {
+    _chapterSearch.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final vm = widget.vm;
     final series = vm.series;
     final selectedSource = _selectedSourceId ?? vm.primaryLink.sourceId;
+    final hasIntro =
+        series.description != null && series.description!.isNotEmpty;
 
     return Column(
       children: [
@@ -239,6 +248,17 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
                       ),
                     const SizedBox(height: 6),
                     HeroChips(vm: vm),
+                    // Compact intro toggle rides in the leftover hero
+                    // space under the chips — truncated so the hero never
+                    // outgrows the cover; tapping slides the full text
+                    // open below the action row.
+                    if (hasIntro)
+                      IntroductionToggle(
+                        snippet: series.description!,
+                        expanded: _introExpanded,
+                        onToggle: () =>
+                            setState(() => _introExpanded = !_introExpanded),
+                      ),
                   ],
                 ),
               ),
@@ -251,17 +271,69 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
           selectedSourceId: selectedSource,
           onSourceSelected: (id) => setState(() => _selectedSourceId = id),
         ),
-        if (series.description != null && series.description!.isNotEmpty)
-          IntroductionCard(
-            vm: vm,
-            expanded: _introExpanded,
-            onToggle: () => setState(() => _introExpanded = !_introExpanded),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: _introExpanded && hasIntro
+              ? IntroductionExpansion(vm: vm)
+              : const SizedBox(width: double.infinity, height: 0),
+        ),
+        // Chapter search + sort moved onto the row the intro used to
+        // occupy — one fewer stacked full-width row.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _chapterSearch,
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    hintText: t(context, 'detail.search_chapters'),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    suffixIcon: _chapterSearch.text.isEmpty
+                        ? null
+                        : IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            onPressed: () {
+                              _chapterSearch.clear();
+                              setState(() {});
+                            },
+                          ),
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: t(
+                  context,
+                  vm.sortOldestFirst
+                      ? 'detail.sort.newest'
+                      : 'detail.sort.oldest',
+                ),
+                icon: Icon(
+                  vm.sortOldestFirst
+                      ? Icons.arrow_downward
+                      : Icons.arrow_upward,
+                ),
+                onPressed: () => ref
+                    .read(detailControllerProvider(widget.controllerKey)
+                        .notifier)
+                    .setSort(oldestFirst: !vm.sortOldestFirst),
+              ),
+            ],
           ),
+        ),
         Expanded(
           child: ChapterList(
             vm: vm,
             controllerKey: widget.controllerKey,
             sourceId: selectedSource,
+            query: _chapterSearch.text,
           ),
         ),
       ],
