@@ -153,3 +153,16 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-18 — v1.2 UX batch (user feedback round 3): site-select sheet
+  stays open while toggling (Done button / outside tap closes it); filter
+  sheet capped at 70% height + scrollable; browse refresh button; library
+  category dropdown replaces the sliding chip row; library "New" chip is
+  green, sorts to top, resets on detail-page visit (db v4
+  library.last_seen_at); history collapses to one row per series with the
+  read-chapter range (setting, default on); result card loses the globe +
+  status chips, type chip leads the row with per-type colors; aged
+  relative-date colors (green→grey) on cards + download rows (single-line
+  "ตอน | อัปเดต"); nekopost latest/search now carry chapter counts and
+  update stamps (SourceSeries.lastUpdatedMs); detail hero tag chips moved
+  into the intro expansion, which always opens with the full title; font
+  label "Prompt (Maki)" → "Prompt". 186 tests green.

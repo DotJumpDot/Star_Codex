@@ -5,7 +5,7 @@ import 'package:sqflite/sqflite.dart';
 /// Single SQLite database (Plan/02). All timestamps are milliseconds since
 /// epoch (int). Migrations append only: bump [dbVersion], add a `case` in
 /// [onUpgrade] — never edit v1 statements after shipping.
-const dbVersion = 3;
+const dbVersion = 4;
 const dbFileName = 'manga_reader.db';
 
 class DbException implements Exception {
@@ -68,6 +68,17 @@ Future<Database> openDb(
                   },
                   conflictAlgorithm: ConflictAlgorithm.ignore);
             }
+            continue next2; // Dart cases don't fall through — chain to v4
+          // v4 (2026-10-18, library New chip): per-series last-visit stamp.
+          // New = chapters with uploaded_at > max(last_read_at,
+          // last_seen_at) — visiting the detail page clears the chip, a
+          // later upload re-arms it. 0 = never seen (kept "new" behavior
+          // comes from last_read_at, which stays NULL until first read).
+          next2:
+          case 3:
+            await db.execute(
+                'ALTER TABLE library ADD COLUMN last_seen_at INTEGER '
+                'NOT NULL DEFAULT 0');
           // Future migrations append cases here: `case 1: ...; continue next;`
           default:
             break;
@@ -183,7 +194,8 @@ const _schemaSql = [
     series_id           INTEGER PRIMARY KEY REFERENCES series(id) ON DELETE CASCADE,
     added_at            INTEGER NOT NULL,
     last_read_at        INTEGER,
-    last_read_chapter_id INTEGER REFERENCES chapters(id) ON DELETE SET NULL
+    last_read_chapter_id INTEGER REFERENCES chapters(id) ON DELETE SET NULL,
+    last_seen_at        INTEGER NOT NULL DEFAULT 0
   )''',
   '''
   CREATE TABLE categories(

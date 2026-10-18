@@ -144,6 +144,7 @@ class BrowseRepo {
               coverUrl: item.coverUrl,
               chapterCountHint: item.chapterCountHint,
               type: item.type,
+              lastUpdatedMs: item.lastUpdatedMs,
             ),
       ];
 

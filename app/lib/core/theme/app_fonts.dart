@@ -16,7 +16,7 @@ class StarFontSpec {
 
 const starFonts = <StarFontSpec>[
   StarFontSpec('sarabun', 'Sarabun', 'Sarabun'),
-  StarFontSpec('prompt', 'Prompt', 'Prompt (Maki)'),
+  StarFontSpec('prompt', 'Prompt', 'Prompt'),
   StarFontSpec('kanit', 'Kanit', 'Kanit'),
   StarFontSpec('ibm_plex_thai', 'IBM Plex Sans Thai', 'IBM Plex Sans Thai'),
   StarFontSpec('noto_thai', 'Noto Sans Thai', 'Noto Sans Thai'),

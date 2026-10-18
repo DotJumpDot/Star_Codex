@@ -151,6 +151,13 @@ class SettingsScreen extends ConsumerWidget {
             value: settings.getBool('hide_merge_split', true),
             onChanged: (v) => _set(ref, 'hide_merge_split', v ? '1' : '0'),
           ),
+          SwitchListTile(
+            title: Text(t(context, 'settings.history_group')),
+            subtitle: Text(t(context, 'settings.history_group_hint'),
+                style: Theme.of(context).textTheme.labelSmall),
+            value: settings.getBool('history_group_series', true),
+            onChanged: (v) => _set(ref, 'history_group_series', v ? '1' : '0'),
+          ),
 
           const StorageSection(),
           const SourcesSection(),

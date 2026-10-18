@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/i18n/i18n.dart';
+import '../../data/dao/library_dao.dart';
 import '../../data/repo/library_cards.dart';
 import '../detail/detail_screen.dart';
 import '../shell/star_app_bar.dart';
@@ -72,9 +73,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       ),
       body: Column(
         children: [
-          // One compact row: category chips normally; the in-library
-          // search replaces it while open (fewer stacked rows was the
-          // #1 usability complaint about this page).
+          // In-library search replaces the toolbar's category dropdown
+          // while open (fewer stacked rows was the #1 usability complaint
+          // about this page).
           if (_searchOpen)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
@@ -101,9 +102,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   ),
                 ],
               ),
-            )
-          else
-            _CategoryChips(state: state),
+            ),
           _Toolbar(
             state: state,
             searchOpen: _searchOpen,
@@ -172,67 +171,150 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 }
 
-/// Horizontal category chip row (Plan/12 §1): built-ins, divider, user
-/// categories, "+".
-class _CategoryChips extends ConsumerWidget {
-  const _CategoryChips({required this.state});
+/// Category selector (user QA 2026-10-18): a compact dropdown button in
+/// the toolbar replacing the long sliding chip row. Opens a bottom sheet
+/// with the built-ins, user categories (with per-category edit), and
+/// create-new.
+class CategoryDropdown extends ConsumerWidget {
+  const CategoryDropdown({super.key, required this.state});
 
   final LibraryState state;
 
+  static String tabName(BuildContext context, LibraryTab tab,
+      List<Category> userCategories) {
+    return switch (tab) {
+      AllTab() => t(context, 'library.cat.all'),
+      SmartTab(:final kind) => t(context, switch (kind) {
+            SmartKind.reading => 'library.cat.reading',
+            SmartKind.hasNew => 'library.cat.has_new',
+            SmartKind.novel => 'library.cat.novel',
+            SmartKind.downloaded => 'library.cat.downloaded',
+          }),
+      CategoryTab(:final categoryId) => userCategories
+              .where((c) => c.id == categoryId)
+              .firstOrNull
+              ?.name ??
+          '',
+    };
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final controller = ref.read(libraryControllerProvider.notifier);
-    final active = state.tab;
-
-    bool sel(LibraryTab tab) {
-      if (tab.runtimeType != active.runtimeType) return false;
-      if (tab is CategoryTab && active is CategoryTab) {
-        return tab.categoryId == active.categoryId;
-      }
-      if (tab is SmartTab && active is SmartTab) return tab.kind == active.kind;
-      return true;
-    }
-
-    return SizedBox(
-      height: 52,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    return OutlinedButton.icon(
+      style: OutlinedButton.styleFrom(
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+      ),
+      onPressed: () => _openSheet(context, ref),
+      icon: const Icon(Icons.category_outlined, size: 16),
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          ChoiceChip(
-            label: Text(t(context, 'library.cat.all')),
-            selected: sel(const AllTab()),
-            onSelected: (_) => controller.setTab(const AllTab()),
-          ),
-          for (final kind in SmartKind.values)
-            ChoiceChip(
-              label: Text(t(context, switch (kind) {
-                SmartKind.reading => 'library.cat.reading',
-                SmartKind.hasNew => 'library.cat.has_new',
-                SmartKind.novel => 'library.cat.novel',
-                SmartKind.downloaded => 'library.cat.downloaded',
-              })),
-              selected: sel(SmartTab(kind)),
-              onSelected: (_) => controller.setTab(SmartTab(kind)),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 120),
+            child: Text(
+              tabName(context, state.tab, state.userCategories),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-          for (final c in state.userCategories) ...[
-            const VerticalDivider(width: 16),
-            GestureDetector(
-              onLongPress: () => showCategoryActions(context, ref, c),
-              child: ChoiceChip(
-                label: Text(c.name),
-                selected: sel(CategoryTab(c.id)),
-                onSelected: (_) => controller.setTab(CategoryTab(c.id)),
-              ),
-            ),
-          ],
-          IconButton(
-            tooltip: t(context, 'library.cat.create'),
-            icon: const Icon(Icons.add),
-            onPressed: () => promptCategoryName(context, ref),
           ),
+          const Icon(Icons.arrow_drop_down, size: 18),
         ],
       ),
+    );
+  }
+
+  Future<void> _openSheet(BuildContext context, WidgetRef ref) {
+    final controller = ref.read(libraryControllerProvider.notifier);
+    // At most ~7 rows — a plain min Column, no scroll view needed.
+    return showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+                child: Text(t(sheetContext, 'library.category.title'),
+                    style: Theme.of(sheetContext).textTheme.titleMedium),
+              ),
+              _sheetRow(
+                sheetContext,
+                label: t(sheetContext, 'library.cat.all'),
+                selected: state.tab is AllTab,
+                onTap: () {
+                  controller.setTab(const AllTab());
+                  Navigator.pop(sheetContext);
+                },
+              ),
+              for (final kind in SmartKind.values)
+                _sheetRow(
+                  sheetContext,
+                  label:
+                      tabName(sheetContext, SmartTab(kind), state.userCategories),
+                  selected:
+                      state.tab is SmartTab && (state.tab as SmartTab).kind == kind,
+                  onTap: () {
+                    controller.setTab(SmartTab(kind));
+                    Navigator.pop(sheetContext);
+                  },
+                ),
+              for (final c in state.userCategories)
+                _sheetRow(
+                  sheetContext,
+                  label: c.name,
+                  selected: state.tab is CategoryTab &&
+                      (state.tab as CategoryTab).categoryId == c.id,
+                  onTap: () {
+                    controller.setTab(CategoryTab(c.id));
+                    Navigator.pop(sheetContext);
+                  },
+                  onEdit: () {
+                    Navigator.pop(sheetContext);
+                    showCategoryActions(sheetContext, ref, c);
+                  },
+                ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.add, size: 20),
+                title: Text(t(sheetContext, 'library.cat.create')),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  promptCategoryName(sheetContext, ref);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _sheetRow(
+    BuildContext context, {
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+    VoidCallback? onEdit,
+  }) {
+    return ListTile(
+      dense: true,
+      leading: selected
+          ? const Icon(Icons.check, size: 20)
+          : const SizedBox(width: 20),
+      title: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+      trailing: onEdit == null
+          ? null
+          : IconButton(
+              tooltip: t(context, 'library.category.edit'),
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              onPressed: onEdit,
+            ),
+      onTap: onTap,
     );
   }
 }
@@ -255,6 +337,8 @@ class _Toolbar extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
       child: Row(
         children: [
+          Flexible(child: CategoryDropdown(state: state)),
+          const SizedBox(width: 4),
           IconButton(
             tooltip: t(context, 'library.search_hint'),
             icon: Icon(searchOpen ? Icons.search : Icons.search_outlined),

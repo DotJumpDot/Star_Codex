@@ -185,6 +185,11 @@ List<LibraryCard> filterAndSortCards(
         return byUnread != 0 ? byUnread : compareTitlesThai(a.title, b.title);
       });
   }
-  return list;
+  // "New"-chipped series always float to the top (user QA 2026-10-18),
+  // keeping the chosen sort's order within each partition.
+  return [
+    ...list.where((c) => c.newCount > 0),
+    ...list.where((c) => c.newCount == 0),
+  ];
 }
 

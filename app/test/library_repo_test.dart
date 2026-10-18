@@ -204,13 +204,16 @@ void main() {
           sort: LibrarySort.titleAz);
       expect(out, [thaiA, thaiB]);
 
-      // Unread DESC.
+      // Unread DESC — but the New-chip partition floats above every sort
+      // (user QA 2026-10-18): the fresh-update card leads, then the
+      // unread-sorted rest.
       out = filterAndSortCards(all,
           tab: const AllTab(),
           filters: const LibraryFilters(),
           search: '',
           sort: LibrarySort.unread);
-      expect(out.first.title, novel.title);
+      expect(out.first.title, fresh.title);
+      expect(out[1].title, novel.title);
     });
   });
 

@@ -8,6 +8,7 @@ import '../../core/utils/thai.dart';
 import '../../data/dao/chapters_dao.dart';
 import '../../data/repo/series_repo.dart';
 import '../../data/storage/blob_store.dart';
+import '../browse/age_colors.dart';
 import 'detail_controller.dart';
 
 /// Detail ⬇ button → download sheet (doc 13 §A): site picker (the sheet
@@ -223,8 +224,7 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
                     dense: true,
                     value: checked,
                     controlAffinity: ListTileControlAffinity.leading,
-                    title: Text(_label(i)),
-                    subtitle: _stamp(i),
+                    title: _rowTitle(i),
                     onChanged: (_) => setState(() {
                       if (_selected.contains(id)) {
                         _selected.remove(id);
@@ -338,15 +338,44 @@ class _DownloadSheetState extends ConsumerState<_DownloadSheet> {
         : '$num · ${c.title!}';
   }
 
-  /// Relative upload stamp under each chapter row.
-  Widget? _stamp(int i) {
+  /// Single-line chapter row (user QA 2026-10-18): number left in the
+  /// theme color, upload stamp right with the aged relative color, "|"
+  /// as the separator.
+  Widget _rowTitle(int i) {
+    final theme = Theme.of(context);
     final at = _asc[i].uploadedAt;
-    if (at == null) return null;
-    final parts =
-        relativeParts(at, nowMs: DateTime.now().millisecondsSinceEpoch);
-    return Text(
-      tFmt(context, parts.key, parts.params),
-      style: Theme.of(context).textTheme.labelSmall,
+    final parts = at == null
+        ? null
+        : relativeParts(at, nowMs: DateTime.now().millisecondsSinceEpoch);
+    return Row(
+      children: [
+        Flexible(
+          child: Text(
+            _label(i),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        if (parts != null) ...[
+          const Spacer(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text('|',
+                style: theme.textTheme.labelSmall
+                    ?.copyWith(color: theme.colorScheme.outline)),
+          ),
+          Text(
+            tFmt(context, parts.key, parts.params),
+            style: theme.textTheme.bodySmall
+                ?.copyWith(
+                    color: relativeAgeColor(theme.colorScheme, parts.key)),
+          ),
+        ],
+      ],
     );
   }
 }

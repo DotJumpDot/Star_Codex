@@ -60,6 +60,13 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
+          // Left of the site filter (user QA 2026-10-18): re-runs whatever
+          // is showing — latest feed, search, or genre view.
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: t(context, 'common.refresh'),
+            onPressed: () => controller.retry(),
+          ),
           SourceFilterButton(
             sources: sources,
             selectedIds: state.activeSourceIds,

@@ -9,8 +9,9 @@ import '../../data/dao/blobs_dao.dart';
 import '../../data/repo/library_cards.dart';
 import '../browse/cover_thumb.dart';
 
-/// Library grid card (Plan/12 §3): cover, 1-line Thai title, red "N ตอนใหม่"
-/// badge, progress hairline, downloaded pin.
+/// Library grid card (Plan/12 §3): cover, 1-line Thai title, green
+/// "N ตอนใหม่" badge (visit-reset, db v4), progress hairline, downloaded
+/// pin. New-chipped series sort to the top of every view.
 class LibraryCardView extends ConsumerWidget {
   const LibraryCardView({
     super.key,
@@ -110,15 +111,17 @@ class LibraryCardView extends ConsumerWidget {
   Widget _newBadge(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.error,
+          // Green reads as "fresh update" at thumbnail scale (user QA
+          // 2026-10-18); red was being read as an error.
+          color: const Color(0xFF22A45D),
           borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
           tFmt(context, 'library.badge_new', {'n': '${card.newCount}'}),
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.w700,
-            color: Theme.of(context).colorScheme.onError,
+            color: Colors.white,
           ),
         ),
       );
@@ -167,15 +170,15 @@ class LibraryRowView extends ConsumerWidget {
               margin: const EdgeInsets.only(left: 6),
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: scheme.error,
+                color: const Color(0xFF22A45D),
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Text(
                 tFmt(context, 'library.badge_new', {'n': '${card.newCount}'}),
-                style: TextStyle(
+                style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
-                    color: scheme.onError),
+                    color: Colors.white),
               ),
             )
           else

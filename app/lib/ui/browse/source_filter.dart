@@ -8,7 +8,10 @@ import 'source_palette.dart';
 /// Per-site filter (Plan/08 §2) — a compact app-bar button opening a
 /// bottom sheet of wrapped toggle chips, replacing the old horizontal
 /// chip row that had to be scrolled and hunting-tapped. Empty selection
-/// means every site. Long-press a site for its genre browser.
+/// means every site. Long-press a site for its genre browser. Chips
+/// toggle live — the sheet only closes on the Done button or an outside
+/// tap (user QA 2026-10-18: it snapping shut on every chip made
+/// multi-site selection a tap-war).
 class SourceFilterButton extends StatelessWidget {
   const SourceFilterButton({
     super.key,
@@ -48,50 +51,103 @@ class SourceFilterButton extends StatelessWidget {
     return showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(t(sheetContext, 'browse.sources'),
-                  style: Theme.of(sheetContext).textTheme.titleMedium),
-              const SizedBox(height: 4),
-              Text(
-                t(sheetContext, 'browse.sources_hint'),
-                style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(sheetContext).colorScheme.outline),
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  ChoiceChip(
-                    label: Text(t(sheetContext, 'browse.sources_all')),
-                    selected: selectedIds.isEmpty,
-                    onSelected: (_) {
-                      Navigator.pop(sheetContext);
-                      onAll();
-                    },
+      builder: (sheetContext) => _SourceSheet(
+        sources: sources,
+        initialSelected: selectedIds,
+        failedIds: failedIds,
+        onToggle: onToggle,
+        onAll: onAll,
+        onGenre: onGenre,
+      ),
+    );
+  }
+}
+
+/// Stateful sheet: selection lives here while open and mirrors every
+/// change out through the callbacks immediately (the feed refetches per
+/// toggle behind the sheet), so Done/outside-tap is purely dismissal.
+class _SourceSheet extends StatefulWidget {
+  const _SourceSheet({
+    required this.sources,
+    required this.initialSelected,
+    required this.failedIds,
+    required this.onToggle,
+    required this.onAll,
+    required this.onGenre,
+  });
+
+  final List<Source> sources;
+  final Set<String> initialSelected;
+  final Set<String> failedIds;
+  final ValueChanged<String> onToggle;
+  final VoidCallback onAll;
+  final void Function(Source source, String term) onGenre;
+
+  @override
+  State<_SourceSheet> createState() => _SourceSheetState();
+}
+
+class _SourceSheetState extends State<_SourceSheet> {
+  late final Set<String> _selected = {...widget.initialSelected};
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(t(context, 'browse.sources'),
+                      style: Theme.of(context).textTheme.titleMedium),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(t(context, 'common.done')),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              t(context, 'browse.sources_hint'),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.outline),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ChoiceChip(
+                  label: Text(t(context, 'browse.sources_all')),
+                  selected: _selected.isEmpty,
+                  onSelected: (_) {
+                    setState(() => _selected.clear());
+                    widget.onAll();
+                  },
+                ),
+                for (var i = 0; i < widget.sources.length; i++)
+                  _SiteChip(
+                    source: widget.sources[i],
+                    color: sourceDotColor(i),
+                    selected: _selected.contains(widget.sources[i].id),
+                    failed: widget.failedIds.contains(widget.sources[i].id),
+                    onToggle: () => setState(() {
+                      final id = widget.sources[i].id;
+                      if (!_selected.remove(id)) {
+                        _selected.add(id);
+                      }
+                      widget.onToggle(id);
+                    }),
+                    onGenre: widget.onGenre,
                   ),
-                  for (var i = 0; i < sources.length; i++)
-                    _SiteChip(
-                      source: sources[i],
-                      color: sourceDotColor(i),
-                      selected: selectedIds.contains(sources[i].id),
-                      failed: failedIds.contains(sources[i].id),
-                      onToggle: () {
-                        Navigator.pop(sheetContext);
-                        onToggle(sources[i].id);
-                      },
-                      onGenre: onGenre,
-                    ),
-                ],
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ),
       ),
     );

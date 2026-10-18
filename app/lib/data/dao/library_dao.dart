@@ -76,6 +76,16 @@ class LibraryDao {
         whereArgs: [seriesId],
       );
 
+  /// Library "New" chip (db v4): stamp the detail-page visit so the chip
+  /// clears; chapters uploaded AFTER this re-arm it. No-op when the series
+  /// isn't in the library.
+  Future<void> stampSeen(int seriesId, int atMs) => db.update(
+        'library',
+        {'last_seen_at': atMs},
+        where: 'series_id = ?',
+        whereArgs: [seriesId],
+      );
+
   // --- categories ---
 
   Future<int> addCategory(String name, {int sort = 0}) async {
@@ -176,6 +186,10 @@ class HistoryDao {
 
   Future<int> deleteForChapter(int chapterId) =>
       db.delete('reading_history', where: 'chapter_id = ?', whereArgs: [chapterId]);
+
+  /// Grouped-history mode: wipe a whole series' timeline rows at once.
+  Future<int> deleteForSeries(int seriesId) => db.delete(
+      'reading_history', where: 'series_id = ?', whereArgs: [seriesId]);
 
   Future<int> clear() => db.delete('reading_history');
 

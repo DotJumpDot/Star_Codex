@@ -9,7 +9,6 @@ import '../../core/settings_provider.dart';
 import '../../core/utils/thai.dart';
 import '../../data/dao/blobs_dao.dart';
 import '../../data/repo/series_repo.dart';
-import '../browse/browse_controller.dart';
 import '../browse/cover_thumb.dart';
 import '../browse/source_palette.dart';
 import '../reader/reader_router.dart';
@@ -105,10 +104,12 @@ class _DetailCoverState extends ConsumerState<DetailCover> {
   }
 }
 
-/// Type / status / per-site / tag chips in ONE wrap (status + tags carry
-/// their own color so they read differently from the neutral type chip;
-/// site chips reuse the browse source palette — same color per site
-/// everywhere).
+/// Type / status / per-site chips in ONE wrap (status carries its own
+/// color so it reads differently from the neutral type chip; site chips
+/// reuse the browse source palette — same color per site everywhere).
+/// Tag chips live ONLY inside the expanded introduction now — in the hero
+/// they crowded the right column and unbalanced it against the cover
+/// (user QA 2026-10-18).
 class HeroChips extends ConsumerWidget {
   const HeroChips({super.key, required this.vm});
 
@@ -124,9 +125,6 @@ class HeroChips extends ConsumerWidget {
       }
       return 0;
     }
-
-    final shownTags = vm.tags.take(4).toList();
-    final moreTags = vm.tags.length - shownTags.length;
 
     Widget neutral(String label) => Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -190,39 +188,6 @@ class HeroChips extends ConsumerWidget {
                 : Colors.blueGrey,
           ),
         for (final link in vm.links) site(link.sourceId),
-        // Tags: interactive (tap → browse pre-filtered) with the theme
-        // accent — "same placement, different color".
-        for (final tag in shownTags)
-          ActionChip(
-            label: Text(
-              tag,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            visualDensity: VisualDensity.compact,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            backgroundColor:
-                theme.colorScheme.primary.withValues(alpha: 0.10),
-            side: BorderSide(
-                color: theme.colorScheme.primary.withValues(alpha: 0.35)),
-            onPressed: () {
-              ref.read(browseControllerProvider.notifier).applyTagFilter(tag);
-              ref.read(tabIndexProvider.notifier).state = 0;
-              Navigator.of(context).popUntil((route) => route.isFirst);
-            },
-          ),
-        if (moreTags > 0)
-          Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: Text(
-              '+$moreTags',
-              style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant),
-            ),
-          ),
       ],
     );
   }
@@ -460,8 +425,11 @@ class IntroductionToggle extends StatelessWidget {
   }
 }
 
-/// Slide-down panel with the FULL introduction (+ every tag) — opened by
-/// the hero [IntroductionToggle], rendered under the action row.
+/// Slide-down panel opened by the hero [IntroductionToggle], rendered
+/// under the action row. First line is ALWAYS the full untruncated title
+/// (the hero/app-bar copies ellipsize; this is where the whole name is
+/// readable — user QA 2026-10-18), then the description when present,
+/// every tag, and the description-source caption.
 class IntroductionExpansion extends StatelessWidget {
   const IntroductionExpansion({super.key, required this.vm});
 
@@ -470,18 +438,28 @@ class IntroductionExpansion extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final series = vm.series;
     final captionSource = vm.descriptionSourceId != null
         ? vm.sourceNames[vm.descriptionSourceId]
         : null;
+    final description = series.description;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            vm.series.description!,
-            style: theme.textTheme.bodySmall,
+            series.originalTitle ?? series.title,
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700),
           ),
+          if (description != null && description.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              description,
+              style: theme.textTheme.bodySmall,
+            ),
+          ],
           if (vm.tags.isNotEmpty) ...[
             const SizedBox(height: 8),
             Wrap(

@@ -267,6 +267,14 @@ class SeriesRepo {
       byNumber.putIfAbsent(c.number, () => []).add(c);
     }
     final entry = await libraryDao.entry(seriesId);
+    // Library "New" chip (db v4): opening the detail page counts as a
+    // visit — chips for chapters that already existed clear here, and a
+    // chapter uploaded later re-arms the badge. Stamped after the refresh
+    // above so this load's own fetched chapters never count as new.
+    if (entry != null) {
+      await libraryDao.stampSeen(
+          seriesId, DateTime.now().millisecondsSinceEpoch);
+    }
     String? coverUrl;
     String? coverReferer;
     for (final l in links) {

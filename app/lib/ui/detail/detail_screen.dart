@@ -195,7 +195,6 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
     final selectedSource = _selectedSourceId ?? vm.primaryLink.sourceId;
     final hasIntro =
         series.description != null && series.description!.isNotEmpty;
-
     return Column(
       children: [
         Padding(
@@ -251,14 +250,17 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
                     // Compact intro toggle rides in the leftover hero
                     // space under the chips — truncated so the hero never
                     // outgrows the cover; tapping slides the full text
-                    // open below the action row.
-                    if (hasIntro)
-                      IntroductionToggle(
-                        snippet: series.description!,
-                        expanded: _introExpanded,
-                        onToggle: () =>
-                            setState(() => _introExpanded = !_introExpanded),
-                      ),
+                    // open below the action row. Always present: with no
+                    // description the expansion still carries the FULL
+                    // untruncated title (user QA 2026-10-18).
+                    IntroductionToggle(
+                      snippet: hasIntro
+                          ? series.description!
+                          : (series.originalTitle ?? series.title),
+                      expanded: _introExpanded,
+                      onToggle: () =>
+                          setState(() => _introExpanded = !_introExpanded),
+                    ),
                   ],
                 ),
               ),
@@ -275,7 +277,7 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOutCubic,
           alignment: Alignment.topCenter,
-          child: _introExpanded && hasIntro
+          child: _introExpanded
               ? IntroductionExpansion(vm: vm)
               : const SizedBox(width: double.infinity, height: 0),
         ),

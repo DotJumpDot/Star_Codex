@@ -16,6 +16,7 @@ class BrowseCandidate {
     this.coverUrl,
     this.chapterCountHint,
     this.type,
+    this.lastUpdatedMs,
   });
 
   final String sourceId;
@@ -25,6 +26,7 @@ class BrowseCandidate {
   final String? coverUrl;
   final int? chapterCountHint;
   final String? type;
+  final int? lastUpdatedMs;
 
   TitleCandidate get candidate => TitleCandidate.fromRaw(title);
 }
@@ -55,6 +57,19 @@ class SearchGroup {
         .whereType<int>()
         .toList(growable: false);
     return hints.isEmpty ? null : hints.reduce(_max);
+  }
+
+  /// Card update stamp (user QA 2026-10-18): DB-enriched value wins (it
+  /// spans every chapter), else the freshest listing-carried stamp
+  /// (nekopost rows carry one; Madara/bully tiles don't).
+  int? get lastUpdatedMs {
+    if (dbLastUpdatedMs != null) return dbLastUpdatedMs;
+    int? best;
+    for (final m in members) {
+      final v = m.lastUpdatedMs;
+      if (v != null && (best == null || v > best)) best = v;
+    }
+    return best;
   }
 
   /// First non-null type in member (source sort) order.

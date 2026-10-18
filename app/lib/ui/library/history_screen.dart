@@ -12,11 +12,16 @@ import '../../data/dao/blobs_dao.dart';
 import '../../data/dao/library_dao.dart';
 import '../reader/reader_router.dart';
 import '../shell/star_app_bar.dart';
+import 'history_group.dart';
 
 /// History tab (Plan/12 §5): `reading_history` grouped วันนี้ / เมื่อวาน /
 /// "17 ต.ค.". Tap reopens the chapter at its saved position; long-press
 /// deletes the row; the AppBar button clears ALL history (reading_history
 /// ONLY — read_progress and library stay).
+///
+/// Grouped mode (setting `history_group_series`, default ON): one row per
+/// series showing the read-chapter range ("ตอน 1-3"); tap reopens the
+/// LAST-read chapter; long-press deletes the whole series' history.
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
 
@@ -82,6 +87,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 r.title.toLowerCase().contains(q) ||
                 (r.originalTitle?.toLowerCase().contains(q) ?? false))
             .toList();
+    final grouped = ref
+        .read(settingsProvider)
+        .get('history_group_series', 'true') == 'true';
     if (visible.isEmpty) {
       return Center(
           child: Text(
@@ -94,7 +102,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           1 => t(context, 'history.yesterday'),
           _ => DateFormat('d MMM', I18nService.lang).format(day),
         };
-    final groups = groupByDay(visible, labelFor);
+    final entries =
+        grouped ? collapseBySeries(visible) : const <HistorySeriesEntry>[];
+    final groups = groupByDay(
+        grouped ? [for (final e in entries) e.latest] : visible, labelFor);
+    final entryGroups = grouped
+        ? _groupEntriesByDay(entries, labelFor)
+        : const <String, List<HistorySeriesEntry>>{};
     return Column(
       children: [
         Padding(
@@ -110,17 +124,45 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           ),
         ),
         Expanded(
-          child: ListView(
-            children: [
-              for (final g in groups.entries) ...[
-                _DayHeader(label: g.key),
-                for (final row in g.value) _HistoryTile(row: row),
-              ],
-            ],
-          ),
+          child: grouped
+              ? ListView(
+                  children: [
+                    for (final g in entryGroups.entries) ...[
+                      _DayHeader(label: g.key),
+                      for (final e in g.value)
+                        _GroupedHistoryTile(entry: e, onChanged: _reload),
+                    ],
+                  ],
+                )
+              : ListView(
+                  children: [
+                    for (final g in groups.entries) ...[
+                      _DayHeader(label: g.key),
+                      for (final row in g.value) _HistoryTile(row: row),
+                    ],
+                  ],
+                ),
         ),
       ],
     );
+  }
+
+  /// Day-bucketing for collapsed entries — same rules as [groupByDay],
+  /// keyed on each entry's latest read.
+  Map<String, List<HistorySeriesEntry>> _groupEntriesByDay(
+    List<HistorySeriesEntry> entries,
+    String Function(int diffDays, DateTime day) labelFor,
+  ) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final map = <String, List<HistorySeriesEntry>>{};
+    for (final e in entries) {
+      final local = DateTime.fromMillisecondsSinceEpoch(e.latest.readAt);
+      final day = DateTime(local.year, local.month, local.day);
+      final label = labelFor(today.difference(day).inDays, day);
+      (map[label] ??= []).add(e);
+    }
+    return map;
   }
 
   Future<void> _confirmClearAll(BuildContext context) async {
@@ -242,6 +284,89 @@ class _HistoryTile extends ConsumerWidget {
 
   Future<void> _reopen(BuildContext context, WidgetRef ref) async {
     final chapter = await ref.read(chaptersDaoProvider).byId(row.chapterId);
+    if (chapter == null || !context.mounted) return;
+    final settings = ref.read(settingsProvider);
+    await openReader(context,
+        chapter: chapter,
+        sourceId: chapter.sourceId,
+        seriesDao: ref.read(seriesDaoProvider),
+        modeOverride: effectiveModeOverride(
+            settings.get('reader_mode_${chapter.seriesId}', 'auto'),
+            settings.get('reader_mode_default', 'auto')));
+  }
+}
+
+/// Collapsed series row: title + chapter range ("ตอน 1-3") + latest-read
+/// time. Tap reopens the LAST-read chapter; long-press wipes the series'
+/// whole history.
+class _GroupedHistoryTile extends ConsumerWidget {
+  const _GroupedHistoryTile({required this.entry, this.onChanged});
+
+  final HistorySeriesEntry entry;
+  final VoidCallback? onChanged;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final row = entry.latest;
+    final local = DateTime.fromMillisecondsSinceEpoch(row.readAt);
+    final time = DateFormat('HH:mm', I18nService.lang).format(local);
+    final isNovel = row.type == 'novel';
+    final range = entry.singleChapter
+        ? formatChapterNumber(entry.maxNumber)
+        : '${formatChapterNumber(entry.minNumber)}-'
+            '${formatChapterNumber(entry.maxNumber)}';
+    return ListTile(
+      leading: _HistoryCover(row: row),
+      title: Text(row.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (row.originalTitle != null)
+            Text(row.originalTitle!,
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text(
+            '${t(context, 'history.chapter')} $range · $time',
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+        ],
+      ),
+      trailing: Icon(
+          isNovel ? Icons.menu_book_outlined : Icons.image_outlined,
+          size: 20,
+          color: Theme.of(context).colorScheme.onSurfaceVariant),
+      onLongPress: () => _deleteSeries(context, ref),
+      onTap: () => _reopen(context, ref),
+    );
+  }
+
+  Future<void> _deleteSeries(BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(t(context, 'history.delete_series')),
+        content: Text(entry.latest.title),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(t(context, 'common.cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(t(context, 'history.delete_go')),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await ref
+        .read(historyDaoProvider)
+        .deleteForSeries(entry.latest.seriesId);
+    onChanged?.call();
+  }
+
+  Future<void> _reopen(BuildContext context, WidgetRef ref) async {
+    final chapter =
+        await ref.read(chaptersDaoProvider).byId(entry.latest.chapterId);
     if (chapter == null || !context.mounted) return;
     final settings = ref.read(settingsProvider);
     await openReader(context,

@@ -40,12 +40,18 @@ class _FilterSheetBodyState extends ConsumerState<_FilterSheetBody> {
   Widget build(BuildContext context) {
     final filters = ref.watch(browseControllerProvider).filters;
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      child: ConstrainedBox(
+        // Never eat the whole screen — 70% cap, scroll inside (user QA
+        // 2026-10-18: a full-height sheet with many tags looked broken).
+        constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.7),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
             Row(
               children: [
                 Expanded(
@@ -157,7 +163,9 @@ class _FilterSheetBodyState extends ConsumerState<_FilterSheetBody> {
                 );
               },
             ),
-          ],
+              ],
+            ),
+          ),
         ),
       ),
     );

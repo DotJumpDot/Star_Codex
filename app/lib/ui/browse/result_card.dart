@@ -4,12 +4,16 @@ import '../../core/i18n/i18n.dart';
 import '../../core/utils/relative_time.dart';
 import '../../data/repo/browse_repo.dart';
 import '../../data/sources/source_api.dart';
+import 'age_colors.dart';
 import 'cover_thumb.dart';
 import 'source_palette.dart';
 
-/// One merged result card: bigger cover on the left with the site count
-/// and type chips layered over it, title + meta (chapters · last update)
-/// and per-site colored chips on the right, optional similar-group strip.
+/// One merged result card: bigger cover on the left (no overlay chips —
+/// the globe site-count and cover-corner type chips read as noise, user QA
+/// 2026-10-18), title + meta (chapters · aged-color last update), and on
+/// the right a chip row that ALWAYS leads with the colored type chip
+/// (มังงะ/มังฮวา/นิยาย each with its own color) followed by the per-site
+/// badges. Optional similar-group strip below.
 class ResultCard extends StatelessWidget {
   const ResultCard({
     super.key,
@@ -44,20 +48,17 @@ class ResultCard extends StatelessWidget {
     final theme = Theme.of(context);
     final primary = group.primary;
     final type = group.type ?? group.dbType;
+    final typeLabel = _typeLabel(context, type);
 
     String? updated;
-    final lastMs = group.dbLastUpdatedMs;
+    String updatedKey = '';
+    final lastMs = group.lastUpdatedMs;
     if (lastMs != null) {
       final parts =
           relativeParts(lastMs, nowMs: DateTime.now().millisecondsSinceEpoch);
+      updatedKey = parts.key;
       updated = tFmt(context, parts.key, parts.params);
     }
-
-    final meta = <String>[
-      if (group.chapterCount != null)
-        '${group.chapterCount} ${t(context, 'browse.chapters_suffix')}',
-      ?updated,
-    ].join(' · ');
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
@@ -73,11 +74,7 @@ class ResultCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _Cover(
-                    group: group,
-                    primary: primary,
-                    typeLabel: _typeLabel(context, type),
-                  ),
+                  _Cover(group: group, primary: primary),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -90,23 +87,41 @@ class ResultCard extends StatelessWidget {
                           style: theme.textTheme.titleMedium
                               ?.copyWith(fontWeight: FontWeight.w600),
                         ),
-                        if (meta.isNotEmpty) ...[
+                        if (group.chapterCount != null || updated != null) ...[
                           const SizedBox(height: 3),
-                          Text(
-                            meta,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant),
+                          Text.rich(
+                            TextSpan(children: [
+                              if (group.chapterCount != null)
+                                TextSpan(
+                                  text:
+                                      '${group.chapterCount} ${t(context, 'browse.chapters_suffix')}',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: theme.colorScheme.primary),
+                                ),
+                              if (group.chapterCount != null &&
+                                  updated != null)
+                                const TextSpan(text: ' · '),
+                              if (updated != null)
+                                TextSpan(
+                                  text: updated,
+                                  style: TextStyle(
+                                      color: relativeAgeColor(
+                                          theme.colorScheme, updatedKey)),
+                                ),
+                            ]),
+                            style: theme.textTheme.bodySmall,
                           ),
-                        ],
-                        if (group.dbStatus != null) ...[
-                          const SizedBox(height: 6),
-                          _StatusChip(status: group.dbStatus!),
                         ],
                         const SizedBox(height: 8),
                         Wrap(
                           spacing: 6,
                           runSpacing: 4,
                           children: [
+                            // Type chip always leads the row (user QA
+                            // 2026-10-18) — per-type color, one glance.
+                            if (typeLabel != null)
+                              _TypeChip(label: typeLabel, type: type),
                             for (final m in group.members)
                               _SourceBadge(
                                 label: _sourceName(m.sourceId),
@@ -140,17 +155,14 @@ class ResultCard extends StatelessWidget {
   }
 }
 
-/// Cover column: image with layered site-count + type chips.
+/// Cover column: the merged-group image with member fallbacks — no
+/// overlay chips (site count + corner type chip removed, user QA
+/// 2026-10-18: the type chip moved into the right-side chip row).
 class _Cover extends StatelessWidget {
-  const _Cover({
-    required this.group,
-    required this.primary,
-    required this.typeLabel,
-  });
+  const _Cover({required this.group, required this.primary});
 
   final SearchGroup group;
   final BrowseCandidate primary;
-  final String? typeLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -166,11 +178,8 @@ class _Cover extends StatelessWidget {
     return SizedBox(
       width: 92,
       height: 128,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (coverMembers.isNotEmpty)
-            CoverThumb(
+      child: coverMembers.isNotEmpty
+          ? CoverThumb(
               url: coverMembers.first.coverUrl!,
               referer: coverMembers.first.referer,
               fallbacks: [
@@ -179,73 +188,28 @@ class _Cover extends StatelessWidget {
               width: 92,
               height: 128,
             )
-          else
-            Container(
+          : Container(
               color: theme.colorScheme.surfaceContainerHighest,
               child: Icon(Icons.image_outlined,
                   size: 24, color: theme.colorScheme.outline),
             ),
-          Positioned(
-            top: 4,
-            left: 4,
-            child: _OverlayChip(
-              icon: Icons.public,
-              label: '${group.members.length}',
-            ),
-          ),
-          if (typeLabel != null)
-            Positioned(
-              bottom: 4,
-              left: 4,
-              child: _OverlayChip(label: typeLabel!),
-            ),
-        ],
-      ),
     );
   }
 }
 
-class _OverlayChip extends StatelessWidget {
-  const _OverlayChip({this.icon, required this.label});
+/// Lead chip of the result-card row: type with a per-type color
+/// (มังงะ sky / มังฮวา violet / นิยาย emerald) so the type reads at a
+/// glance without hunting for it on the cover.
+class _TypeChip extends StatelessWidget {
+  const _TypeChip({required this.label, required this.type});
 
-  final IconData? icon;
   final String label;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.65),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 11, color: Colors.white),
-              const SizedBox(width: 3),
-            ],
-            Text(
-              label,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600),
-            ),
-          ],
-        ),
-      );
-}
-
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.status});
-
-  final String status;
+  final String? type;
 
   @override
   Widget build(BuildContext context) {
-    final ongoing = status == 'ongoing';
-    final color = ongoing ? const Color(0xFF43A047) : Colors.blueGrey;
+    final color = typeChipColor(type) ??
+        Theme.of(context).colorScheme.onSurfaceVariant;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
@@ -254,9 +218,9 @@ class _StatusChip extends StatelessWidget {
         border: Border.all(color: color.withValues(alpha: 0.55)),
       ),
       child: Text(
-        t(context, 'browse.status.$status'),
+        label,
         style: TextStyle(
-            color: color, fontSize: 11, fontWeight: FontWeight.w600),
+            color: color, fontSize: 11, fontWeight: FontWeight.w700),
       ),
     );
   }

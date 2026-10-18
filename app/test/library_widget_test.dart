@@ -56,18 +56,23 @@ Future<void> main() async {
     // New-chapter badge on the series with an unread fresh chapter.
     expect(find.text('1 ตอนใหม่'), findsOneWidget);
 
-    // Smart tab นิยาย shows ONLY the novel.
-    await tester.tap(find.text('นิยาย'));
-    for (var i = 0; i < 2; i++) {
-      await tester.pump();
-    }
+    // Smart tab นิยาย via the category dropdown (the sliding chip row is
+    // gone — user QA 2026-10-18). pumpAndSettle is safe here: only the
+    // LibraryScreen is mounted and its load already drained.
+    await tester.tap(find.byIcon(Icons.category_outlined));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('นิยาย')); // sheet row
+    await tester.pumpAndSettle();
     expect(find.text('นิยายสายดาร์ก'), findsOneWidget);
     expect(find.text('นาโน แมชชีน'), findsNothing);
 
     // Back to ทั้งหมด, then long-press → multi-select (both, then merge
     // button appears at 2+).
-    await tester.tap(find.text('ทั้งหมด').first);
-    await tester.pump();
+    await tester.tap(find.byIcon(Icons.category_outlined));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('ทั้งหมด').last); // sheet row (the closed
+    // dropdown button also shows ทั้งหมด — .last is the sheet's copy)
+    await tester.pumpAndSettle();
     await tester.longPress(find.text('นิยายสายดาร์ก'));
     await tester.pump();
     expect(find.text('เลือกไว้ 1 เรื่อง'), findsOneWidget);

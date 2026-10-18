@@ -48,6 +48,7 @@ class SourceSeries {
     this.coverUrl,
     this.chapterCountHint,
     this.type,
+    this.lastUpdatedMs,
   });
 
   final String url;
@@ -55,6 +56,11 @@ class SourceSeries {
   final String? coverUrl;
   final int? chapterCountHint;
   final String? type; // 'manga'|'manhwa'|'manhua'|null (from tile badge)
+
+  /// Epoch ms of the newest known chapter WHEN the listing itself carries
+  /// it (nekopost API does; Madara/bully tiles don't). The browse card
+  /// prefers the DB-enriched stamp and falls back to this.
+  final int? lastUpdatedMs;
 }
 
 class SourceSeriesDetail {

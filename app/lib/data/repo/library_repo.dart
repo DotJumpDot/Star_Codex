@@ -47,7 +47,7 @@ class LibraryRepo {
   /// of series, so assembling cards in Dart beats one mega-SQL.
   Future<List<LibraryCard>> load() async {
     final rows = await seriesDao.db.rawQuery('''
-      SELECT l.series_id, l.added_at, l.last_read_at,
+      SELECT l.series_id, l.added_at, l.last_read_at, l.last_seen_at,
              s.title, s.original_title, s.cover_hash, s.type
       FROM library l JOIN series s ON s.id = l.series_id
       ORDER BY l.added_at DESC
@@ -72,8 +72,18 @@ class LibraryRepo {
     }
     // Doc-13 badge rule, deduped by NUMBER: mirrors carry the same new
     // chapter and "2 ตอนใหม่" must mean two new chapters, not two copies.
+    // Threshold is max(last_read_at, last_seen_at) (db v4): reading a
+    // chapter OR visiting the detail page clears the chip — only chapters
+    // uploaded after BOTH re-arm it. last_seen_at 0 = pre-v4 row that was
+    // never visited (treat like NULL so the migration doesn't flood every
+    // card with one-time "new" badges).
     final lastReadById = {
-      for (final r in rows) r['series_id'] as int: r['last_read_at'] as int?,
+      for (final r in rows)
+        r['series_id'] as int: _maxOf(
+            r['last_read_at'] as int?,
+            (r['last_seen_at'] as int?) == 0
+                ? null
+                : r['last_seen_at'] as int?),
     };
     final newNumbers = <int, Set<double>>{};
     for (final r in await seriesDao.db.rawQuery(

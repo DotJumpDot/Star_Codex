@@ -60,12 +60,14 @@ void main() {
     expect(byId['bully-manga']!['adapter'], 'bully');
   });
 
-  test('v1→v3 migration adds the new sources + quota default fix', () async {
+  test('v1→v4 migration adds the new sources + quota default fix', () async {
     await openTestDb(); // init sqflite ffi for direct file opens
     final dbPath =
         p.join(Directory.systemTemp.createTempSync('sc_mig').path, 'mig.db');
-    // Build a pretend-v1 install: fresh v3 DB rolled back to version 1,
-    // with the v1-era rows (5 sources, 100 GB quota default).
+    // Build a pretend-v1 install: fresh current-version DB rolled back to
+    // version 1, with the v1-era rows (5 sources, 100 GB quota default)
+    // and the v1-era library table (no last_seen_at — the v4 ALTER must
+    // be the one adding it, and SQLite refuses a duplicate column).
     final v1 = await openDb(
         path: dbPath, factory: databaseFactoryFfi, singleInstance: false);
     await v1.delete('sources',
@@ -73,10 +75,18 @@ void main() {
     await v1.execute(
         "UPDATE settings SET value = '107374182400' "
         "WHERE key = 'total_quota_bytes'");
+    await v1.execute('DROP TABLE library');
+    await v1.execute('''
+      CREATE TABLE library(
+        series_id           INTEGER PRIMARY KEY REFERENCES series(id) ON DELETE CASCADE,
+        added_at            INTEGER NOT NULL,
+        last_read_at        INTEGER,
+        last_read_chapter_id INTEGER REFERENCES chapters(id) ON DELETE SET NULL
+      )''');
     await v1.setVersion(1);
     await v1.close();
 
-    // Reopen at the current version → onUpgrade chains case 1 → case 2.
+    // Reopen at the current version → onUpgrade chains case 1 → 2 → 3.
     final db = await openDb(
         path: dbPath, factory: databaseFactoryFfi, singleInstance: false);
     final rows = await db.query('sources');
@@ -85,6 +95,11 @@ void main() {
     final quota =
         await db.query('settings', where: "key = 'total_quota_bytes'");
     expect(quota.first['value'], '21474836480');
+    final libCols = await db.rawQuery('PRAGMA table_info(library)');
+    expect(
+        libCols.where((c) => c['name'] == 'last_seen_at'),
+        isNotEmpty,
+        reason: 'v4 adds the last_seen_at visit stamp for the New chip');
     await db.close();
   });
 

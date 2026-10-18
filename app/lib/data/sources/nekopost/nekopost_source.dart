@@ -141,20 +141,40 @@ class NekopostSource implements Source {
             title: raw['projectName'] as String? ?? '',
             coverUrl:
                 _coverUrl((raw['pid'] as num).toInt(), raw['coverVersion']),
+            // listChapter rows are newest-chapter records: chapterNo is a
+            // STRING ("37") and releaseDate the chapter's ISO stamp —
+            // without these the latest feed showed neither count nor
+            // update time (user QA 2026-10-18).
+            chapterCountHint:
+                parseChapterNumber(raw['chapterNo'] as String? ?? '')?.toInt(),
+            lastUpdatedMs: _isoToMs(raw['releaseDate'] as String?),
             type: _typeFor(raw['projectType']),
           ),
     ];
+  }
+
+  /// ISO stamps arrive as "2026-10-18T14:10:40Z" or "…+07:00" — both
+  /// parse with DateTime.parse. Null for absent/invalid values.
+  static int? _isoToMs(String? iso) {
+    if (iso == null || iso.isEmpty) return null;
+    return DateTime.tryParse(iso)?.millisecondsSinceEpoch;
   }
 
   String _projectUrl(int pid) => 'nekopost:project:$pid';
 
   SourceSeries _seriesFromSummary(Map<String, Object?> raw) {
     final pid = (raw['pid'] as num).toInt();
+    // updateDate is a sql-null struct: {"String": "...", "Valid": true}.
+    final upd = raw['updateDate'];
+    final updMs = upd is Map<String, Object?>
+        ? _isoToMs(upd['String'] as String?)
+        : null;
     return SourceSeries(
       url: _projectUrl(pid),
       title: raw['projectName'] as String? ?? '',
       coverUrl: _coverUrl(pid, raw['coverVersion']),
       chapterCountHint: (raw['noChapter'] as num?)?.toInt(),
+      lastUpdatedMs: updMs,
       type: _typeFor(raw['projectType']),
     );
   }
@@ -222,11 +242,6 @@ class NekopostSource implements Source {
       number: number,
       uploadedAt: published == null ? null : _isoToMs(published),
     );
-  }
-
-  static int? _isoToMs(String iso) {
-    final dt = DateTime.tryParse(iso);
-    return dt?.toUtc().millisecondsSinceEpoch;
   }
 
   (int, int) _chapterIds(String chapterUrl) {
