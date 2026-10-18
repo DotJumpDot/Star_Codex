@@ -206,7 +206,10 @@ SourceSeriesDetail? parseBullyDetail(
     try {
       final ld = jsonDecode(ldRaw.group(1)!) as Map<String, dynamic>;
       title = (ld['name'] as String?)?.trim();
-      description = (ld['description'] as String?)?.trim();
+      // The site embeds literal markdown bold markers — strip them.
+      description = (ld['description'] as String?)
+          ?.trim()
+          .replaceAll('**', '');
       cover = _cleanUrl(ld['image'] as String?, baseUrl);
     } on Exception {
       // fall through to DOM fallbacks below

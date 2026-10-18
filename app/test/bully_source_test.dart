@@ -79,7 +79,9 @@ Future<void> main() async {
       expect(d.title, 'Chainsaw Man');
       expect(d.coverUrl,
           'https://bully-manga.com/img/facecat/chainsaw-man-cover.jpg');
+      // The site embeds literal markdown bold markers — stripped.
       expect(d.description, isNotNull);
+      expect(d.description, isNot(contains('**')));
       expect(d.tags, containsAll(['ต่อสู้', 'ดราม่า', 'แฟนตาซี']));
       expect(d.status, 'ongoing'); // "On Going" badge
       expect(d.type, 'manga'); // sh-badge-type "MANGA"
