@@ -116,3 +116,5 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   168), release journey + RAM 109 MB (indicative), low-impact emulator
   boot tooling. All phase 4-11 DoDs verified on emulator; verdicts in
   Docs/QA-ON-DEVICE.md.
+- 2026-10-18 - v1.0.0 released: proper release-signing keystore baseline
+  (cert CN=Star Codex, stored outside repo) + first GitHub Release APK.

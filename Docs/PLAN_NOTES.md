@@ -544,3 +544,24 @@ referer pairing, novel estimate. 165 tests green.
   script. While an ANR dialog is wedged, `adb shell am broadcast -a
   android.intent.action.CLOSE_SYSTEM_DIALOGS` dismisses it without
   needing SystemUI's input pipeline.
+
+## Release signing (v1.0.0 baseline, 2026-10-18)
+
+- Release APKs are now signed with a dedicated keystore: certificate
+  "CN=Star Codex, OU=Personal, O=DotJumpDot, C=TH", cert SHA-256
+  c2e2b7ac4eff2f82f06731654e9af04ad9bd1f2329f3bd548637f9d552a0228b.
+  Keystore + password live OUTSIDE the repo at
+  %USERPROFILE%\.android\star-codex-release.jks and
+  star-codex-key.properties (never committed; build.gradle.kts reads the
+  properties via USERPROFILE and falls back to debug signing when the
+  file is absent, so clean checkouts still build). .properties files:
+  use FORWARD slashes in storeFile - java.util.Properties eats single
+  backslashes as escapes (gradle then resolves a mangled relative path).
+- BACK UP the keystore + key.properties (password manager + a copy off
+  this machine). Losing it = every future release can no longer update
+  over installed v1.0.0+ devices.
+- Devices that had debug-signed test builds must uninstall first
+  (signature mismatch).
+- Releases go to GitHub Releases via gh (GH_TOKEN from git credential
+  manager). Old releases are never auto-deleted; the "Latest" label just
+  moves.
