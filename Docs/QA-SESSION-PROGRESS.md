@@ -289,7 +289,9 @@ instead.
 
 0. **Boot the AVD** headless: `emulator -avd StarCodex -no-window
    -no-snapshot -gpu swiftshader_indirect -no-boot-anim -memory 3072`;
-   wait boot; `adb devices` sanity.
+   wait boot; `adb devices` sanity. If the host is busy (user gaming),
+   use `scripts\boot-emu-low.bat` instead (2-thread cap + BelowNormal,
+   guest RAM 2048 — boots in 10–20 min, that is expected).
 1. `adb shell cmd connectivity airplane-mode` → expect **Off** (disable if
    ON) — the interrupted airplane test may have left it enabled in userdata.
 2. `flutter analyze` → expect 0 (kDebugMode import fixed); re-run tests if

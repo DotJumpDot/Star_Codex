@@ -74,6 +74,10 @@ Also append one line to [`CHANGELOG.md`](CHANGELOG.md) per phase.
   -no-boot-anim -memory 3072`. Drive UI via adb (`input tap/swipe`,
   `uiautomator dump`, `screencap`) — this is the project's "Playwright":
   screenshot + inspect before declaring UI work done.
+- When the host is busy (user gaming etc.), boot via
+  `scripts\boot-emu-low.bat [ramMB]` instead: guest RAM default 2048,
+  QEMU pinned to the top 2 threads + BelowNormal priority, GPU untouched.
+  Boot takes 10–20 min in that mode — that is expected, not a hang.
 - Phone-in-hand remains the judge for performance DoDs (timing, RAM).
 
 ## Patch-tooling gotchas (learned the hard way — Phases 5-11)
