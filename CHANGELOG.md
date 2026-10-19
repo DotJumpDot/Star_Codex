@@ -153,6 +153,12 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-19 — Release: v1.2.1 — version 1.2.1+5. Reader polish over
+  v1.2.0: harder pull-to-continue with a live percentage that tracks
+  sliding back, no black frame on page-by-page turns, and the webtoon
+  scroll-up stuck/jump fix (anchored height corrections). Release-signed
+  APK (StarCodex-1.2.1.apk) on GitHub Releases with English notes +
+  SHA-256.
 - 2026-10-19 — Webtoon scroll-up jank fixed (user report): scrolling up
   got stuck/jumpy because never-displayed pages above the viewport still
   held 1.9× height estimates; when scrolling back rebuilt them, their
