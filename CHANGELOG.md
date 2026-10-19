@@ -153,6 +153,15 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-20 — Site-sheet bottom clipping fixed (user report + visual
+  QA on emulator): my 12 px list padding pushed the sheet's Column past
+  the default bottom-sheet height budget — Flutter painted a
+  "BOTTOM OVERFLOWED BY 12 PIXELS" band with the last row (Bully Manga)
+  inside it, invisible and untappable. The sheet now opens
+  isScrollControlled with a 0.75-screen max-height contract (same as the
+  filter sheet), so headers + scrollable row list always fit; verified
+  on the emulator that Bully renders fully, toggles (globe badge), and
+  the filter resets cleanly. 206 tests green.
 - 2026-10-19 — Release: v1.2.1 — version 1.2.1+5. Reader polish over
   v1.2.0: harder pull-to-continue with a live percentage that tracks
   sliding back, no black frame on page-by-page turns, and the webtoon

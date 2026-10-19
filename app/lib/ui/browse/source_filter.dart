@@ -55,13 +55,22 @@ class SourceFilterButton extends StatelessWidget {
     return showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      builder: (sheetContext) => _SourceSheet(
-        sources: sources,
-        initialSelected: selectedIds,
-        failedIds: failedIds,
-        onToggle: onToggle,
-        onAll: onAll,
-        onGenre: onGenre,
+      // The one-row-per-site list is tall: let the sheet size itself and
+      // cap it here (same contract as the filter sheet). The default
+      // non-scroll-controlled sheet clipped the last row instead.
+      isScrollControlled: true,
+      builder: (sheetContext) => ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.75,
+        ),
+        child: _SourceSheet(
+          sources: sources,
+          initialSelected: selectedIds,
+          failedIds: failedIds,
+          onToggle: onToggle,
+          onAll: onAll,
+          onGenre: onGenre,
+        ),
       ),
     );
   }
