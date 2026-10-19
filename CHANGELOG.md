@@ -153,6 +153,11 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-20 — Release: v1.2.2 — version 1.2.2+6. Ships everything
+  since v1.2.1: the site-sheet clipping fix (Bully Manga row visible
+  and tappable again), the user-made Star Codex logo as the app icon +
+  README header, and the browse sort orders (latest/oldest update,
+  most/fewest chapters — latest update by default). 211 tests green.
 - 2026-10-20 — Browse sort orders (user request): the filter sheet gains
   a เรียงลำดับ section — อัปเดตล่าสุด (default), อัปเดตเก่าสุด,
   ตอนมากสุด, ตอนน้อยสุด. The sort is stable (Dart's List.sort isn't)
