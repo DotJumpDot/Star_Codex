@@ -23,3 +23,31 @@ Color? typeChipColor(String? type) => switch (type) {
       'novel' => const Color(0xFF34D399), // emerald
       _ => null,
     };
+
+/// The colored type pill (result cards, site-sheet rows): tinted fill +
+/// border in the type's color so the type reads at a glance.
+class TypeChip extends StatelessWidget {
+  const TypeChip({super.key, required this.label, required this.type});
+
+  final String label;
+  final String? type;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = typeChipColor(type) ??
+        Theme.of(context).colorScheme.onSurfaceVariant;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.55)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+            color: color, fontSize: 11, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+}

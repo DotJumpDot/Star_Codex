@@ -153,6 +153,17 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-19 — Site-sheet + OLED themes (user feedback round 4): the
+  "เว็บที่จะค้นหา" site selector is now one full-width row per site —
+  selection circle on the left, colored identity dot + name, small
+  mostly-carries type pills on the right (nekopost มังงะ+นิยาย,
+  aggregators มังงะ/มังฮวา/มังฮวาจีน, one-shots มังงะ) — toggling only
+  flips the circle so rows never resize (the old wrapped chips jumped
+  around on select); list scrolls, capped at half the screen; long-press
+  → genre browser kept. Theme picker gained an OLED family: Stardust
+  Black's true-#000 background with white/red/orange/pink/green accents
+  (reader surface stays black too). The type pill moved to a shared
+  TypeChip (result cards + sheet rows). 205 tests green.
 - 2026-10-19 — Doujin QA fix round (user emulator report): hentaithai
   never rendered because its REAL pages embed Cloudflare's benign
   challenge-platform JS-detect snippet and the challenge sniff

@@ -4,14 +4,16 @@ import 'package:flutter/material.dart';
 
 import '../../core/i18n/i18n.dart';
 import '../../data/sources/source_api.dart';
+import 'age_colors.dart';
 import 'genre_browser.dart';
 import 'source_palette.dart';
 
 /// Per-site filter (Plan/08 §2) — a compact app-bar button opening a
-/// bottom sheet of wrapped toggle chips, replacing the old horizontal
-/// chip row that had to be scrolled and hunting-tapped. Empty selection
-/// means every site. Long-press a site for its genre browser. Chips
-/// toggle live in LOCAL state; the feed is updated on a short debounce
+/// bottom sheet listing one site per line (selection circle left, colored
+/// dot + name, mostly-carries type pills right), replacing the old
+/// horizontal chip row that had to be scrolled and hunting-tapped. Empty
+/// selection means every site. Long-press a site for its genre browser.
+/// Rows toggle live in LOCAL state; the feed is updated on a short debounce
 /// (rapid multi-select = ONE refetch, not a storm) and flushed when the
 /// sheet closes via the Done button or an outside tap.
 class SourceFilterButton extends StatelessWidget {
@@ -153,34 +155,45 @@ class _SourceSheetState extends State<_SourceSheet> {
                   color: Theme.of(context).colorScheme.outline),
             ),
             const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ChoiceChip(
-                  label: Text(t(context, 'browse.sources_all')),
-                  selected: _selected.isEmpty,
-                  onSelected: (_) {
-                    setState(() => _selected.clear());
-                    _queue(widget.onAll);
-                  },
+            Align(
+              alignment: Alignment.centerLeft,
+              child: ChoiceChip(
+                label: Text(t(context, 'browse.sources_all')),
+                selected: _selected.isEmpty,
+                onSelected: (_) {
+                  setState(() => _selected.clear());
+                  _queue(widget.onAll);
+                },
+              ),
+            ),
+            const SizedBox(height: 4),
+            // One site per line, capped at half the screen (user QA
+            // 2026-10-19) — rows never resize, the list scrolls instead.
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(context).height * 0.5),
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    for (var i = 0; i < widget.sources.length; i++)
+                      _SiteRow(
+                        source: widget.sources[i],
+                        color: sourceDotColor(i),
+                        selected: _selected.contains(widget.sources[i].id),
+                        failed:
+                            widget.failedIds.contains(widget.sources[i].id),
+                        onToggle: () => setState(() {
+                          final id = widget.sources[i].id;
+                          if (!_selected.remove(id)) {
+                            _selected.add(id);
+                          }
+                          _queue(() => widget.onToggle(id));
+                        }),
+                        onGenre: widget.onGenre,
+                      ),
+                  ],
                 ),
-                for (var i = 0; i < widget.sources.length; i++)
-                  _SiteChip(
-                    source: widget.sources[i],
-                    color: sourceDotColor(i),
-                    selected: _selected.contains(widget.sources[i].id),
-                    failed: widget.failedIds.contains(widget.sources[i].id),
-                    onToggle: () => setState(() {
-                      final id = widget.sources[i].id;
-                      if (!_selected.remove(id)) {
-                        _selected.add(id);
-                      }
-                      _queue(() => widget.onToggle(id));
-                    }),
-                    onGenre: widget.onGenre,
-                  ),
-              ],
+              ),
             ),
           ],
         ),
@@ -189,8 +202,13 @@ class _SourceSheetState extends State<_SourceSheet> {
   }
 }
 
-class _SiteChip extends StatelessWidget {
-  const _SiteChip({
+/// One site per line (user QA 2026-10-19): selection circle on the LEFT,
+/// colored identity dot + name, small what-the-site-carries type pills on
+/// the right. The row is always full width — toggling only flips the
+/// leading circle, so nothing shifts or resizes (the old Wrap chips jumped
+/// around on select). Long-press still opens the genre browser.
+class _SiteRow extends StatelessWidget {
+  const _SiteRow({
     required this.source,
     required this.color,
     required this.selected,
@@ -208,6 +226,7 @@ class _SiteChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final types = sourceContentTypes[source.id] ?? const <String>[];
     return GestureDetector(
       onLongPress: () async {
         final term = await Navigator.of(context).push<String>(
@@ -218,22 +237,74 @@ class _SiteChip extends StatelessWidget {
           onGenre(source, term);
         }
       },
-      child: FilterChip(
-        selected: selected,
-        onSelected: (_) => onToggle(),
-        label: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SourceDot(color: color, size: 8),
-            const SizedBox(width: 6),
-            Text(source.name),
-            if (failed) ...[
-              const SizedBox(width: 4),
-              const Icon(Icons.error, size: 13, color: Colors.redAccent),
+      child: InkWell(
+        onTap: onToggle,
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          child: Row(
+            children: [
+              _SelectDot(
+                  selected: selected,
+                  color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 10),
+              SourceDot(color: color, size: 10),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  source.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+              ),
+              if (failed) ...[
+                const SizedBox(width: 4),
+                const Icon(Icons.error, size: 14, color: Colors.redAccent),
+              ],
+              const SizedBox(width: 6),
+              for (final type in types)
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: TypeChip(
+                    label: t(context, 'browse.type_short.$type'),
+                    type: type,
+                  ),
+                ),
             ],
-          ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+/// Fixed-size selection circle — the ONLY part of the row that changes on
+/// toggle, so widths stay put.
+class _SelectDot extends StatelessWidget {
+  const _SelectDot({required this.selected, required this.color});
+
+  final bool selected;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      width: 22,
+      height: 22,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: selected ? color : Colors.transparent,
+        border: Border.all(
+          color: selected ? color : color.withValues(alpha: 0.5),
+          width: 2,
+        ),
+      ),
+      child: selected
+          ? Icon(Icons.check,
+              size: 15, color: Theme.of(context).colorScheme.onPrimary)
+          : null,
     );
   }
 }

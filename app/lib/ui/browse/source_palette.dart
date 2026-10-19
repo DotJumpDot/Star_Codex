@@ -15,6 +15,23 @@ const _palette = <Color>[
 
 Color sourceDotColor(int index) => _palette[index % _palette.length];
 
+/// What each site MOSTLY carries — display-only badges for the site
+/// sheet's right-hand side (user QA 2026-10-19), not a filter; sources can
+/// carry more than listed. Nekopost is the only novel carrier.
+const sourceContentTypes = <String, List<String>>{
+  'nekopost': ['manga', 'novel'],
+  'slow-manga': ['manga', 'manhwa', 'manhua'],
+  'go-manga': ['manga', 'manhwa', 'manhua'],
+  'up-manga': ['manga', 'manhwa', 'manhua'],
+  'dark-manga': ['manga', 'manhwa', 'manhua'],
+  'fin-manga': ['manga', 'manhwa', 'manhua'],
+  'bully-manga': ['manga', 'manhwa'],
+  'ntr-manga': ['manga'],
+  'doujin-lc': ['manga', 'manhwa'],
+  'hentaithai': ['manga'],
+  'miku-doujin': ['manga'],
+};
+
 /// The little colored identity dot used on browse badges, detail source
 /// rows and per-chapter source chips (doc 09 addendum).
 class SourceDot extends StatelessWidget {

@@ -41,6 +41,20 @@ const starThemes = <StarThemeSpec>[
       Color(0xFF121318)),
   StarThemeSpec('stardust_black', 'Stardust Black', Brightness.dark,
       stardust, Color(0xFF000000)),
+  // OLED family (user request 2026-10-19): Stardust Black's fully-black
+  // background with more accent colors. True #000 saves AMOLED pixels and
+  // makes the accent the only lit element; the reader surface stays black
+  // too (the default 0xFF26262B would glow against the scaffold).
+  StarThemeSpec('oled_white', 'OLED White', Brightness.dark,
+      Color(0xFFF5F5F5), Color(0xFF000000), surface: Color(0xFF000000)),
+  StarThemeSpec('oled_red', 'OLED Red', Brightness.dark, Color(0xFFFF453A),
+      Color(0xFF000000), surface: Color(0xFF000000)),
+  StarThemeSpec('oled_orange', 'OLED Orange', Brightness.dark,
+      Color(0xFFFF9F0A), Color(0xFF000000), surface: Color(0xFF000000)),
+  StarThemeSpec('oled_pink', 'OLED Pink', Brightness.dark, Color(0xFFFF375F),
+      Color(0xFF000000), surface: Color(0xFF000000)),
+  StarThemeSpec('oled_green', 'OLED Green', Brightness.dark,
+      Color(0xFF32D74B), Color(0xFF000000), surface: Color(0xFF000000)),
   StarThemeSpec('monokai', 'Monokai', Brightness.dark, Color(0xFFA6E22E),
       Color(0xFF272822), secondary: Color(0xFFF92672)),
   StarThemeSpec('monokai_night', 'Monokai Night', Brightness.dark,

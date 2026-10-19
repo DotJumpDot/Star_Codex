@@ -121,7 +121,7 @@ class ResultCard extends StatelessWidget {
                             // Type chip always leads the row (user QA
                             // 2026-10-18) — per-type color, one glance.
                             if (typeLabel != null)
-                              _TypeChip(label: typeLabel, type: type),
+                              TypeChip(label: typeLabel, type: type),
                             // One badge per SITE even when a source
                             // returned the series at two URLs (a merged
                             // card showed "Bully Manga" twice).
@@ -209,35 +209,6 @@ class _Cover extends StatelessWidget {
       );
     }
     return SizedBox(width: 92, height: 128, child: cover);
-  }
-}
-
-/// Lead chip of the result-card row: type with a per-type color
-/// (มังงะ sky / มังฮวา violet / นิยาย emerald) so the type reads at a
-/// glance without hunting for it on the cover.
-class _TypeChip extends StatelessWidget {
-  const _TypeChip({required this.label, required this.type});
-
-  final String label;
-  final String? type;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = typeChipColor(type) ??
-        Theme.of(context).colorScheme.onSurfaceVariant;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.55)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-            color: color, fontSize: 11, fontWeight: FontWeight.w700),
-      ),
-    );
   }
 }
 

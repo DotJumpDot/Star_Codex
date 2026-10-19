@@ -781,3 +781,19 @@ referer pairing, novel estimate. 165 tests green.
   together. NTR-manga listing tiles carry NO date markup at all (only
   chapter + rating); card dates come exclusively from background
   materialization (budget raised 8→12), so they fill a few per refresh.
+
+## 2026-10-19 — Site-sheet rows + OLED theme family
+
+- **Site sheet = one row per site** (source_filter.dart): leading
+  `_SelectDot` (the ONLY thing that changes on toggle — rows are
+  full-width and never resize), `SourceDot` identity color, name, then
+  display-only type pills from `sourceContentTypes` (source_palette.dart
+  — a hint map, NOT a filter; sources can carry more). Labels use
+  `browse.type_short.*` (the compact มังงะ/นิยาย family — `browse.type.*`
+  is the long "มังงะญี่ปุ่น" set used by the filter sheet). List capped
+  at 50% screen height with its own scroll; long-press → genre browser
+  unchanged; debounce/Done/drop-on-dispose unchanged.
+- **OLED themes** (`oled_white|red|orange|pink|green` in starThemes):
+  accent + true #000 bg AND `surface: #000000` — the StarThemeSpec
+  default surface (0xFF26262B) is the READER background and would glow
+  grey against an OLED scaffold; always override it for black themes.
