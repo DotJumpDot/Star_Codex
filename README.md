@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png" width="110" alt="Star Codex logo" />
+<img src="Picture/star_codex_logo.png" width="150" alt="Star Codex logo" />
 
 # Star Codex
 
@@ -157,6 +157,7 @@ Star_Codex/
 │   ├── Plan/          the complete 16-document build plan
 │   ├── ARCHITECTURE.md / BUILD.md / HOW_TO_RUN.md / PLAN_NOTES.md
 │   └── HANDOFF.md     session-to-session state
+├── Picture/           the Star Codex logo (banner + icon sources)
 ├── scripts/           emulator boot helpers for low-load situations
 ├── AGENTS.md          operating instructions for AI coding agents
 └── CHANGELOG.md       one line per completed batch, newest last

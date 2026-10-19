@@ -153,6 +153,15 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-20 — App icon + README use the user-made Star Codex logo:
+  README header shows the banner lockup; the launcher ships a
+  rounded-square tile (no circle, no sharp corners) built by radially
+  extending the emblem disc's own edge colors into the padding — no
+  background-color seam (a flat sampled color had mismatched the logo's
+  gradient, user caught it). Adaptive icon (API 26+) with the emblem at
+  60% of the canvas — inside every launcher's safe zone, so no mask
+  shape ever crops the wordmark (verified on the emulator's circle-mask
+  launcher). Picture/ holds the banner, tile and emblem sources.
 - 2026-10-20 — Site-sheet bottom clipping fixed (user report + visual
   QA on emulator): my 12 px list padding pushed the sheet's Column past
   the default bottom-sheet height budget — Flutter painted a
