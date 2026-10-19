@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
 import '../../data/repo/browse_repo.dart';
+import '../../data/sources/source_registry.dart';
 
 enum BrowseMode { latest, search, genre }
 
@@ -84,9 +85,34 @@ class BrowseState {
 /// Browse tab state machine (Plan/08): latest feed ⇄ merged search ⇄
 /// single-source genre view, with session-only filters and per-site chips.
 class BrowseController extends StateNotifier<BrowseState> {
-  BrowseController(this._repo) : super(const BrowseState());
+  BrowseController(this._repo, {Set<String>? allowedSourceIds})
+      : _allowedSourceIds = allowedSourceIds, // ignore: prefer_initializing_formals
+        super(const BrowseState());
 
   final BrowseRepo _repo;
+
+  /// Optional universe for scoped controllers (the adult page): the feed
+  /// and the site sheet only ever see these sources. Null = all.
+  final Set<String>? _allowedSourceIds;
+
+  /// Monotonic fetch sequence — every `_fetch` invalidates all earlier
+  /// in-flight ones. Without this, quickly toggling site filters let an
+  /// OLDER fetch finish last and overwrite the feed with results for a
+  /// filter the user had already changed away from (on-device bug report
+  /// 2026-10-19: "select bully, tap Done, feed flips back to slow-manga").
+  int _fetchSeq = 0;
+
+  /// Sources this controller may query: its allowed universe intersected
+  /// with the active per-site selection (empty selection = all allowed).
+  /// An out-of-scope-only selection must never fall back to "all" (the
+  /// repo treats an empty set as no filter) — the sentinel queries nothing.
+  Set<String> get _effectiveSourceIds {
+    final allowed = _allowedSourceIds;
+    if (allowed == null) return state.activeSourceIds;
+    if (state.activeSourceIds.isEmpty) return allowed;
+    final scoped = state.activeSourceIds.where(allowed.contains).toSet();
+    return scoped.isEmpty ? const {'__no_source__'} : scoped;
+  }
 
   /// First tab shown — load the latest feed once.
   Future<void> ensureLoaded() async {
@@ -218,9 +244,15 @@ class BrowseController extends StateNotifier<BrowseState> {
   Future<void> loadMore() async {
     if (state.loading || state.loadingMore || state.endReached) return;
     state = state.copyWith(loadingMore: true);
+    final seq = ++_fetchSeq;
     final next = state.page + 1;
     try {
       final batch = await _fetch(next);
+      if (seq != _fetchSeq) {
+        // A filter/mode change superseded this page — it owns the feed.
+        state = state.copyWith(loadingMore: false);
+        return;
+      }
       final groups = mergeGroupLists(state.groups, batch.groups);
       final failed = {...state.failedSources};
       failed.addAll(batch.failures.map((f) => f.sourceId));
@@ -239,12 +271,15 @@ class BrowseController extends StateNotifier<BrowseState> {
   }
 
   Future<void> _replace({required int page}) async {
+    final seq = ++_fetchSeq;
     try {
       final result = await _fetch(page);
+      if (seq != _fetchSeq) return; // superseded — a newer fetch owns state
       state = state.copyWith(
         groups: result.groups,
         failedSources: {for (final f in result.failures) f.sourceId},
         loading: false,
+        loadingMore: false,
         page: page,
         endReached: result.groups.isEmpty,
       );
@@ -252,6 +287,7 @@ class BrowseController extends StateNotifier<BrowseState> {
     } catch (_) {
       // Per-source errors never reach here (guarded in the repo); a total
       // failure (no sources at all) shows the empty state.
+      if (seq != _fetchSeq) return;
       state = state.copyWith(loading: false, endReached: true);
     }
   }
@@ -283,10 +319,10 @@ class BrowseController extends StateNotifier<BrowseState> {
   }
 
   Future<BrowsePage> _fetch(int page) {
+    final only = _effectiveSourceIds;
     switch (state.mode) {
       case BrowseMode.search:
-        return _repo.search(state.query,
-            onlySourceIds: state.activeSourceIds, page: page);
+        return _repo.search(state.query, onlySourceIds: only, page: page);
       case BrowseMode.genre:
         final source = state.genreSourceId == null
             ? null
@@ -297,11 +333,25 @@ class BrowseController extends StateNotifier<BrowseState> {
         }
         return _repo.genre(source, term, page: page);
       case BrowseMode.latest:
-        return _repo.latest(onlySourceIds: state.activeSourceIds, page: page);
+        return _repo.latest(onlySourceIds: only, page: page);
     }
   }
 }
 
 final browseControllerProvider =
+    StateNotifierProvider<BrowseController, BrowseState>((ref) {
+  final repo = ref.watch(browseRepoProvider);
+  return BrowseController(repo,
+      allowedSourceIds: {
+        // The main feed/search never touch the 18+ sources — they live
+        // on the Doujin page's own controller (user request 2026-10-19).
+        for (final s in repo.sources)
+          if (!adultSourceIds.contains(s.id)) s.id,
+      });
+});
+
+/// Doujin (18+) page — same repo, universe = the adult sources only.
+final adultBrowseControllerProvider =
     StateNotifierProvider<BrowseController, BrowseState>(
-        (ref) => BrowseController(ref.watch(browseRepoProvider)));
+        (ref) => BrowseController(ref.watch(browseRepoProvider),
+            allowedSourceIds: adultSourceIds));

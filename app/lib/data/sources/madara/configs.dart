@@ -1,5 +1,6 @@
-/// Per-site configs for the four ts-theme sites (Plan/05 §1 + §8, with the
-/// 2026-10-17 drift record applied).
+/// Per-site configs for the Madara-family sites (Plan/05 §1 + §8, with
+/// the 2026-10-17 drift record applied; fin-manga + ntr-manga + doujin-lc
+/// added 2026-10-18/19).
 class MadaraSiteConfig {
   const MadaraSiteConfig({
     required this.id,
@@ -7,19 +8,32 @@ class MadaraSiteConfig {
     required this.baseUrl,
     required this.seriesUnderMangaPrefix,
     this.searchSupported = true,
+    this.classicLayout = false,
+    this.archivePath = 'manga',
   });
 
   final String id;
   final String name;
   final String baseUrl;
 
-  /// slow-manga, up-manga: `/manga/{slug}/`; go-manga, dark-manga: `/{slug}/`.
+  /// slow-manga, up-manga, ntr-manga: `/manga/{slug}/`;
+  /// go-manga, dark-manga, fin-manga, doujin-lc (`/doujin/{slug}/`): false.
   /// (Never construct series URLs anyway — always from listing/search links.)
   final bool seriesUnderMangaPrefix;
 
   /// up-manga & dark-manga: search endpoint sits behind a Cloudflare
   /// challenge (verified 2026-10-17); browse via latest()/genres still works.
   final bool searchSupported;
+
+  /// CLASSIC Madara layout (doujin-lc): listing/search render
+  /// `.c-tabs-item` rows instead of ts `.listupd .bsx` tiles, and the
+  /// detail page uses `post-title`/`post-content_item`/`wp-manga-chapter`
+  /// instead of the ts classes (probed 2026-10-19).
+  final bool classicLayout;
+
+  /// Archive/listing path segment — ts sites list under `/manga/`,
+  /// doujin-lc registers its custom post type under `/doujin/`.
+  final String archivePath;
 }
 
 const madaraConfigs = [
@@ -57,5 +71,22 @@ const madaraConfigs = [
     baseUrl: 'https://www.fin-manga.com',
     seriesUnderMangaPrefix: false, // /<slug>/ (probed 2026-10-18)
     searchSupported: true,
+  ),
+  // --- adult (18+), scoped to the Doujin page only ---
+  MadaraSiteConfig(
+    id: 'ntr-manga',
+    name: 'NTR-Manga',
+    baseUrl: 'https://www.ntr-manga.net',
+    seriesUnderMangaPrefix: true,
+    searchSupported: true, // ts theme + .bsx layouts (probed 2026-10-19)
+  ),
+  MadaraSiteConfig(
+    id: 'doujin-lc',
+    name: 'Doujin-LC',
+    baseUrl: 'https://doujin-lc.net',
+    seriesUnderMangaPrefix: false, // /doujin/<thai-slug>/
+    searchSupported: true,
+    classicLayout: true,
+    archivePath: 'doujin',
   ),
 ];

@@ -46,9 +46,9 @@ void main() {
         reason: 'missing tables');
   });
 
-  test('seeds the seven sources', () async {
+  test('seeds all eleven sources', () async {
     final rows = await db.query('sources', orderBy: 'sort');
-    expect(rows.length, 7);
+    expect(rows.length, 11);
     final byId = {for (final r in rows) r['id'] as String: r};
     expect(byId['slow-manga']!['base_url'], 'https://www.slow-manga.net');
     expect(byId['go-manga']!['adapter'], 'madara');
@@ -58,9 +58,13 @@ void main() {
     expect(byId['nekopost']!['base_url'], 'https://www.nekopost.net');
     expect(byId['fin-manga']!['adapter'], 'madara');
     expect(byId['bully-manga']!['adapter'], 'bully');
+    expect(byId['ntr-manga']!['adapter'], 'madara');
+    expect(byId['doujin-lc']!['adapter'], 'madara');
+    expect(byId['hentaithai']!['adapter'], 'hentaithai');
+    expect(byId['miku-doujin']!['adapter'], 'miku');
   });
 
-  test('v1→v4 migration adds the new sources + quota default fix', () async {
+  test('v1→v5 migration adds the new sources + quota + last_seen_at', () async {
     await openTestDb(); // init sqflite ffi for direct file opens
     final dbPath =
         p.join(Directory.systemTemp.createTempSync('sc_mig').path, 'mig.db');
@@ -71,7 +75,8 @@ void main() {
     final v1 = await openDb(
         path: dbPath, factory: databaseFactoryFfi, singleInstance: false);
     await v1.delete('sources',
-        where: "id IN ('fin-manga','bully-manga')");
+        where: "id IN ('fin-manga','bully-manga',"
+            "'ntr-manga','doujin-lc','hentaithai','miku-doujin')");
     await v1.execute(
         "UPDATE settings SET value = '107374182400' "
         "WHERE key = 'total_quota_bytes'");
@@ -90,8 +95,8 @@ void main() {
     final db = await openDb(
         path: dbPath, factory: databaseFactoryFfi, singleInstance: false);
     final rows = await db.query('sources');
-    expect(rows.length, 7,
-        reason: 'migration must (re)insert fin-manga + bully-manga');
+    expect(rows.length, 11,
+        reason: 'migration must (re)insert every post-v1 source row');
     final quota =
         await db.query('settings', where: "key = 'total_quota_bytes'");
     expect(quota.first['value'], '21474836480');

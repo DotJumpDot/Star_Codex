@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/i18n/i18n.dart';
@@ -9,9 +11,9 @@ import 'source_palette.dart';
 /// bottom sheet of wrapped toggle chips, replacing the old horizontal
 /// chip row that had to be scrolled and hunting-tapped. Empty selection
 /// means every site. Long-press a site for its genre browser. Chips
-/// toggle live — the sheet only closes on the Done button or an outside
-/// tap (user QA 2026-10-18: it snapping shut on every chip made
-/// multi-site selection a tap-war).
+/// toggle live in LOCAL state; the feed is updated on a short debounce
+/// (rapid multi-select = ONE refetch, not a storm) and flushed when the
+/// sheet closes via the Done button or an outside tap.
 class SourceFilterButton extends StatelessWidget {
   const SourceFilterButton({
     super.key,
@@ -63,9 +65,9 @@ class SourceFilterButton extends StatelessWidget {
   }
 }
 
-/// Stateful sheet: selection lives here while open and mirrors every
-/// change out through the callbacks immediately (the feed refetches per
-/// toggle behind the sheet), so Done/outside-tap is purely dismissal.
+/// Stateful sheet: chips drive a local selection immediately; provider
+/// changes are queued and applied on a 300 ms debounce, flushed on Done
+/// (and on dispose, so an outside-tap close never drops pending changes).
 class _SourceSheet extends StatefulWidget {
   const _SourceSheet({
     required this.sources,
@@ -89,6 +91,36 @@ class _SourceSheet extends StatefulWidget {
 
 class _SourceSheetState extends State<_SourceSheet> {
   late final Set<String> _selected = {...widget.initialSelected};
+  Timer? _applyTimer;
+  final _pending = <VoidCallback>[];
+
+  void _queue(VoidCallback apply) {
+    _pending.add(apply);
+    _applyTimer?.cancel();
+    _applyTimer = Timer(const Duration(milliseconds: 300), _flush);
+  }
+
+  void _flush() {
+    _applyTimer?.cancel();
+    _applyTimer = null;
+    final fns = List.of(_pending);
+    _pending.clear();
+    for (final fn in fns) {
+      fn();
+    }
+  }
+
+  @override
+  void dispose() {
+    _applyTimer?.cancel();
+    _applyTimer = null;
+    final fns = List.of(_pending);
+    _pending.clear();
+    for (final fn in fns) {
+      fn();
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -106,7 +138,10 @@ class _SourceSheetState extends State<_SourceSheet> {
                       style: Theme.of(context).textTheme.titleMedium),
                 ),
                 FilledButton(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () {
+                    _flush();
+                    Navigator.of(context).pop();
+                  },
                   child: Text(t(context, 'common.done')),
                 ),
               ],
@@ -127,7 +162,7 @@ class _SourceSheetState extends State<_SourceSheet> {
                   selected: _selected.isEmpty,
                   onSelected: (_) {
                     setState(() => _selected.clear());
-                    widget.onAll();
+                    _queue(widget.onAll);
                   },
                 ),
                 for (var i = 0; i < widget.sources.length; i++)
@@ -141,7 +176,7 @@ class _SourceSheetState extends State<_SourceSheet> {
                       if (!_selected.remove(id)) {
                         _selected.add(id);
                       }
-                      widget.onToggle(id);
+                      _queue(() => widget.onToggle(id));
                     }),
                     onGenre: widget.onGenre,
                   ),

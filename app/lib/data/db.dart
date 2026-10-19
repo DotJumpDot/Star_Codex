@@ -5,7 +5,7 @@ import 'package:sqflite/sqflite.dart';
 /// Single SQLite database (Plan/02). All timestamps are milliseconds since
 /// epoch (int). Migrations append only: bump [dbVersion], add a `case` in
 /// [onUpgrade] — never edit v1 statements after shipping.
-const dbVersion = 4;
+const dbVersion = 5;
 const dbFileName = 'manga_reader.db';
 
 class DbException implements Exception {
@@ -79,6 +79,27 @@ Future<Database> openDb(
             await db.execute(
                 'ALTER TABLE library ADD COLUMN last_seen_at INTEGER '
                 'NOT NULL DEFAULT 0');
+            continue next3; // Dart cases don't fall through — chain to v5
+          // v5 (2026-10-19, adult doujin sites): the four 18+ source rows
+          // for installs seeded before they existed. INSERT OR IGNORE is
+          // idempotent (fresh installs already seed them).
+          next3:
+          case 4:
+            for (var i = 0; i < _seededSources.length; i++) {
+              final s = _seededSources[i];
+              if (i < 7) continue; // rows 0-6 predate v5 and already exist
+              await db.insert(
+                  'sources',
+                  {
+                    'id': s.$1,
+                    'name': s.$2,
+                    'base_url': s.$3,
+                    'adapter': s.$4,
+                    'enabled': 1,
+                    'sort': i,
+                  },
+                  conflictAlgorithm: ConflictAlgorithm.ignore);
+            }
           // Future migrations append cases here: `case 1: ...; continue next;`
           default:
             break;
@@ -243,6 +264,12 @@ const _seededSources = [
   // adapter — see data/sources/bully/).
   ('fin-manga', 'Fin-Manga', 'https://www.fin-manga.com', 'madara'),
   ('bully-manga', 'Bully Manga', 'https://bully-manga.com', 'bully'),
+  // v5 (2026-10-19): adult doujin sites — scoped to the Doujin (18+)
+  // page, never the main feed (source_registry adultSourceIds).
+  ('ntr-manga', 'NTR-Manga', 'https://www.ntr-manga.net', 'madara'),
+  ('doujin-lc', 'Doujin-LC', 'https://doujin-lc.net', 'madara'),
+  ('hentaithai', 'HentaiThai', 'https://hentaithai.net', 'hentaithai'),
+  ('miku-doujin', 'Miku-Doujin', 'https://miku-doujin.com', 'miku'),
 ];
 
 const _defaultSettings = {

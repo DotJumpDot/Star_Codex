@@ -700,3 +700,44 @@ referer pairing, novel estimate. 165 tests green.
 - **Release v1.1.0** (tag on 3989c44): 1.1.0+3, release-signed APK
   `StarCodex-1.1.0.apk`, English notes with SHA-256; gh authenticated
   via the PAT from `git credential fill` (no interactive login here).
+
+## Doujin (18+) scope + site-filter race (2026-10-19, third user batch)
+
+- **Adult sources are scoped, not merged**: `adultSourceIds` in
+  source_registry = {ntr-manga, doujin-lc, hentaithai, miku-doujin}.
+  The MAIN `browseControllerProvider` is constructed with
+  `allowedSourceIds` = non-adult ids, and `adultBrowseControllerProvider`
+  with the adult set — "all" in either scope means only that scope
+  (`_effectiveSourceIds`; an out-of-scope-only selection resolves to the
+  `__no_source__` sentinel, NEVER to "all sources" because the repo
+  treats an empty set as no filter). BrowseScreen takes `adult: true`,
+  filters its site sheet + filter sheet through the scoped provider, and
+  the search overlay routes by current tab (tab 5 = adult). Never add an
+  adult source to the main feed — the user explicitly wants them on a
+  separate page.
+- **Site-filter race**: every chip toggle fired an UNGUARDED `_replace`;
+  an older fetch finishing last overwrote the newer filter's results
+  ("select bully → Done → feed flips back to slow-manga"). Fix:
+  `_fetchSeq` monotonic sequence — `_replace`/`loadMore` capture it and
+  DROP superseded completions (regression test with a first-call-delayed
+  FakeSource). The sheet queues toggles on a 300 ms debounce and flushes
+  on Done AND on dispose (outside-tap close must not drop changes).
+- **doujin-lc = CLASSIC Madara**, not ts: config `classicLayout: true` +
+  `archivePath: 'doujin'`. Archive rows are `.page-item-detail` (a stray
+  `.c-tabs-item` wrapper spans the WHOLE listing panel — never select
+  it); search rows are `.row.c-tabs-item__content`; union selector +
+  URL-dedupe covers both. Detail: `.post-title h1`,
+  `.post-content_item` label/value (Status/Type), `.genres-content a`,
+  `li.wp-manga-chapter a` (date span often INSIDE the anchor — stripped
+  from the label). Pages: `.reading-content img` with data-src (base64
+  svg placeholders in src are filtered).
+- **miku-doujin / hentaithai are one-shot engines**: series page IS the
+  reader → detail() returns exactly ONE chapter whose URL is the series
+  URL; pages() scrapes inline imgs (miku `#manga-content img[data-src]`,
+  hentaithai `img` filtered to host *.hentaithai.net + path /thai/).
+  hentaithai URLs come protocol-relative with mixed case
+  (`//HentaiThai.net/t51996`) — normalized through Uri (host
+  lowercasing). Neither has native search (miku ignores ?s=;
+  hentaithai uses a Google CSE form) — search() throws notFound, browse
+  via latest()/genres. hentaithai homepage feed is single-page
+  (latest(page>1) = []).

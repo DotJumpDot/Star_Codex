@@ -11,9 +11,11 @@ import '../settings/settings_screen.dart';
 import 'app_drawer.dart';
 import 'search_overlay.dart';
 
-/// Navigation shell: the five tabs live in an IndexedStack; navigation is
+/// Navigation shell: the six tabs live in an IndexedStack; navigation is
 /// the LEFT drawer (hamburger on every tab header, edge-swipe opt-in via
 /// `nav_edge_swipe`) and the global search overlay slides in top-right.
+/// Tab 5 is the Doujin (18+) page — a scoped BrowseScreen whose universe
+/// is the adult source set only.
 class NavigationShell extends ConsumerWidget {
   const NavigationShell({super.key});
 
@@ -23,6 +25,7 @@ class NavigationShell extends ConsumerWidget {
     HistoryScreen(),
     OfflineScreen(),
     SettingsScreen(),
+    BrowseScreen(adult: true),
   ];
 
   @override

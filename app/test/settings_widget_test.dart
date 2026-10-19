@@ -77,11 +77,11 @@ Future<void> main() async {
         .runAsync(() => SettingsDao(db).get('downloads_wifi_only'));
     expect(wifiOnly, '0');
 
-    // Source disable: 7 seeded sources → switch one off → the live
-    // registry shrinks to 6 (DoD: removed from browse/search/fallback).
+    // Source disable: 11 seeded sources → switch one off → the live
+    // registry shrinks to 10 (DoD: removed from browse/search/fallback).
     final container = ProviderScope.containerOf(
         tester.element(find.byType(SettingsScreen)));
-    expect(container.read(sourcesProvider).length, 7);
+    expect(container.read(sourcesProvider).length, 11);
     final nekopostSwitch = find.descendant(
       of: find.widgetWithText(ListTile, 'Nekopost'),
       matching: find.byType(Switch),
@@ -94,7 +94,7 @@ Future<void> main() async {
           () => Future<void>.delayed(const Duration(milliseconds: 150)));
       await tester.pump();
     }
-    expect(container.read(sourcesProvider).length, 6);
+    expect(container.read(sourcesProvider).length, 10);
     expect(container.read(sourcesProvider).any((s) => s.id == 'nekopost'),
         isFalse);
   }, timeout: const Timeout(Duration(minutes: 1)));

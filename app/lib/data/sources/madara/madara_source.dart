@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:html/dom.dart' as html_dom;
 import 'package:html/parser.dart' as html_parser;
 
@@ -31,7 +32,7 @@ class MadaraSource implements Source {
 
   @override
   Future<List<SourceSeries>> latest({int page = 1}) =>
-      _parseTiles(Uri.parse('$baseUrl/manga/')
+      _parseTiles(Uri.parse('$baseUrl/${config.archivePath}/')
           .replace(queryParameters: {'order': 'update', 'page': '$page'}));
 
   @override
@@ -50,6 +51,13 @@ class MadaraSource implements Source {
   Future<List<SourceSeries>> _parseTiles(Uri uri) async {
     final body = await _fetch(uri);
     final doc = html_parser.parse(body);
+    if (config.classicLayout) {
+      final rows = parseClassicRows(body);
+      if (_looksLikeCloudflare(body) && rows.isEmpty) {
+        throw SourceException.cloudflare(id);
+      }
+      return rows;
+    }
     final tiles = doc.querySelectorAll('.listupd .bsx');
     if (tiles.isEmpty) {
       // A challenge page instead of content → Cloudflare (04 §3).
@@ -80,11 +88,153 @@ class MadaraSource implements Source {
     }).where((s) => s.url.isNotEmpty && s.title.isNotEmpty).toList();
   }
 
+  /// CLASSIC Madara rows (doujin-lc, config.classicLayout): search rows
+  /// are `.row.c-tabs-item__content`; archive rows are
+  /// `.page-item-detail` inside one big-thumbnail listing panel (the
+  /// panel itself carries a stray `.c-tabs-item` wrapper — never select
+  /// THAT, it matches the whole page). Never nested in each other;
+  /// deduped by URL just in case (probed 2026-10-19).
+  @visibleForTesting
+  List<SourceSeries> parseClassicRows(String body) {
+    final doc = html_parser.parse(body);
+    final rows =
+        doc.querySelectorAll('.page-item-detail, .c-tabs-item__content');
+    if (rows.isEmpty) {
+      if (_looksLikeCloudflare(body)) throw SourceException.cloudflare(id);
+      return const [];
+    }
+    final seen = <String>{};
+    final out = <SourceSeries>[];
+    for (final row in rows) {
+      final a = row.querySelector('.post-title a') ??
+          row.querySelector('.item-thumb a[href]') ??
+          row.querySelector('h3 a') ??
+          row.querySelector('h5 a');
+      final href = a?.attributes['href'] ?? '';
+      final title = (a?.attributes['title'] ?? a?.text ?? '').trim();
+      if (href.isEmpty || title.isEmpty || !seen.add(href)) continue;
+      final cover = _bestCoverUrl(row.querySelector('img'));
+      final chap = row
+          .querySelector(
+              '.quick-chapter-link, .chapter-item a, .latest-chap a')
+          ?.text
+          .trim();
+      final type = row.querySelector('.manga-title-badges')?.text.trim();
+      out.add(SourceSeries(
+        url: href,
+        title: title,
+        coverUrl: _absolutize(cover),
+        chapterCountHint: parseChapterNumber(chap ?? '')?.toInt(),
+        type: _normalizeType(type),
+      ));
+    }
+    return out;
+  }
+
+  /// CLASSIC Madara detail page (doujin-lc): post-title h1,
+  /// .post-content_item label/value rows, li.wp-manga-chapter chapter list.
+  @visibleForTesting
+  SourceSeriesDetail parseClassicDetail(String body, String sourceUrl) {
+    final doc = html_parser.parse(body);
+    final title =
+        (doc.querySelector('.post-title h1') ?? doc.querySelector('h1'))
+                ?.text
+                .trim() ??
+            '';
+    if (title.isEmpty) {
+      throw SourceException(id, SourceErrorKind.parse,
+          detail: 'no post-title on $sourceUrl');
+    }
+
+    String? status;
+    String? type;
+    for (final item in doc.querySelectorAll('.post-content_item')) {
+      final label =
+          item.querySelector('.summary-heading')?.text.trim() ?? '';
+      final value = item.querySelector('.summary-content')?.text.trim() ?? '';
+      if (value.isEmpty) continue;
+      if (label.startsWith('Status')) status = _normalizeStatus(value);
+      if (label.startsWith('Type')) type = _normalizeType(value);
+    }
+
+    final tags = <String>{
+      for (final a in doc.querySelectorAll('.genres-content a, .mg_genres a'))
+        if (a.text.trim().isNotEmpty) a.text.trim(),
+    }.toList();
+
+    final description = (doc
+                .querySelector('.description-summary .summary__content')
+                ?.text ??
+            doc.querySelector('.manga-excerpt')?.text ??
+            '')
+        .trim();
+
+    final coverImg = doc.querySelector('.summary_image img') ??
+        doc.querySelector('img.wp-post-image');
+    final cover = _absolutize(_bestCoverUrl(coverImg));
+
+    final baseUri = Uri.parse(baseUrl);
+    final chapterRows = doc.querySelectorAll('li.wp-manga-chapter a[href]');
+    final chapters = <SourceChapter>[];
+    for (var i = 0; i < chapterRows.length; i++) {
+      final a = chapterRows[i];
+      final Uri url;
+      try {
+        final resolved = baseUri.resolve(a.attributes['href'] ?? '');
+        if (!resolved.isScheme('http') && !resolved.isScheme('https')) {
+          continue;
+        }
+        if (resolved.host != baseUri.host) continue;
+        if (resolved.path.isEmpty || resolved.path == '/') continue;
+        url = resolved;
+      } on FormatException {
+        continue;
+      }
+      // Classic anchors often carry the date span INSIDE them — strip it
+      // from the label before number parsing.
+      final dateEl = a.querySelector('.chapter-date, .chapter-format');
+      var label = a.text.trim();
+      if (dateEl != null) {
+        label = label.replaceAll(dateEl.text.trim(), '').trim();
+      }
+      if (label.isEmpty) continue;
+      final number =
+          parseChapterNumber(label) ?? (chapterRows.length - i).toDouble();
+      final dateText =
+          (dateEl ?? a.parent?.querySelector('.chapter-date, .chapter-format'))
+              ?.text
+              .trim();
+      chapters.add(SourceChapter(
+        url: url.toString(),
+        title: label,
+        number: number,
+        uploadedAt: dateText == null || dateText.isEmpty
+            ? null
+            : parseSiteDate(dateText),
+      ));
+    }
+    chapters.sort((a, b) => a.number.compareTo(b.number));
+
+    return SourceSeriesDetail(
+      title: title,
+      altTitles: const [],
+      description: description.isEmpty ? null : description,
+      tags: tags,
+      type: type,
+      status: status,
+      coverUrl: cover,
+      chapters: chapters,
+    );
+  }
+
   @override
   Future<SourceSeriesDetail> detail(String sourceUrl) async {
     final body = await _fetch(Uri.parse(sourceUrl));
     final doc = html_parser.parse(body);
     if (_looksLikeCloudflare(body)) throw SourceException.cloudflare(id);
+    if (config.classicLayout) {
+      return parseClassicDetail(body, sourceUrl);
+    }
 
     final title =
         doc.querySelector('h1.entry-title')?.text.trim() ?? '';
@@ -185,13 +335,15 @@ class MadaraSource implements Source {
           .toList();
       if (urls.isNotEmpty) return ChapterPages(imageUrls: urls);
     }
-    // Fallback: content <img> tags (05 §5).
+    // Fallback: content <img> tags (05 §5). Classic Madara lazy-loads with
+    // a base64 svg placeholder in `src` — prefer data-src and drop data:
+    // URIs either way.
     final doc = html_parser.parse(body);
     final imgs = doc
         .querySelectorAll('.reading-content img')
         .map((img) =>
             _absolutize(img.attributes['data-src'] ?? img.attributes['src']))
-        .where((u) => u != null && u.isNotEmpty)
+        .where((u) => u != null && u.isNotEmpty && !u.startsWith('data:'))
         .cast<String>()
         .toList();
     if (imgs.isEmpty) {
@@ -231,10 +383,12 @@ class MadaraSource implements Source {
   /// [latest], so pagination uses the same `page` query parameter.
   @override
   Future<List<SourceSeries>> browseGenre(String term, {int page = 1}) =>
-      _parseTiles(Uri.parse('$baseUrl/manga/').replace(queryParameters: {
-        'genres': term,
-        if (page > 1) 'page': '$page',
-      }));
+      _parseTiles(Uri.parse('$baseUrl/${config.archivePath}/').replace(
+        queryParameters: {
+          'genres': term,
+          if (page > 1) 'page': '$page',
+        },
+      ));
 
   /// `/genres/{term}/` → percent-decoded term. Sites emit occasional
   /// malformed hrefs (raw Thai, broken `%` sequences) — skip them; Uri

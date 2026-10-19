@@ -23,6 +23,10 @@ class AppNavDrawer extends ConsumerWidget {
       (Icons.history_outlined, Icons.history, 'tab.history'),
       (Icons.download_outlined, Icons.download, 'tab.offline'),
       (Icons.settings_outlined, Icons.settings, 'tab.settings'),
+      // Doujin (18+) — its own scoped browse page (user request
+      // 2026-10-19): separated from the main feed on purpose.
+      (Icons.eighteen_up_rating_outlined, Icons.eighteen_up_rating,
+          'tab.adult'),
     ];
     return NavigationDrawer(
       selectedIndex: current,

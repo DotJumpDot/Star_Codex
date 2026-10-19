@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/i18n/i18n.dart';
 import '../../core/providers.dart';
 import '../../data/repo/browse_repo.dart';
+import '../../data/sources/source_registry.dart';
 import '../detail/detail_screen.dart';
 import '../shell/star_app_bar.dart';
 import 'browse_controller.dart';
@@ -16,28 +17,49 @@ import 'source_filter.dart';
 /// header (opens the global overlay); the body is results only: filter +
 /// site pickers in the app bar, one thin context row for genre mode /
 /// failed sources.
+///
+/// [adult] scopes the screen to the 18+ source set on its own controller
+/// (`adultBrowseControllerProvider`) — the Doujin page is a separate
+/// destination in the drawer, and its feed/search/site sheet never touch
+/// the main sources (user request 2026-10-19).
 class BrowseScreen extends ConsumerStatefulWidget {
-  const BrowseScreen({super.key});
+  const BrowseScreen({super.key, this.adult = false});
+
+  final bool adult;
 
   @override
   ConsumerState<BrowseScreen> createState() => _BrowseScreenState();
 }
 
 class _BrowseScreenState extends ConsumerState<BrowseScreen> {
+  BrowseController get _controller => ref
+      .read((widget.adult ? adultBrowseControllerProvider : browseControllerProvider)
+          .notifier);
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) ref.read(browseControllerProvider.notifier).ensureLoaded();
+      if (mounted) _controller.ensureLoaded();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(browseControllerProvider);
-    final sources = ref.watch(sourcesProvider);
+    final provider = widget.adult
+        ? adultBrowseControllerProvider
+        : browseControllerProvider;
+    final state = ref.watch(provider);
+    final allSources = ref.watch(sourcesProvider);
+    final sources = widget.adult
+        ? allSources
+            .where((s) => adultSourceIds.contains(s.id))
+            .toList(growable: false)
+        : allSources
+            .where((s) => !adultSourceIds.contains(s.id))
+            .toList(growable: false);
     final repo = ref.watch(browseRepoProvider);
-    final controller = ref.read(browseControllerProvider.notifier);
+    final controller = ref.read(provider.notifier);
     final visible = filterGroups(state.groups, state.filters);
 
     final genreHeader =
@@ -81,7 +103,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
               child: const Icon(Icons.tune),
             ),
             tooltip: t(context, 'browse.filter.title'),
-            onPressed: () => showBrowseFilterSheet(context),
+            onPressed: () => showBrowseFilterSheet(context, provider),
           ),
         ],
       ),
@@ -146,9 +168,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                           OutlinedButton.icon(
                             icon: const Icon(Icons.refresh, size: 18),
                             label: Text(t(context, 'common.retry')),
-                            onPressed: () => ref
-                                .read(browseControllerProvider.notifier)
-                                .retry(),
+                            onPressed: () => controller.retry(),
                           ),
                         ],
                       ),
@@ -160,9 +180,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                       final isLast = i == visible.length - 1;
                       if (isLast && !state.endReached && !state.loadingMore) {
                         WidgetsBinding.instance.addPostFrameCallback((_) {
-                          ref
-                              .read(browseControllerProvider.notifier)
-                              .loadMore();
+                          controller.loadMore();
                         });
                       }
                       return Column(

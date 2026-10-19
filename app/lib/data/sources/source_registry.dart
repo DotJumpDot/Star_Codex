@@ -2,10 +2,21 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../core/net/safe_http.dart';
 import 'bully/bully_source.dart';
+import 'hentaithai/hentaithai_source.dart';
 import 'madara/configs.dart';
 import 'madara/madara_source.dart';
+import 'miku/miku_source.dart';
 import 'nekopost/nekopost_source.dart';
 import 'source_api.dart';
+
+/// Adult (18+) sources — shown ONLY on the dedicated Doujin page, never
+/// in the main browse feed/search (user request 2026-10-19).
+const adultSourceIds = <String>{
+  'ntr-manga',
+  'doujin-lc',
+  'hentaithai',
+  'miku-doujin',
+};
 
 /// All live Source instances, ordered by the `sources` table `sort`
 /// (Plan/04 §7). Adapter column decides the class.
@@ -28,6 +39,10 @@ Future<List<Source>> loadSources(Database db, SafeHttp http,
         sources.add(NekopostSource(http));
       case 'bully':
         sources.add(BullyMangaSource(http));
+      case 'hentaithai':
+        sources.add(HentaiThaiSource(http));
+      case 'miku':
+        sources.add(MikuDoujinSource(http));
     }
   }
   return sources;

@@ -153,6 +153,19 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-19 — Doujin (18+) page + 4 adult sources + site-filter race fix:
+  ntr-manga.net (ts Madara config), doujin-lc.net (classic-Madara layout
+  support: .page-item-detail / c-tabs-item__content rows, post-title
+  detail, /doujin/ archive), miku-doujin.com + hentaithai.net (one-shot
+  custom adapters — series page IS the reader); db v5 seeds all four;
+  adult sources live ONLY on the new Doujin 18+ drawer destination
+  (scoped controller, search from that page stays scoped); main
+  browse/search/site-sheet exclude them entirely. Site-filter race: a
+  stale in-flight fetch could overwrite a newer filter's results
+  (select Bully → Done → feed flips back) — fetches now carry a
+  sequence number and stale completions are dropped; the site sheet
+  debounces rapid toggles into one refetch and flushes on
+  Done/outside-tap. Fixture tests for every new parser (203 green).
 - 2026-10-19 — Post-v1.2 review pass (big model): enrichment now also
   looks up the series row by the tile's Latin-only norm (solo bully
   cards with Thai-suffixed titles were missing their DB dates/covers);

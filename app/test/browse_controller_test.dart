@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:star_codex/core/utils/title_norm.dart';
@@ -14,6 +16,21 @@ import 'package:star_codex/ui/browse/browse_controller.dart';
 
 import 'fake_source.dart';
 import 'helpers.dart';
+
+/// Delays only its FIRST latest() call — lets tests force a stale (older)
+/// fetch to complete after a newer one (browse race regression).
+class SlowFirstSource extends FakeSource {
+  SlowFirstSource(super.id, {super.latestResults});
+  var _calls = 0;
+
+  @override
+  Future<List<SourceSeries>> latest({int page = 1}) async {
+    if (_calls++ == 0) {
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    }
+    return super.latest(page: page);
+  }
+}
 
 void main() {
   late BrowseRepo repo;
@@ -110,5 +127,62 @@ void main() {
     await c.loadMore();
     expect(c.state.endReached, isTrue);
     expect(c.state.groups, hasLength(2)); // nothing duplicated
+  });
+
+  // Regression (on-device 2026-10-19): toggling site filters back-to-back
+  // let an OLDER in-flight fetch finish last and overwrite the feed with
+  // results for a filter the user had already changed away from.
+  test('a stale fetch never overwrites a newer filter result', () async {
+    final slow = SlowFirstSource('slow-manga', latestResults: const [
+      SourceSeries(url: 'https://a/stale/', title: 'Stale Slow Series'),
+    ]);
+    final fast = FakeSource('go-manga', latestResults: const [
+      SourceSeries(url: 'https://b/fresh/', title: 'Fresh Fast Series'),
+    ]);
+    final db = await openTestDb();
+    final scopedRepo = BrowseRepo(
+      sources: [slow, fast],
+      seriesDao: SeriesDao(db),
+      chaptersDao: ChaptersDao(db),
+      libraryDao: LibraryDao(db),
+      tagsDao: TagsDao(db),
+      historyDao: SearchHistoryDao(db),
+      seriesRepo: SeriesRepo(
+        sources: [slow, fast],
+        seriesDao: SeriesDao(db),
+        chaptersDao: ChaptersDao(db),
+        tagsDao: TagsDao(db),
+        libraryDao: LibraryDao(db),
+        downloadsDao: DownloadsDao(db),
+        settingsDao: SettingsDao(db),
+      ),
+    );
+
+    final c = BrowseController(scopedRepo);
+    // Filter to slow-manga only (stale fetch #1, delayed), then clear the
+    // filter (fetch #2 completes instantly). Fetch #1 finishes LAST.
+    unawaited(c.toggleSource('slow-manga'));
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    unawaited(c.toggleSource('slow-manga'));
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+
+    expect(c.state.activeSourceIds, isEmpty);
+    expect(c.state.loading, isFalse);
+    // The stale slow-only result must NOT have won: the all-sources feed
+    // contains BOTH series.
+    final titles = c.state.groups.map((g) => g.primary.title).toSet();
+    expect(titles, containsAll(['Stale Slow Series', 'Fresh Fast Series']));
+  });
+
+  test('scoped controller never queries sources outside its universe',
+      () async {
+    final c = BrowseController(repo, allowedSourceIds: {'go-manga'});
+    await c.ensureLoaded();
+    expect(c.state.groups, hasLength(1));
+    expect(c.state.groups.first.primary.sourceId, 'go-manga');
+    // Selecting only an out-of-scope source yields nothing (never "all").
+    await c.toggleSource('slow-manga');
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(c.state.groups, isEmpty);
   });
 }

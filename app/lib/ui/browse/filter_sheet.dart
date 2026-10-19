@@ -8,7 +8,10 @@ import 'browse_controller.dart';
 
 /// Filter panel bottom sheet (Plan/08 §3). Values are session-only (never
 /// written to settings) — defaults OFF per decision L1, restart ⇒ defaults.
-void showBrowseFilterSheet(BuildContext context) {
+/// [controllerProvider] scopes the sheet to the screen that opened it
+/// (main browse vs the 18+ Doujin page).
+void showBrowseFilterSheet(
+    BuildContext context, StateNotifierProvider<BrowseController, BrowseState> provider) {
   showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
@@ -19,13 +22,15 @@ void showBrowseFilterSheet(BuildContext context) {
       constraints: BoxConstraints(
         maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.7,
       ),
-      child: const _FilterSheetBody(),
+      child: _FilterSheetBody(provider: provider),
     ),
   );
 }
 
 class _FilterSheetBody extends ConsumerStatefulWidget {
-  const _FilterSheetBody();
+  const _FilterSheetBody({required this.provider});
+
+  final StateNotifierProvider<BrowseController, BrowseState> provider;
 
   @override
   ConsumerState<_FilterSheetBody> createState() => _FilterSheetBodyState();
@@ -40,12 +45,11 @@ class _FilterSheetBodyState extends ConsumerState<_FilterSheetBody> {
     _tags = ref.read(tagsDaoProvider).allNames();
   }
 
-  BrowseController get _controller =>
-      ref.read(browseControllerProvider.notifier);
+  BrowseController get _controller => ref.read(widget.provider.notifier);
 
   @override
   Widget build(BuildContext context) {
-    final filters = ref.watch(browseControllerProvider).filters;
+    final filters = ref.watch(widget.provider).filters;
     return SafeArea(
       child: SingleChildScrollView(
         child: Padding(

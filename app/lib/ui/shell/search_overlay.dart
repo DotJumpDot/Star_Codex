@@ -43,8 +43,17 @@ class _SearchOverlayState extends ConsumerState<SearchOverlay> {
     if (q.isEmpty) return;
     _focus.unfocus();
     ref.read(searchOpenProvider.notifier).state = false;
-    ref.read(tabIndexProvider.notifier).state = 0;
-    ref.read(browseControllerProvider.notifier).submitSearch(q);
+    // Scope follows the tab the overlay was opened from: a search started
+    // on the Doujin (18+) page stays in the adult sources, everything
+    // else goes to the main browse.
+    final tab = ref.read(tabIndexProvider);
+    const adultTab = 5;
+    if (tab == adultTab) {
+      ref.read(adultBrowseControllerProvider.notifier).submitSearch(q);
+    } else {
+      ref.read(tabIndexProvider.notifier).state = 0;
+      ref.read(browseControllerProvider.notifier).submitSearch(q);
+    }
   }
 
   @override
