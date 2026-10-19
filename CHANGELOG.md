@@ -153,6 +153,15 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-19 — Release: v1.2.0 — version 1.2.0+4. Ships everything since
+  v1.1.0: the Doujin (18+) page (NTR-Manga + HentaiThai live; doujin-lc
+  and miku-doujin seed disabled behind their Cloudflare WAF), the
+  site-filter race fix, the one-row-per-site selector with grounded
+  type pills, the OLED theme family (white/red/orange/pink/green),
+  instant reading-mode switching in the reader drawer, and paged-reader
+  prefetch (no spinner on page turns). Release-signed APK
+  (StarCodex-1.2.0.apk) published to GitHub Releases with English
+  notes + SHA-256.
 - 2026-10-19 — Post-doujin-QA review pass (big model): the live
   mode-switch raced SettingsController.set — the in-memory settings state
   publishes only AFTER its awaited DB write, so re-reading
