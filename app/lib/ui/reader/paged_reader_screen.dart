@@ -462,7 +462,7 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
         mode: settings.get('reader_mode_$seriesId', 'auto'),
         onMode: (m) {
           controller.set('reader_mode_$seriesId', m);
-          unawaited(_applyModeChange(loaded));
+          unawaited(_applyModeChange(loaded, chosen: m));
         },
         onChanged: (prefetch, awake, autoNext, rtl) {
           controller.set('reader_prefetch_ahead', '$prefetch');
@@ -477,7 +477,11 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
 
   /// Persist where we are, then swap this route for the freshly resolved
   /// reader when the mode actually changes screens (no-op otherwise).
-  Future<void> _applyModeChange(LoadedChapter loaded) async {
+  /// [chosen] is the mode JUST picked — SettingsController.set only
+  /// publishes after its DB write, so re-reading the provider here can
+  /// still see the old value and the swap would silently no-op.
+  Future<void> _applyModeChange(LoadedChapter loaded,
+      {required String chosen}) async {
     await _saveProgress(_page, completed: _page == loaded.pages.length - 1);
     if (!mounted) return;
     final settings = ref.read(settingsProvider);
@@ -486,8 +490,7 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
         current: ReaderMode.paged,
         seriesDao: ref.read(seriesDaoProvider),
         modeOverride: effectiveModeOverride(
-            settings.get('reader_mode_${loaded.chapter.seriesId}', 'auto'),
-            settings.get('reader_mode_default', 'auto')));
+            chosen, settings.get('reader_mode_default', 'auto')));
   }
 
   Future<void> _openChapterPicker(LoadedChapter loaded) async {

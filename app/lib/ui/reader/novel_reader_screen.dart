@@ -364,7 +364,7 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
         mode: settings.get('reader_mode_$seriesId', 'auto'),
         onMode: (m) {
           controller.set('reader_mode_$seriesId', m);
-          unawaited(_applyModeChange());
+          unawaited(_applyModeChange(chosen: m));
         },
         novel: true,
         fontSize: _fontSize,
@@ -390,7 +390,10 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
 
   /// Persist where we are, then swap this route for the freshly resolved
   /// reader when the mode actually changes screens (no-op otherwise).
-  Future<void> _applyModeChange() async {
+  /// [chosen] is the mode JUST picked — SettingsController.set only
+  /// publishes after its DB write, so re-reading the provider here can
+  /// still see the old value and the swap would silently no-op.
+  Future<void> _applyModeChange({required String chosen}) async {
     await _saveProgress(_percent, completed: _percent >= 97);
     if (!mounted) return;
     final settings = ref.read(settingsProvider);
@@ -399,8 +402,7 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
         current: ReaderMode.novel,
         seriesDao: ref.read(seriesDaoProvider),
         modeOverride: effectiveModeOverride(
-            settings.get('reader_mode_${widget.chapter.seriesId}', 'auto'),
-            settings.get('reader_mode_default', 'auto')));
+            chosen, settings.get('reader_mode_default', 'auto')));
   }
 
   Future<void> _openChapterPicker() async {
