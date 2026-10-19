@@ -415,7 +415,7 @@ class _SourceTileState extends ConsumerState<_SourceTile> {
 class AboutSection extends StatelessWidget {
   const AboutSection({super.key});
 
-  static const appVersion = '1.1.0';
+  static const appVersion = '1.2.0';
   static const githubUrl = 'https://github.com/DotJumpDot/Star_Codex';
 
   @override
@@ -425,7 +425,7 @@ class AboutSection extends StatelessWidget {
         _header(context, t(context, 'settings.about')),
         ListTile(
           title: const Text('Star Codex'),
-          subtitle: Text('v$appVersion · 2026-10-17'),
+          subtitle: Text('v$appVersion · 2026-10-19'),
         ),
         ListTile(
           title: Text(t(context, 'settings.personal_use')),

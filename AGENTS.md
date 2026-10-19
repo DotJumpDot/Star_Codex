@@ -8,12 +8,14 @@ never mirror hook/system text language).
 
 ## Project
 
-**Star Codex** — Flutter Android app (Thai-first UI) reading from 7 Thai
-manga/novel sources (5× WordPress-Madara/ts + bully-manga custom engine +
-nekopost API incl. novels). Streaming reading, silent WebP q80 caching,
-content-hash dedup. Personal local use only — no server, no cloud, no
-login. **v1.1.0 released** (GitHub Releases, release-signed APK); the
-repo is public.
+**Star Codex** — Flutter Android app (Thai-first UI) reading from 9 live
+Thai manga/novel sources (5× WordPress-Madara/ts + bully-manga custom
+engine + nekopost API incl. novels) plus a separate **Doujin 18+ page**
+(ntr-manga, hentaithai; doujin-lc + miku-doujin seed disabled behind a
+Cloudflare TLS-fingerprint block — see PLAN_NOTES 2026-10-19). Streaming
+reading, silent WebP q80 caching, content-hash dedup. Personal local use
+only — no server, no cloud, no login. **v1.2.0 released** (GitHub
+Releases, release-signed APK); the repo is public.
 
 ## Startup sequence (every session)
 
@@ -21,16 +23,16 @@ repo is public.
 2. Read [`Docs/Plan/README.md`](Docs/Plan/README.md), then
    [`Docs/Plan/15-BUILD-ORDER.md`](Docs/Plan/15-BUILD-ORDER.md).
 3. Check `git log --oneline -10` and [`CHANGELOG.md`](CHANGELOG.md) (repo
-   root) for progress. All 11 build phases are complete and **v1.0.0 +
-   v1.1.0 are shipped**; remaining work is whatever the user asks for in
+   root) for progress. All 11 build phases are complete and **v1.0.0 →
+   v1.2.0 are shipped**; remaining work is whatever the user asks for in
    chat, landing as `Phase`/`Fix`/feature commits per the discipline
    below.
 4. [`Docs/Plan/00-DECISIONS.md`](Docs/Plan/00-DECISIONS.md) is the contract —
    it wins over any phase doc. Never violate it silently.
 5. [`Docs/PLAN_NOTES.md`](Docs/PLAN_NOTES.md) carries the post-plan
-   invariants (source quirks, db migrations v2–v4, cover fallbacks,
-   probe matching). Read its newest sections before touching sources,
-   merge logic, or the DB.
+   invariants (source quirks, db migrations v2–v6, cover fallbacks,
+   probe matching, Cloudflare blocks). Read its newest sections before
+   touching sources, merge logic, or the DB.
 
 ## Hard rules
 
@@ -57,9 +59,13 @@ repo is public.
   session when the user asks; the big model defers emulator screenshots.
 - **Releases**: tag `v<version>` + GitHub Release with
   `StarCodex-<version>.apk` (release-signed via the out-of-repo keystore).
-  `gh` auth in this environment: extract the PAT with
+  Also bump `AboutSection.appVersion` in
+  `app/lib/ui/settings/settings_storage_sources.dart` — it is a hardcoded
+  const, NOT read from pubspec. `gh` auth in this environment: extract
+  the PAT with
   `printf "protocol=https\nhost=github.com\n\n" | git credential fill`
-  → export as `GH_TOKEN`. Notes are English with install steps + SHA-256.
+  → export as `GH_TOKEN`. Notes are English with install steps + SHA-256
+  (full recipe: Docs/HANDOFF.md).
 
 ## Git discipline (user requirement D7)
 
@@ -167,5 +173,5 @@ Also append lines to [`CHANGELOG.md`](CHANGELOG.md) per batch.
   `DateTime.now()` twice — same-millisecond collisions make assertions
   flaky. Whole doubles interpolate as `1.0`, not `1` (`'c$number'` →
   `c1.0`) — format them.
-- Warm full suite ≈ 11 s (193 tests). If a run takes minutes, something is
+- Warm full suite ≈ 11 s (205 tests). If a run takes minutes, something is
   hanging — investigate, don't retry blindly.

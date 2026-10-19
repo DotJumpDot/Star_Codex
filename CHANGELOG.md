@@ -153,6 +153,12 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-19 — Docs: v1.2.0 refresh — README (doujin page, site
+  selector rows, OLED family, 9-live-source tables, correct minSdk
+  badge, v1.2.0 status), AGENTS/HANDOFF/Docs-README/ARCHITECTURE
+  brought current (sources, drawer order, schema v6, 205 tests,
+  release recipe with the About-string step), and the About dialog's
+  hardcoded version bumped to 1.2.0 (release APK re-uploaded with it).
 - 2026-10-19 — Release: v1.2.0 — version 1.2.0+4. Ships everything since
   v1.1.0: the Doujin (18+) page (NTR-Manga + HentaiThai live; doujin-lc
   and miku-doujin seed disabled behind their Cloudflare WAF), the

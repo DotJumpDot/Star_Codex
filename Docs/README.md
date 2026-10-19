@@ -1,7 +1,8 @@
 # Star Codex — Docs
 
 Local-first, Android manga/manhwa/manhua/novel reader ("Star Codex") for
-seven Thai sources, built with Flutter. Personal use only.
+nine live Thai sources plus a separate Doujin (18+) page, built with
+Flutter. Personal use only.
 Repo: https://github.com/DotJumpDot/Star_Codex (this folder is the repo root).
 
 | Doc | What it is |
@@ -22,15 +23,19 @@ slow-manga.net, up-manga.com, dark-manga.com, fin-manga.com** (WordPress/
 Madara-ts — one shared adapter), **bully-manga.com** (custom static-engine
 adapter: JSON-LD detail pages, `IMAGE_MAP` chapter arrays, relative Thai
 date stamps) and **nekopost.net** (custom JSON API, also carries นิยาย
-novels). Reading is streaming like a website; every viewed page is silently
-cached as WebP q80, content-hash deduplicated across sites (measured −58%
-size), with an LRU cache (5 GB default) that cleans itself and a 20 GB
-pinned-download quota. The same title on several sites merges into one
-library entry (Thai title kept, original name shown as subtitle) with
-per-chapter source fallback, and cards enrich themselves in the background
-(dates, covers) when the listings alone don't carry them. Navigation is a
-left drawer — Browse · Library · History · Offline · Settings. Thai-first
-UI with an English toggle, 20 themes, 12 fonts. SQLite schema v4.
+novels), plus a separate **Doujin 18+ page** with **ntr-manga.net**
+(Madara/ts) and **hentaithai.net** (custom one-shot engine; two more
+doujin sites seed disabled behind a Cloudflare block — see PLAN_NOTES).
+Reading is streaming like a website; every viewed page is silently
+cached as WebP q80, content-hash deduplicated across sites (measured
+−58% size), with an LRU cache (5 GB default) that cleans itself and a
+20 GB pinned-download quota. The same title on several sites merges into
+one library entry (Thai title kept, original name shown as subtitle)
+with per-chapter source fallback, and cards enrich themselves in the
+background (dates, covers) when the listings alone don't carry them.
+Navigation is a left drawer — Browse · Doujin 18+ · Library · History ·
+Offline · Settings. Thai-first UI with an English toggle, 25 themes
+(including a true-black OLED family), 12 fonts. SQLite schema v6.
 No server, no cloud, no login.
 
 ## Key decisions

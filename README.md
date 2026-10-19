@@ -24,18 +24,28 @@ One app instead of seven websites — read like a site, cache like an app.
 ### Reading
 - **3 reader modes** — vertical webtoon, paged manga with LTR/RTL tap zones,
   and a dedicated novel reader (font size, line height, background themes
-  and opacity)
+  and opacity). Switching modes in the reader drawer applies **instantly**
+  and resumes at the same spot
 - **Reading position resumes automatically** — reopen any chapter exactly
   where you left it
 - **Pull-to-continue** — drag past the end of a chapter with resistance +
   progress bar to flow into the next one (no auto-advance timers)
+- **Prefetch in every mode** — pages ahead of you download in the
+  background (configurable 3–12), so page turns and going back never
+  flash a loading spinner
 - **Cross-source chapter fallback** — when one site's page fails, another
   site's copy of the same chapter loads instead, badged with its origin
 
 ### Browsing & discovery
-- **All 7 sources in one feed** — search everything at once, filter by
-  site, browse per-site genres; the same title on several sites merges
+- **All 9 live sources in one feed** — search everything at once, filter
+  by site, browse per-site genres; the same title on several sites merges
   into a single card (Thai title kept, original as subtitle)
+- **Doujin (18+) page** — a separate drawer destination with its own
+  feed, site filter and scoped search, so adult sources never mix into
+  the main browse
+- **One-row site selector** — every site on its own line: selection
+  circle, colored identity dot, and pills for what the site mostly
+  carries (grounded in the sites' own listings)
 - **Smart cards** — type chips in per-type colors (มังงะ / มังฮวา /
   นิยาย), chapter counts, and last-update stamps colored by freshness
   (green = hours → grey = years)
@@ -64,8 +74,10 @@ One app instead of seven websites — read like a site, cache like an app.
 
 ### App
 - **Thai-first UI** with a full English toggle
-- **20 themes** — Stardust, the Monokai family, Nord, Dracula, Tokyo
-  Night, Gruvbox, Rosé Pine, Sakura, Solarized and more
+- **25 themes** — Stardust, the Monokai family, Nord, Dracula, Tokyo
+  Night, Gruvbox, Rosé Pine, Sakura, Solarized and more, plus a
+  **true-black OLED family** (white / red / orange / pink / green
+  accents on #000000)
 - **12 fonts** — Thai (Sarabun, Prompt, Kanit, IBM Plex Sans Thai, …) and
   Latin picks, live-previewed in Settings
 - **Safe by construction** — every network request goes through URL
@@ -73,38 +85,49 @@ One app instead of seven websites — read like a site, cache like an app.
 
 ## 📖 Sources
 
+Main feed (9 live):
+
 | Site | Content | Adapter |
 |---|---|---|
-| go-manga.com | Manga / Manhwa / Manhua | WordPress-Madara |
-| slow-manga.net | Manga / Manhwa / Manhua | WordPress-Madara |
-| up-manga.com | Manga / Manhwa / Manhua | WordPress-Madara |
-| dark-manga.com | Manga / Manhwa / Manhua (incl. Mature) | WordPress-Madara |
-| fin-manga.com | Manga / Manhwa / Manhua | WordPress-Madara (ts theme) |
-| bully-manga.com | Manga / Manhwa / Manhua | custom static-site engine |
+| go-manga.com | Manhwa / Manhua / Manga | WordPress-Madara |
+| slow-manga.net | Manhwa / Manga | WordPress-Madara |
+| up-manga.com | Manhwa / Manhua | WordPress-Madara |
+| dark-manga.com | Manhwa | WordPress-Madara |
+| fin-manga.com | Manhwa | WordPress-Madara (ts theme) |
+| bully-manga.com | Manhwa / Manhua | custom static-site engine |
 | nekopost.net | Comics + Thai novels (นิยาย) | custom JSON API |
+
+Doujin 18+ page (separate destination):
+
+| Site | Content | Adapter |
+|---|---|---|
+| ntr-manga.net | Manga (18+) | WordPress-Madara |
+| hentaithai.net | Manga (18+) | custom one-shot engine |
+| doujin-lc.net | Manhwa (18+) | WordPress-Madara (classic) — *seeded off: Cloudflare blocks non-browser apps* |
+| miku-doujin.com | Manga (18+) | custom one-shot engine — *seeded off: Cloudflare blocks non-browser apps* |
 
 ## 📥 Download & install
 
 Grab `StarCodex-<version>.apk` from the
 [latest release](https://github.com/DotJumpDot/Star_Codex/releases/latest)
 and install it (allow "install from unknown sources" when prompted).
-Requires Android 7.0+ (API 24).
+Requires Android 6.0+ (API 23).
 
 > **Upgrading from a debug/test build?** Uninstall it first — release
 > builds are signed with a different key.
 
-See [what changed in v1.1.0](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.1.0).
+See [what changed in v1.2.0](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.2.0).
 
 ## 🛠️ Tech stack
 
 - **Flutter 3.47 / Dart** — Material 3, no codegen (plain classes, manual
   Riverpod providers)
-- **SQLite** (sqflite) — append-only migrations, currently v4
+- **SQLite** (sqflite) — append-only migrations, currently v6
 - **Image pipeline** — download → magic-byte validation → SHA-256 dedup →
   WebP q80 recompress (flutter_image_compress) → atomic write
-- **Scraping** — `html` parser for the Madara/ts themes and the bully
-  static engine; JSON POST API for nekopost
-- **193 tests**, `flutter analyze` clean
+- **Scraping** — `html` parser for the Madara/ts/classic themes and the
+  custom engines; JSON POST API for nekopost
+- **205 tests**, `flutter analyze` clean
 
 ## 🔨 Build from source
 
@@ -141,10 +164,10 @@ Star_Codex/
 
 ## 📜 Status
 
-**v1.1.0 (2026-10-19)** — all 11 build phases complete, three user-driven
-UX overhaul rounds shipped, on-device QA verified (see
-[CHANGELOG.md](./CHANGELOG.md) for the full history). Every phase landed
-as a commit with a `- [x] item complete` checklist.
+**v1.2.0 (2026-10-19)** — all 11 build phases complete, four user-driven
+UX rounds shipped, the Doujin (18+) page live, on-device QA verified
+(see [CHANGELOG.md](./CHANGELOG.md) for the full history). Every batch
+landed as a commit with a `- [x] item complete` checklist.
 
 ## ⚠️ Disclaimer
 

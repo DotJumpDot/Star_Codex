@@ -18,16 +18,16 @@ StarCodex/
 ├── app/                         the Flutter project (created in Plan Phase 1)
 │   ├── lib/
 │   │   ├── main.dart            bootstrap: db init → settings → MaterialApp
-│   │   ├── app.dart             NavigationShell (Browse/Library/History/Offline/Settings)
+│   │   ├── app.dart             NavigationShell (Browse/Doujin 18+/Library/History/Offline/Settings)
 │   │   ├── core/
 │   │   │   ├── i18n/            th.json / en.json + tiny t() helper
-│   │   │   ├── theme/           M3 dark-first, Sarabun
+│   │   │   ├── theme/           M3 dark-first incl. OLED family, Sarabun
 │   │   │   ├── utils/           title_norm, thai collation, chapter-number parse, jaro_winkler
 │   │   │   └── net/             safe_http (host-validated) + rate_limiter  ← ONLY network door
 │   │   ├── data/
-│   │   │   ├── db.dart + dao/   sqflite, schema v1 (Plan/02)
+│   │   │   ├── db.dart + dao/   sqflite, append-only migrations (v1→v6, Plan/02 + PLAN_NOTES)
 │   │   │   ├── storage/         blob_store / image_pipeline / cache_janitor (Plan/03)
-│   │   │   ├── sources/         source_api + madara/ + nekopost/ (Plan/04–06)
+│   │   │   ├── sources/         source_api + madara/ (ts + classic) + nekopost/ + bully/ + miku/ + hentaithai/
 │   │   │   └── repo/            browse / series / reader / library / updates repos
 │   │   └── ui/                  shell/ browse/ detail/ reader/ library/ downloads/ settings/
 │   ├── assets/i18n/
