@@ -211,8 +211,18 @@ List<SearchGroup> mergeGroupLists(
   return groups;
 }
 
+/// View sort order for the browse/search list (user request 2026-10-20).
+/// Pure client-side ordering of what already loaded — the listing itself
+/// keeps paging in source order. "Popular" is deliberately absent: the ts
+/// themes ignore ordering params on search (probed 2026-10-20 — identical
+/// tile order with/without m_orderby=views / order=popular) and no source
+/// carries view counts, so there is nothing honest to sort by.
+enum BrowseSortOrder { latestUpdate, oldestUpdate, chaptersDesc, chaptersAsc }
+
 /// Session-only browse filters (Plan/08 §3) — NEVER written to settings;
-/// defaults OFF per decision L1 (restart ⇒ defaults).
+/// defaults OFF per decision L1 (restart ⇒ defaults). Sort is the one
+/// exception with a non-off default (L1 addendum, user request
+/// 2026-10-20): the list opens on latest-update ordering.
 class BrowseFilters {
   const BrowseFilters({
     this.type,
@@ -220,6 +230,7 @@ class BrowseFilters {
     this.minChapters = 0,
     this.hideOneshot = false,
     this.tags = const {},
+    this.sort = BrowseSortOrder.latestUpdate,
   });
 
   final String? type; // 'manga'|'manhwa'|'manhua'|'novel'
@@ -227,13 +238,15 @@ class BrowseFilters {
   final int minChapters; // 0 = off
   final bool hideOneshot;
   final Set<String> tags;
+  final BrowseSortOrder sort;
 
   bool get isDefault =>
       type == null &&
       status == null &&
       minChapters == 0 &&
       !hideOneshot &&
-      tags.isEmpty;
+      tags.isEmpty &&
+      sort == BrowseSortOrder.latestUpdate;
 
   BrowseFilters copyWith({
     String? type,
@@ -243,6 +256,7 @@ class BrowseFilters {
     int? minChapters,
     bool? hideOneshot,
     Set<String>? tags,
+    BrowseSortOrder? sort,
   }) =>
       BrowseFilters(
         type: clearType ? null : (type ?? this.type),
@@ -250,6 +264,7 @@ class BrowseFilters {
         minChapters: minChapters ?? this.minChapters,
         hideOneshot: hideOneshot ?? this.hideOneshot,
         tags: tags ?? this.tags,
+        sort: sort ?? this.sort,
       );
 }
 
@@ -271,6 +286,40 @@ List<SearchGroup> filterGroups(List<SearchGroup> groups, BrowseFilters f) {
     }
     return true;
   }).toList(growable: false);
+}
+
+/// Sort the filtered view (user request 2026-10-20). STABLE by original
+/// position — Dart's List.sort is not, and a re-sort on every enrichment
+/// re-emit must not shuffle undated ties. Groups whose key is unknown
+/// (no date yet / no chapter hint) sink to the bottom in BOTH directions
+/// rather than claiming to be newest/oldest/most/fewest.
+List<SearchGroup> sortGroups(List<SearchGroup> groups, BrowseSortOrder order) {
+  final positions = List<int>.generate(groups.length, (i) => i);
+  int compare(int a, int b) {
+    final ka = _sortKey(groups[a], order);
+    final kb = _sortKey(groups[b], order);
+    if (ka == null && kb == null) return a.compareTo(b);
+    if (ka == null) return 1;
+    if (kb == null) return -1;
+    final descending = order == BrowseSortOrder.latestUpdate ||
+        order == BrowseSortOrder.chaptersDesc;
+    final byValue = descending ? kb.compareTo(ka) : ka.compareTo(kb);
+    return byValue != 0 ? byValue : a.compareTo(b);
+  }
+
+  positions.sort(compare);
+  return [for (final i in positions) groups[i]];
+}
+
+int? _sortKey(SearchGroup g, BrowseSortOrder order) {
+  switch (order) {
+    case BrowseSortOrder.latestUpdate:
+    case BrowseSortOrder.oldestUpdate:
+      return g.lastUpdatedMs;
+    case BrowseSortOrder.chaptersDesc:
+    case BrowseSortOrder.chaptersAsc:
+      return g.chapterCount;
+  }
 }
 
 /// Type → origin mapping (decision L6). Novels get origin only from

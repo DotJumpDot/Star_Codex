@@ -16,7 +16,7 @@ import 'fake_source.dart';
 import 'helpers.dart';
 
 BrowseCandidate cand(String source, String title,
-        {int? hint, String? type, String? urlPrefix = 'x', String? cover}) =>
+        {int? hint, String? type, String? urlPrefix = 'x', String? cover, int? updated}) =>
     BrowseCandidate(
       sourceId: source,
       referer: 'https://r/',
@@ -25,6 +25,7 @@ BrowseCandidate cand(String source, String title,
       chapterCountHint: hint,
       type: type,
       coverUrl: cover,
+      lastUpdatedMs: updated,
     );
 
 void main() {
@@ -146,6 +147,85 @@ void main() {
     test('type filter keeps matching type only', () {
       final kept = filterGroups(groups, const BrowseFilters(type: 'manhwa'));
       expect(kept.map((g) => g.displayTitle), ['Long Series']);
+    });
+  });
+
+  group('sortGroups (user request 2026-10-20)', () {
+    // Alpha(db 1000), Bravo(listing 3000), Charlie(no date), Delta(db 2000),
+    // Echo(no date).
+    List<SearchGroup> datedGroups() {
+      final groups = mergeIntoGroups(const [], [
+        cand('a', 'Alpha'),
+        cand('a', 'Bravo', updated: 3000),
+        cand('a', 'Charlie'),
+        cand('a', 'Delta'),
+        cand('a', 'Echo'),
+      ]);
+      groups[0].dbLastUpdatedMs = 1000;
+      groups[3].dbLastUpdatedMs = 2000;
+      return groups;
+    }
+
+    test('latest update (default): dated desc, unknown dates last, stable',
+        () {
+      final sorted = sortGroups(datedGroups(), BrowseSortOrder.latestUpdate);
+      expect(
+        sorted.map((g) => g.displayTitle),
+        ['Bravo', 'Delta', 'Alpha', 'Charlie', 'Echo'],
+      );
+    });
+
+    test('oldest update: dated asc, unknown dates STILL last', () {
+      final sorted = sortGroups(datedGroups(), BrowseSortOrder.oldestUpdate);
+      expect(
+        sorted.map((g) => g.displayTitle),
+        ['Alpha', 'Delta', 'Bravo', 'Charlie', 'Echo'],
+      );
+    });
+
+    test('chapter sorts: desc/asc with null hints last in both directions',
+        () {
+      final groups = mergeIntoGroups(const [], [
+        cand('a', 'Mid', hint: 10),
+        cand('a', 'Big', hint: 50),
+        cand('a', 'NoHint'),
+        cand('a', 'Tiny', hint: 1),
+      ]);
+      expect(
+        sortGroups(groups, BrowseSortOrder.chaptersDesc)
+            .map((g) => g.displayTitle),
+        ['Big', 'Mid', 'Tiny', 'NoHint'],
+      );
+      expect(
+        sortGroups(groups, BrowseSortOrder.chaptersAsc)
+            .map((g) => g.displayTitle),
+        ['Tiny', 'Mid', 'Big', 'NoHint'],
+      );
+    });
+
+    test('stable: equal keys keep listing order in every direction', () {
+      final groups = mergeIntoGroups(const [], [
+        cand('a', 'First', updated: 1000, hint: 7),
+        cand('a', 'Second', updated: 1000, hint: 7),
+        cand('a', 'Third', updated: 1000, hint: 7),
+      ]);
+      for (final order in BrowseSortOrder.values) {
+        expect(sortGroups(groups, order).map((g) => g.displayTitle),
+            ['First', 'Second', 'Third'],
+            reason: '$order must not shuffle ties');
+      }
+    });
+
+    test('BrowseFilters: default sort latestUpdate; non-default flips badge',
+        () {
+      const filters = BrowseFilters();
+      expect(filters.sort, BrowseSortOrder.latestUpdate);
+      expect(filters.isDefault, isTrue);
+      final changed = filters.copyWith(sort: BrowseSortOrder.chaptersDesc);
+      expect(changed.isDefault, isFalse);
+      expect(changed.copyWith().sort, BrowseSortOrder.chaptersDesc);
+      expect(filters.copyWith(sort: BrowseSortOrder.oldestUpdate).isDefault,
+          isFalse);
     });
   });
 

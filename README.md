@@ -38,8 +38,10 @@ One app instead of seven websites — read like a site, cache like an app.
 
 ### Browsing & discovery
 - **All 9 live sources in one feed** — search everything at once, filter
-  by site, browse per-site genres; the same title on several sites merges
-  into a single card (Thai title kept, original as subtitle)
+  by site, browse per-site genres, and sort the results (latest/oldest
+  update, most/fewest chapters — latest update by default); the same
+  title on several sites merges into a single card (Thai title kept,
+  original as subtitle)
 - **Doujin (18+) page** — a separate drawer destination with its own
   feed, site filter and scoped search, so adult sources never mix into
   the main browse

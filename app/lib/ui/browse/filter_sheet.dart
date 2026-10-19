@@ -39,6 +39,15 @@ class _FilterSheetBody extends ConsumerStatefulWidget {
 class _FilterSheetBodyState extends ConsumerState<_FilterSheetBody> {
   late Future<List<String>> _tags;
 
+  /// Sort chips (user request 2026-10-20): default latest-update —
+  /// [BrowseFilters]'s own default, so "รีเซ็ต" lands back on it.
+  static const _sortLabels = {
+    BrowseSortOrder.latestUpdate: 'browse.sort.latest',
+    BrowseSortOrder.oldestUpdate: 'browse.sort.oldest',
+    BrowseSortOrder.chaptersDesc: 'browse.sort.chapters_desc',
+    BrowseSortOrder.chaptersAsc: 'browse.sort.chapters_asc',
+  };
+
   @override
   void initState() {
     super.initState();
@@ -71,6 +80,30 @@ class _FilterSheetBodyState extends ConsumerState<_FilterSheetBody> {
                         _controller.setFilters(const BrowseFilters()),
                     child: Text(t(context, 'browse.filter.reset')),
                   ),
+                ],
+              ),
+              _sectionLabel(context, 'browse.filter.sort'),
+              // Values without a known key (undated / no chapter hint) sink
+              // to the bottom instead of faking a position (2026-10-20).
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  t(context, 'browse.sort.hint'),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: Theme.of(context).colorScheme.outline),
+                ),
+              ),
+              Wrap(
+                spacing: 6,
+                children: [
+                  for (final entry in _sortLabels.entries)
+                    ChoiceChip(
+                      label: Text(t(context, entry.value)),
+                      selected: filters.sort == entry.key,
+                      onSelected: (_) => _controller.setFilters(
+                        filters.copyWith(sort: entry.key),
+                      ),
+                    ),
                 ],
               ),
               _sectionLabel(context, 'browse.filter.type'),

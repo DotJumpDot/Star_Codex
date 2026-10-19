@@ -60,7 +60,8 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
             .toList(growable: false);
     final repo = ref.watch(browseRepoProvider);
     final controller = ref.read(provider.notifier);
-    final visible = filterGroups(state.groups, state.filters);
+    final visible =
+        sortGroups(filterGroups(state.groups, state.filters), state.filters.sort);
 
     final genreHeader =
         (state.mode == BrowseMode.genre &&

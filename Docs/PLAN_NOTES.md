@@ -815,3 +815,21 @@ referer pairing, novel estimate. 165 tests green.
 - `PageSlot` no longer clears the memory cache on dispose (same fix as
   the paged reader): scroll-back re-decodes caused placeholder flashes;
   `cacheWidth` keeps entries small and the framework LRU evicts.
+
+## 2026-10-20 — Browse sort orders (filter sheet)
+
+- `BrowseSortOrder` (browse_merge.dart): latestUpdate (DEFAULT — the one
+  deliberate exception to L1 "defaults OFF"; the list opens
+  newest-update first per user request 2026-10-20), oldestUpdate,
+  chaptersDesc, chaptersAsc. Session-only like every other filter.
+- `sortGroups` is STABLE by original position (never trust List.sort
+  with ties — enrichment re-emits would shuffle undated cards) and puts
+  unknown-key groups (no date yet / no chapter hint) LAST in BOTH
+  directions — an unknown must never claim newest/oldest/most/fewest.
+  It runs on the filtered view in browse_screen, never re-fetches;
+  infinite-scroll pages interleave by key, they don't append.
+- "Popular" is intentionally absent: probed 2026-10-20 — slow-manga
+  search returns identical tile order with `m_orderby=views` and
+  `order=popular` (the ts theme ignores ordering params on `/?s=`;
+  archive byte-diffs were nonces), and no source (nekopost included)
+  exposes view counts. Nothing honest to sort by.

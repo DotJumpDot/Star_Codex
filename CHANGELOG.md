@@ -153,6 +153,16 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-20 — Browse sort orders (user request): the filter sheet gains
+  a เรียงลำดับ section — อัปเดตล่าสุด (default), อัปเดตเก่าสุด,
+  ตอนมากสุด, ตอนน้อยสุด. The sort is stable (Dart's List.sort isn't)
+  and groups with an unknown date/chapter count sink to the bottom in
+  BOTH directions instead of faking a position; the merged feed re-sorts
+  live, so later pages interleave by key rather than appending. Popular
+  order was probed and left out honestly: the ts themes ignore ordering
+  params on search (identical tile order with/without them) and no
+  source exposes view counts. On-device: tapping ตอนมากสุด reorders the
+  feed 1254→1196→1000→924→364 ตอน. 211 tests green.
 - 2026-10-20 — App icon + README use the user-made Star Codex logo:
   README header shows the banner lockup; the launcher ships a
   rounded-square tile (no circle, no sharp corners) built by radially

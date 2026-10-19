@@ -173,5 +173,12 @@ Also append lines to [`CHANGELOG.md`](CHANGELOG.md) per batch.
   `DateTime.now()` twice — same-millisecond collisions make assertions
   flaky. Whole doubles interpolate as `1.0`, not `1` (`'c$number'` →
   `c1.0`) — format them.
-- Warm full suite ≈ 11 s (205 tests). If a run takes minutes, something is
+- Warm full suite ≈ 11 s. If a run takes minutes, something is
   hanging — investigate, don't retry blindly.
+- Screencap PNGs render to the agent DOWNSCALED — pixel coords estimated
+  from a screenshot miss `input tap` targets by ~15% (a chip read at
+  y≈928 off the image was really at y≈1114 on the device, 2026-10-20).
+  Always take tap targets from `uiautomator dump` bounds (`adb exec-out
+  cat` the dump; text nodes can come back empty right after an
+  animation — settle a couple of seconds and re-dump). Screenshots are
+  for how things LOOK; bounds are for where things ARE.
