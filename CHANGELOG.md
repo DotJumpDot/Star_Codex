@@ -156,8 +156,10 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
 - 2026-10-19 — Site-sheet + OLED themes (user feedback round 4): the
   "เว็บที่จะค้นหา" site selector is now one full-width row per site —
   selection circle on the left, colored identity dot + name, small
-  mostly-carries type pills on the right (nekopost มังงะ+นิยาย,
-  aggregators มังงะ/มังฮวา/มังฮวาจีน, one-shots มังงะ) — toggling only
+  mostly-carries type pills on the right (grounded in each site's own
+  tile badges + the DB's detail types: nekopost มังงะ+นิยาย,
+  go/up มังฮวา+มังฮวาจีน, slow มังฮวา+มังงะ, dark/fin/bully-lc-family
+  มังฮวา(-จีน), one-shots มังงะ) — toggling only
   flips the circle so rows never resize (the old wrapped chips jumped
   around on select); list scrolls, capped at half the screen; long-press
   → genre browser kept. Theme picker gained an OLED family: Stardust

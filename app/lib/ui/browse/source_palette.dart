@@ -17,17 +17,20 @@ Color sourceDotColor(int index) => _palette[index % _palette.length];
 
 /// What each site MOSTLY carries — display-only badges for the site
 /// sheet's right-hand side (user QA 2026-10-19), not a filter; sources can
-/// carry more than listed. Nekopost is the only novel carrier.
+/// carry more than listed. Grounded 2026-10-19 by counting the sites' own
+/// tile type badges (ts `.typename` spans, doujin-lc `manga-title-badges`)
+/// AND the app DB's detail-page Type fields — e.g. go-manga: 33 Manhwa /
+/// 5 Manhua / 2 Manga tiles + 22/5/1 in the DB ⇒ manhwa+manhua only.
 const sourceContentTypes = <String, List<String>>{
-  'nekopost': ['manga', 'novel'],
-  'slow-manga': ['manga', 'manhwa', 'manhua'],
-  'go-manga': ['manga', 'manhwa', 'manhua'],
-  'up-manga': ['manga', 'manhwa', 'manhua'],
-  'dark-manga': ['manga', 'manhwa', 'manhua'],
-  'fin-manga': ['manga', 'manhwa', 'manhua'],
-  'bully-manga': ['manga', 'manhwa'],
-  'ntr-manga': ['manga'],
-  'doujin-lc': ['manga', 'manhwa'],
+  'nekopost': ['manga', 'novel'], // the only novel carrier (its API)
+  'slow-manga': ['manhwa', 'manga'], // DB: 25 manhwa / 9 manga / 5 manhua
+  'go-manga': ['manhwa', 'manhua'],
+  'up-manga': ['manhwa', 'manhua'],
+  'dark-manga': ['manhwa'],
+  'fin-manga': ['manhwa'],
+  'bully-manga': ['manhwa', 'manhua'], // DB: 24 / 6 / 5
+  'ntr-manga': ['manga'], // JP NTR translations; no badges, untyped details
+  'doujin-lc': ['manhwa'], // every archive badge reads Manhwa
   'hentaithai': ['manga'],
   'miku-doujin': ['manga'],
 };
