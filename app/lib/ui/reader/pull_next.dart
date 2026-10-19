@@ -8,9 +8,11 @@ import '../../core/i18n/i18n.dart';
 /// countdown): the reader feeds overscroll deltas while the user drags
 /// past the end; progress follows a sqrt curve so it gets harder the
 /// further they pull (rubber-band resistance). Committing happens on
-/// release when the pull reached [threshold].
+/// release when the pull reached [threshold]. Negative deltas (the user
+/// sliding back toward the page) reduce the pull so the indicator
+/// follows the finger in BOTH directions (user QA 2026-10-19).
 class PullNextTracker {
-  PullNextTracker({this.threshold = 130});
+  PullNextTracker({this.threshold = 170});
 
   final double threshold;
 
@@ -106,16 +108,39 @@ class PullNextIndicator extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          SizedBox(
-            width: 148,
-            height: 4,
-            child: LinearProgressIndicator(
-              value: hasNext ? progress.clamp(0.0, 1.0) : 1,
-              backgroundColor: Colors.white24,
-              valueColor: AlwaysStoppedAnimation(
-                  armed && hasNext ? scheme.primary : Colors.white60),
-              borderRadius: BorderRadius.circular(999),
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 118,
+                height: 4,
+                child: LinearProgressIndicator(
+                  value: hasNext ? progress.clamp(0.0, 1.0) : 1,
+                  backgroundColor: Colors.white24,
+                  valueColor: AlwaysStoppedAnimation(
+                      armed && hasNext ? scheme.primary : Colors.white60),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Live percent readout (user QA 2026-10-19): shows how much
+              // force is applied and how far to go — and it drops back
+              // when the drag reverses.
+              SizedBox(
+                width: 34,
+                child: Text(
+                  '${(progress.clamp(0.0, 1.0) * 100).round()}%',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: armed && hasNext
+                        ? scheme.primary
+                        : Colors.white60,
+                    fontSize: 12,
+                    fontWeight: armed && hasNext ? FontWeight.w700 : null,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

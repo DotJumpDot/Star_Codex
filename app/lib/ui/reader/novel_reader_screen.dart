@@ -135,7 +135,13 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
 
   /// Overscroll past the bottom while at the end = pull-to-continue.
   void _onOverscroll(double overscroll) {
-    if (overscroll <= 0 || !_autoNext || !_endVisible) return;
+    if (!_autoNext || !_endVisible) return;
+    // Dragging back shrinks an in-progress pull (indicator follows both
+    // directions, user QA 2026-10-19).
+    if (overscroll <= 0) {
+      if (_pull.dragging) setState(() => _pull.add(overscroll));
+      return;
+    }
     _ensureNext();
     setState(() => _pull.add(overscroll));
   }

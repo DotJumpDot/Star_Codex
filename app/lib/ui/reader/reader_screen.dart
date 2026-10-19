@@ -241,9 +241,15 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   /// Overscroll past the bottom edge while parked at the end = the
   /// drag-to-continue pull (ClampingScrollPhysics fires Overscroll
-  /// notifications during the active drag only).
+  /// notifications during the active drag only). Negative deltas (the
+  /// finger dragging back) shrink an in-progress pull so the indicator
+  /// follows both directions.
   void _onOverscroll(double overscroll) {
-    if (overscroll <= 0 || !_autoNext || !_atEnd) return;
+    if (!_autoNext || !_atEnd) return;
+    if (overscroll <= 0) {
+      if (_pull.dragging) setState(() => _pull.add(overscroll));
+      return;
+    }
     _ensureNext();
     setState(() => _pull.add(overscroll));
   }

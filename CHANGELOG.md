@@ -153,6 +153,16 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-19 — Reader pull + paged flash + sheet padding (user QA
+  round 5): drag-to-continue needs noticeably more force (thresholds
+  170 px vertical / 160 px horizontal) and the pill now shows a live
+  percentage that DROPS when you slide back (all three readers feed
+  negative overscroll into the tracker); the paged reader's brief black
+  frame on every page turn is gone (neighboring page stays built via
+  allowImplicitScrolling + decoded pages stay in the memory cache
+  instead of being dropped when their slot disposes); the site sheet's
+  last row gets trailing padding so it no longer sits flush against the
+  sheet edge. 205 tests green.
 - 2026-10-19 — Docs: v1.2.0 refresh — README (doujin page, site
   selector rows, OLED family, 9-live-source tables, correct minSdk
   badge, v1.2.0 status), AGENTS/HANDOFF/Docs-README/ARCHITECTURE

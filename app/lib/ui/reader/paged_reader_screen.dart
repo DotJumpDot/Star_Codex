@@ -48,7 +48,8 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
   /// Drag-past-the-last-page state (horizontal pull, rtl-aware arrow).
-  final _pull = PullNextTracker(threshold: 100);
+  /// 160 px (raised from 100, user QA 2026-10-19: it armed too easily).
+  final _pull = PullNextTracker(threshold: 160);
   Chapter? _next;
   bool _nextKnown = false;
   bool _nextLookup = false;
@@ -193,11 +194,16 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
 
   /// Forward overscroll while ON the last page = the drag-to-continue
   /// pull. Positive overscroll is always the forward direction (PageView
-  /// accounts for `reverse` internally).
+  /// accounts for `reverse` internally). Negative deltas (dragging back)
+  /// shrink an in-progress pull so the indicator follows both directions.
   void _onOverscroll(double overscroll) {
     final loaded = _loaded;
-    if (overscroll <= 0 || !_autoNext || loaded == null) return;
+    if (!_autoNext || loaded == null) return;
     if (_page != loaded.pages.length - 1) return;
+    if (overscroll <= 0) {
+      if (_pull.dragging) setState(() => _pull.add(overscroll));
+      return;
+    }
     _ensureNext();
     setState(() => _pull.add(overscroll));
   }
@@ -349,6 +355,11 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
               child: PageView.builder(
                 controller: _pageController!,
                 reverse: _rtl,
+                // Keep the neighboring page BUILT (viewport cacheExtent):
+                // the target page of a turn is already constructed and
+                // decoded while it slides in — no black flash frame
+                // between pages (user QA 2026-10-19).
+                allowImplicitScrolling: true,
                 itemCount: loaded.pages.length,
                 onPageChanged: _onPageChanged,
                 itemBuilder: (context, i) => _PageSlotPaged(
@@ -587,7 +598,11 @@ class _PageSlotPagedState extends ConsumerState<_PageSlotPaged> {
           File('${dir.path}/${pf.path}'),
           fit: BoxFit.contain,
           mode: ExtendedImageMode.gesture,
-          clearMemoryCacheWhenDispose: true,
+          // Do NOT clear the memory cache on dispose: PageView disposes
+          // off-screen slots on every turn, and clearing forced a
+          // re-decode (a black flash frame) each time — forward AND back.
+          // The framework ImageCache LRU-evicts under pressure instead.
+          clearMemoryCacheWhenDispose: false,
           extendedImageGestureKey: _gestureKey,
           loadStateChanged: (state) =>
               state.extendedImageLoadState == LoadState.loading

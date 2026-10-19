@@ -169,10 +169,13 @@ class _SourceSheetState extends State<_SourceSheet> {
             const SizedBox(height: 4),
             // One site per line, capped at half the screen (user QA
             // 2026-10-19) — rows never resize, the list scrolls instead.
+            // Trailing 12 px INSIDE the scroll so the last row never sits
+            // flush against the sheet's bottom edge.
             ConstrainedBox(
               constraints: BoxConstraints(
                   maxHeight: MediaQuery.sizeOf(context).height * 0.5),
               child: SingleChildScrollView(
+                padding: const EdgeInsets.only(bottom: 12),
                 child: Column(
                   children: [
                     for (var i = 0; i < widget.sources.length; i++)
