@@ -153,6 +153,11 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-20 — Release: v1.2.3 — version 1.2.3+7. Ships everything since
+  v1.2.2: the browse sort orders (latest/oldest update, most/fewest
+  chapters — latest update by default) and the search-card date fix
+  (newest-chapter stamps now reach every card, including the ts sources
+  whose tiles carry no dates). 213 tests green.
 - 2026-10-20 — Search cards show the newest-chapter date (user report:
   "Overgeared from up/go-manga shows no last update but every chapter
   has a date"). Three stacked causes: the date-backfill pass was capped
