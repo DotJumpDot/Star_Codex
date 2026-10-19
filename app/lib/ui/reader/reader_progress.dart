@@ -28,6 +28,29 @@ int currentPageIndex(
   return heights.length - 1;
 }
 
+/// Scroll-offset correction that keeps the viewport visually anchored
+/// when slot [idx] resizes by [delta] (estimate → decoded height).
+///
+/// Lazy slots above the viewport correct their reserved heights while you
+/// scroll BACK UP (pages below never mattered — they load after you pass
+/// them). Without this, growing content above the viewport shoves the
+/// visible pages down mid-drag: the feed feels stuck, then jumps (user
+/// report 2026-10-19). If the slot sits entirely above the viewport top,
+/// the offset must move by the same [delta] for the screen to show the
+/// same pixels; a slot straddling or below the viewport needs no
+/// correction (it was about to shift anyway / doesn't affect the anchor).
+double heightAnchorDelta(
+  List<double> offsets,
+  List<double> heights,
+  int idx,
+  double delta,
+  double scrollOffset,
+) {
+  if (idx < 0 || idx >= heights.length || delta == 0) return 0;
+  final slotBottom = offsets[idx] + heights[idx];
+  return slotBottom <= scrollOffset + 0.5 ? delta : 0;
+}
+
 /// Completed when the scroll is within one viewport of the max extent
 /// (doc 10 §5 "completed" rule).
 bool reachedEnd(

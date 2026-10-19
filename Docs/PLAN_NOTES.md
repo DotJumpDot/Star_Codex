@@ -797,3 +797,21 @@ referer pairing, novel estimate. 165 tests green.
   accent + true #000 bg AND `surface: #000000` — the StarThemeSpec
   default surface (0xFF26262B) is the READER background and would glow
   grey against an OLED scaffold; always override it for black themes.
+
+## 2026-10-19 — Webtoon scroll-anchor invariant
+
+- **Height corrections above the viewport MUST re-anchor the scroll
+  offset.** Lazy slots hold a 1.9× width estimate until decoded; slots
+  ABOVE the viewport only decode when you scroll BACK UP into them
+  (below-viewport pages load after you pass them, which is why
+  scrolling down was always smooth). When such a slot's real height
+  replaces the estimate, everything below shifts — mid-drag that reads
+  as "stuck then jumps" (worst after resuming mid-chapter: everything
+  above the resume point is unmeasured). Fix: `heightAnchorDelta`
+  (reader_progress.dart) returns the resize delta only when the slot is
+  ENTIRELY above the viewport top; the reader shifts the offset by it
+  post-frame (after the extent updates, so the clamp is against the new
+  max). Straddling slots take the one-time small shift.
+- `PageSlot` no longer clears the memory cache on dispose (same fix as
+  the paged reader): scroll-back re-decodes caused placeholder flashes;
+  `cacheWidth` keeps entries small and the framework LRU evicts.

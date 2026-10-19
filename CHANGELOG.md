@@ -153,6 +153,16 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-19 — Webtoon scroll-up jank fixed (user report): scrolling up
+  got stuck/jumpy because never-displayed pages above the viewport still
+  held 1.9× height estimates; when scrolling back rebuilt them, their
+  real decoded heights (often much taller) shifted all content below —
+  worst after resuming mid-chapter. Height corrections are now
+  ANCHORED: when a slot above the viewport resizes, the scroll offset
+  shifts by the same delta (heightAnchorDelta, unit-tested) so the
+  visible pages stay under the finger; decoded webtoon pages also stay
+  in the memory cache (no placeholder re-decode flash on scroll-back).
+  206 tests green.
 - 2026-10-19 — Reader pull + paged flash + sheet padding (user QA
   round 5): drag-to-continue needs noticeably more force (thresholds
   170 px vertical / 160 px horizontal) and the pill now shows a live

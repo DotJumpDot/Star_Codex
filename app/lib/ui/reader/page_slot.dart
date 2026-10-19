@@ -101,7 +101,11 @@ class _PageSlotState extends ConsumerState<PageSlot> {
               width: widget.screenWidth,
               height: height,
               fit: BoxFit.fitWidth,
-              clearMemoryCacheWhenDispose: true,
+              // Keep decoded pages in the memory cache: scrolling back UP
+              // rebuilds disposed slots, and clearing forced a re-decode
+              // (placeholder flash + jank) on every revisit. cacheWidth
+              // keeps each entry small; the framework LRU evicts.
+              clearMemoryCacheWhenDispose: false,
               cacheWidth:
                   (widget.screenWidth * MediaQuery.devicePixelRatioOf(context))
                       .round(),

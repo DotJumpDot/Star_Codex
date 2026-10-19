@@ -201,7 +201,23 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     if (idx >= _heights.length) return;
     final exact = _slotWidth * h / w;
     if ((exact - _heights[idx]).abs() < 1) return;
+    // Anchor preservation: when the corrected slot sits ABOVE the
+    // viewport (the scroll-back-up case), shifting the offset by the
+    // same delta keeps the visible pages under the finger — without
+    // this, unmeasured pages above growing to real heights shove the
+    // viewport content down: the feed feels stuck, then jumps.
+    final adjust = heightAnchorDelta(
+        slotOffsets(_heights), _heights, idx, exact - _heights[idx],
+        _scroll.hasClients ? _scroll.offset : 0);
     setState(() => _heights[idx] = exact);
+    if (adjust != 0 && _scroll.hasClients) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_scroll.hasClients) return;
+        final target = (_scroll.offset + adjust)
+            .clamp(0.0, _scroll.position.maxScrollExtent);
+        if ((target - _scroll.offset).abs() >= 1) _scroll.jumpTo(target);
+      });
+    }
   }
 
   bool get _atEnd {

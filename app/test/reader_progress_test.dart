@@ -30,6 +30,24 @@ void main() {
     expect(reachedEnd(0, 0, viewport), isFalse); // no layout yet
   });
 
+  test('heightAnchorDelta: corrects only when the slot is fully above the '
+      'viewport (scroll-back-up jank, user report 2026-10-19)', () {
+    // heights 100/200/300, offsets 0/100/300; viewport scrolled to 350.
+    // Slot 0 (bottom 100) and slot 1 (bottom 300) sit fully above 350 →
+    // their resize must shift the offset by the full delta so the
+    // visible pixels stay put. Slot 2 straddles/contains the anchor →
+    // no correction.
+    expect(heightAnchorDelta(offsets, heights, 0, 250, 350), 250);
+    expect(heightAnchorDelta(offsets, heights, 1, -50, 350), -50);
+    expect(heightAnchorDelta(offsets, heights, 2, 250, 350), 0);
+    // Slot bottom exactly at the viewport top still counts as above.
+    expect(heightAnchorDelta([0.0, 300.0], [300.0, 100.0], 0, 40, 300), 40);
+    // Degenerate inputs stay no-ops.
+    expect(heightAnchorDelta(offsets, heights, 1, 0, 350), 0);
+    expect(heightAnchorDelta(offsets, heights, -1, 40, 350), 0);
+    expect(heightAnchorDelta(offsets, heights, 9, 40, 350), 0);
+  });
+
   test('shouldAutoNext: end window + last page top above 65% (doc 10 §6)',
       () {
     // Realistic chapter: slots 800/900/950, viewport 800 → total 2650,
