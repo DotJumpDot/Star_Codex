@@ -57,3 +57,27 @@ Future<void> openReader(
     },
   ));
 }
+
+/// Mode flips apply to the OPEN reader, not just the next chapter (user
+/// report 2026-10-19: flipping เว็บตูน ↔ หน้าต่อหน้า in the drawer used to
+/// need an exit + re-enter). Callers save progress FIRST so the
+/// replacement resumes at the same spot; when the freshly resolved mode
+/// lands on the same screen as [current], this is a no-op.
+Future<void> replaceWithResolvedReader(
+  BuildContext context, {
+  required Chapter chapter,
+  required ReaderMode current,
+  required SeriesDao seriesDao,
+  String? modeOverride,
+}) async {
+  final series = await seriesDao.byId(chapter.seriesId);
+  final mode = resolveReaderMode(series?.type, modeOverride);
+  if (mode == current || !context.mounted) return;
+  await Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
+    builder: (_) => switch (mode) {
+      ReaderMode.webtoon => ReaderScreen(chapter: chapter),
+      ReaderMode.paged => PagedReaderScreen(chapter: chapter),
+      ReaderMode.novel => NovelReaderScreen(chapter: chapter),
+    },
+  ));
+}

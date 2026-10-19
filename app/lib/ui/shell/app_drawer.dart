@@ -18,15 +18,16 @@ class AppNavDrawer extends ConsumerWidget {
     final theme = Theme.of(context);
     final items = <(IconData, IconData, String)>[
       (Icons.search_outlined, Icons.search, 'tab.browse'),
+      // Doujin (18+) — its own scoped browse page (user request
+      // 2026-10-19): separated from the main feed on purpose, second in
+      // the drawer right under ค้นหา.
+      (Icons.eighteen_up_rating_outlined, Icons.eighteen_up_rating,
+          'tab.adult'),
       (Icons.collections_bookmark_outlined, Icons.collections_bookmark,
           'tab.library'),
       (Icons.history_outlined, Icons.history, 'tab.history'),
       (Icons.download_outlined, Icons.download, 'tab.offline'),
       (Icons.settings_outlined, Icons.settings, 'tab.settings'),
-      // Doujin (18+) — its own scoped browse page (user request
-      // 2026-10-19): separated from the main feed on purpose.
-      (Icons.eighteen_up_rating_outlined, Icons.eighteen_up_rating,
-          'tab.adult'),
     ];
     return NavigationDrawer(
       selectedIndex: current,

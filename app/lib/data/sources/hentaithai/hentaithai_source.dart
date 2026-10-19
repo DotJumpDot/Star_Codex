@@ -104,10 +104,7 @@ class HentaiThaiSource implements Source {
     }
   }
 
-  bool _looksLikeCloudflare(String body) =>
-      body.contains('Just a moment...') ||
-      body.contains('challenge-platform') ||
-      body.contains('cf-mitigated');
+  bool _looksLikeCloudflare(String body) => looksLikeCloudflarePage(body);
 }
 
 // --- pure parsers (fixture-tested, no I/O) ---

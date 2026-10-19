@@ -108,6 +108,19 @@ class ChapterPages {
 /// Typed source-layer exception (Plan/04 §6).
 enum SourceErrorKind { network, cloudflare, notFound, parse, unknown }
 
+/// True when the body is an actual Cloudflare challenge/block page, not a
+/// normal page that merely embeds Cloudflare's benign JS-detect snippet
+/// (`challenge-platform/scripts/jsd/main.js` ships inside ordinary pages —
+/// hentaithai.net, live probe 2026-10-19 — so a bare marker match
+/// false-positived every fetch there). Real challenge pages carry the
+/// "Just a moment…" title, block pages the "Attention Required!" title,
+/// and managed challenges an inline `_cf_chl_opt` bootstrap.
+bool looksLikeCloudflarePage(String body) =>
+    body.contains('Just a moment') ||
+    body.contains('Attention Required') ||
+    body.contains('_cf_chl_opt') ||
+    body.contains('cf-browser-verification');
+
 class SourceException implements Exception {
   const SourceException(this.sourceId, this.kind, {this.detail});
 

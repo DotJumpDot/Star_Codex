@@ -5,7 +5,7 @@ import 'package:sqflite/sqflite.dart';
 /// Single SQLite database (Plan/02). All timestamps are milliseconds since
 /// epoch (int). Migrations append only: bump [dbVersion], add a `case` in
 /// [onUpgrade] — never edit v1 statements after shipping.
-const dbVersion = 5;
+const dbVersion = 6;
 const dbFileName = 'manga_reader.db';
 
 class DbException implements Exception {
@@ -100,6 +100,17 @@ Future<Database> openDb(
                   },
                   conflictAlgorithm: ConflictAlgorithm.ignore);
             }
+            continue next4; // chain to v6
+          // v6 (2026-10-19): doujin-lc + miku-doujin sit behind a
+          // Cloudflare WAF that fingerprint-blocks Dart's TLS stack
+          // ("Attention Required!" 403 for every app request while
+          // browsers pass) — seed them OFF; users can still re-enable in
+          // Settings. The adapters stay correct for if the sites lift it.
+          next4:
+          case 5:
+            await db.execute(
+                "UPDATE sources SET enabled = 0 "
+                "WHERE id IN ('doujin-lc', 'miku-doujin') AND enabled = 1");
           // Future migrations append cases here: `case 1: ...; continue next;`
           default:
             break;
@@ -289,6 +300,11 @@ const _defaultSettings = {
   'novel_bg_opacity': '1.0',
 };
 
+/// Sources that seed DISABLED: Cloudflare fingerprint-blocks the app's
+/// TLS stack (2026-10-19 probe — adapters correct, requests 403). Users
+/// can re-enable in Settings.
+const _seededDisabled = {'doujin-lc', 'miku-doujin'};
+
 Future<void> _seed(Database db) async {
   final batch = db.batch();
   for (var i = 0; i < _seededSources.length; i++) {
@@ -298,7 +314,7 @@ Future<void> _seed(Database db) async {
       'name': s.$2,
       'base_url': s.$3,
       'adapter': s.$4,
-      'enabled': 1,
+      'enabled': _seededDisabled.contains(s.$1) ? 0 : 1,
       'sort': i,
     });
   }

@@ -47,7 +47,7 @@ class _SearchOverlayState extends ConsumerState<SearchOverlay> {
     // on the Doujin (18+) page stays in the adult sources, everything
     // else goes to the main browse.
     final tab = ref.read(tabIndexProvider);
-    const adultTab = 5;
+    const adultTab = 1;
     if (tab == adultTab) {
       ref.read(adultBrowseControllerProvider.notifier).submitSearch(q);
     } else {

@@ -16,6 +16,7 @@ import 'chapter_picker_sheet.dart';
 import 'pull_next.dart';
 import 'reader_actions.dart';
 import 'reader_drawer.dart';
+import 'reader_router.dart';
 import 'reader_settings_body.dart';
 
 /// Novel reader (doc 11 B): scrollable Thai text (selected UI font),
@@ -361,7 +362,10 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
         autoNext: settings.getBool('reader_auto_next', true),
         rtl: settings.getBool('reader_rtl', false),
         mode: settings.get('reader_mode_$seriesId', 'auto'),
-        onMode: (m) => controller.set('reader_mode_$seriesId', m),
+        onMode: (m) {
+          controller.set('reader_mode_$seriesId', m);
+          unawaited(_applyModeChange());
+        },
         novel: true,
         fontSize: _fontSize,
         lineHeight: _lineHeight,
@@ -382,6 +386,21 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
         },
       ),
     );
+  }
+
+  /// Persist where we are, then swap this route for the freshly resolved
+  /// reader when the mode actually changes screens (no-op otherwise).
+  Future<void> _applyModeChange() async {
+    await _saveProgress(_percent, completed: _percent >= 97);
+    if (!mounted) return;
+    final settings = ref.read(settingsProvider);
+    await replaceWithResolvedReader(context,
+        chapter: widget.chapter,
+        current: ReaderMode.novel,
+        seriesDao: ref.read(seriesDaoProvider),
+        modeOverride: effectiveModeOverride(
+            settings.get('reader_mode_${widget.chapter.seriesId}', 'auto'),
+            settings.get('reader_mode_default', 'auto')));
   }
 
   Future<void> _openChapterPicker() async {

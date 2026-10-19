@@ -153,6 +153,25 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-19 — Doujin QA fix round (user emulator report): hentaithai
+  never rendered because its REAL pages embed Cloudflare's benign
+  challenge-platform JS-detect snippet and the challenge sniff
+  false-positived on it — the sniff now lives in one shared helper
+  (source_api.looksLikeCloudflarePage, all 5 adapters) that only reacts
+  to actual challenge/block pages; miku-doujin + doujin-lc are
+  confirmed Cloudflare fingerprint-blocked at the TLS layer (403 block
+  page for Dart while every browser/curl probe passes — not fixable
+  in-app), so they seed disabled via db v6 (migration re-disables,
+  users can re-enable in Settings); miku's URL builder no longer emits
+  a trailing "?" (empty queryParameters). Reader: flipping the reading
+  mode in the drawer now swaps the open reader immediately (progress
+  saved first, resumes at the same page) instead of only affecting the
+  next chapter; the paged reader memoizes page futures + prefetches
+  ahead like webtoon mode, so page turns and going back no longer
+  flash a spinner. Doujin 18+ moved to second in the drawer (under
+  ค้นหา; settings tab is now index 5). Materialization budget 8→12 so
+  NTR's date-less tiles fill faster (their listing carries no dates at
+  all — dates only exist on detail pages). 205 tests green.
 - 2026-10-19 — Doujin (18+) page + 4 adult sources + site-filter race fix:
   ntr-manga.net (ts Madara config), doujin-lc.net (classic-Madara layout
   support: .page-item-detail / c-tabs-item__content rows, post-title

@@ -88,5 +88,9 @@ const madaraConfigs = [
     searchSupported: true,
     classicLayout: true,
     archivePath: 'doujin',
+    // CLOUDFLARE BLOCKED (2026-10-19 live probe): the zone fingerprint-
+    // blocks Dart's TLS stack — "Attention Required!" 403 for every app
+    // request while browsers/curl pass (UA/header/HTTP-version probes all
+    // 200). Adapters stay correct; the source seeds disabled (db v6).
   ),
 ];

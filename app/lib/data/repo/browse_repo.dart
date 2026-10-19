@@ -154,7 +154,11 @@ class BrowseRepo {
   /// session-memoized so pagination re-runs skip done cards.
   Future<void> materializeIncompleteGroups(
     List<SearchGroup> groups, {
-    int budget = 8,
+    // 12 (raised from 8, 2026-10-19): ts/one-shot tiles carry no dates, so
+    // cards only get them from this detail pass — 8 per refresh filled too
+    // slowly for scoped single-source feeds (NTR report). Still polite:
+    // per-host rate limiting paces the detail fetches.
+    int budget = 12,
     Future<void> Function(SearchGroup done)? onCardDone,
   }) async {
     for (final g in groups.take(40)) {

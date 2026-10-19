@@ -741,3 +741,43 @@ referer pairing, novel estimate. 165 tests green.
   hentaithai uses a Google CSE form) — search() throws notFound, browse
   via latest()/genres. hentaithai homepage feed is single-page
   (latest(page>1) = []).
+
+## 2026-10-19 — Doujin QA round: Cloudflare fingerprint block + reader invariants
+
+- **Cloudflare TLS-fingerprint blocking is REAL and unfixable in-app**
+  (miku-doujin + doujin-lc): their WAF returns an "Attention Required!"
+  403 for Dart's TLS stack while EVERY browser/curl request passes —
+  probed UA variants (mobile/desktop/no-header), Accept on/off,
+  HTTP/1.1, `www.` and apex hosts, plain `http://` (301s back). Windows
+  curl passes because it links Schannel (browser-like fingerprint);
+  dart:io cannot shape its ClientHello. If a future session is tempted
+  to "fix the 403": it is not headers, not UA, not the URL. Both
+  adapters are correct (fixture-tested) and seed DISABLED (db v6,
+  `_seededDisabled`); users can re-enable in Settings. hentaithai, by
+  contrast, works fine — it merely EMBEDS Cloudflare's benign
+  `challenge-platform/scripts/jsd/main.js` snippet on normal pages,
+  which the old challenge sniff false-positived on. The sniff now lives
+  in `source_api.looksLikeCloudflarePage` (shared by all 5 adapters) and
+  only reacts to actual challenge/block bodies (`Just a moment`,
+  `Attention Required`, `_cf_chl_opt`, `cf-browser-verification`) — do
+  NOT re-add bare `challenge-platform` to it.
+- **db v6** (append-only): `UPDATE sources SET enabled = 0 WHERE id IN
+  ('doujin-lc','miku-doujin') AND enabled = 1`. Fresh seeds insert them
+  with enabled 0. Settings live-registry count is now 9 (was 11).
+- **Reader mode flips apply LIVE**: `replaceWithResolvedReader`
+  (reader_router.dart) re-resolves `reader_mode_<id>` after a drawer
+  change and pushReplaces the route when the resolved screen differs;
+  each reader saves progress first (webtoon `_atEnd`/paged last-page/
+  novel ≥97% completion preserved) so the swap resumes in place. A
+  no-op when the resolution lands on the same screen (e.g. manga +
+  'paged' while already paged).
+- **Paged reader memoizes page futures** (`_inflight`, webtoon parity):
+  PageView disposes off-screen slot State, so without the memo every
+  turn — including going BACK — re-resolved and flashed a spinner.
+  `_prefetchFrom(page)` queues `reader_prefetch_ahead` pages ahead on
+  every page change; failures are evicted so Retry still works.
+- **Doujin 18+ is drawer index 1** (under ค้นหา), Settings index 5 —
+  `shell._pages`, `app_drawer`, and `search_overlay.adultTab` must move
+  together. NTR-manga listing tiles carry NO date markup at all (only
+  chapter + rating); card dates come exclusively from background
+  materialization (budget raised 8→12), so they fill a few per refresh.

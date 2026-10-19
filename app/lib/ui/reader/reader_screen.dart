@@ -22,6 +22,7 @@ import 'pull_next.dart';
 import 'reader_chrome.dart';
 import 'reader_drawer.dart';
 import 'reader_progress.dart';
+import 'reader_router.dart';
 import 'reader_settings_body.dart';
 
 /// Webtoon reader (doc 10) — vertical streaming, prefetch ahead, chrome
@@ -466,7 +467,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         autoNext: settings.getBool('reader_auto_next', true),
         rtl: settings.getBool('reader_rtl', false),
         mode: settings.get('reader_mode_$seriesId', 'auto'),
-        onMode: (m) => controller.set('reader_mode_$seriesId', m),
+        onMode: (m) {
+          controller.set('reader_mode_$seriesId', m);
+          unawaited(_applyModeChange(loaded));
+        },
         onChanged: (prefetch, awake, autoNext, rtl) {
           controller.set('reader_prefetch_ahead', '$prefetch');
           controller.set('reader_keep_awake', awake ? '1' : '0');
@@ -483,6 +487,21 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         onTap: onTap,
         child: const SizedBox.expand(),
       );
+
+  /// Persist where we are, then swap this route for the freshly resolved
+  /// reader when the mode actually changes screens (no-op otherwise).
+  Future<void> _applyModeChange(LoadedChapter loaded) async {
+    await _saveProgress(_currentPage, completed: _atEnd);
+    if (!mounted) return;
+    final settings = ref.read(settingsProvider);
+    await replaceWithResolvedReader(context,
+        chapter: loaded.chapter,
+        current: ReaderMode.webtoon,
+        seriesDao: ref.read(seriesDaoProvider),
+        modeOverride: effectiveModeOverride(
+            settings.get('reader_mode_${loaded.chapter.seriesId}', 'auto'),
+            settings.get('reader_mode_default', 'auto')));
+  }
 
   Future<void> _openChapterPicker(LoadedChapter loaded) async {
     final vm = await ref

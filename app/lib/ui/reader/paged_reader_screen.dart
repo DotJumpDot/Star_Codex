@@ -19,6 +19,7 @@ import 'pull_next.dart';
 import 'reader_actions.dart';
 import 'reader_chrome.dart';
 import 'reader_drawer.dart';
+import 'reader_router.dart';
 import 'reader_settings_body.dart';
 
 /// Paged reader (doc 11 A): horizontal PageView for manga-style pages,
@@ -62,6 +63,17 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   /// whole build pipeline: taps dead, frame stuck at 1/N).
   final _slotKeys = <int, GlobalKey<ExtendedImageGestureState>>{};
   DateTime _lastSave = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// In-flight/finished page futures for THIS chapter. PageView rebuilds
+  /// slot State on every page turn (off-screen children are disposed), so
+  /// without the memo every turn — including going BACK — re-resolved the
+  /// page and flashed the loading spinner (user report 2026-10-19).
+  /// Successes stay memoized for the screen's lifetime; failures are
+  /// evicted so Retry works.
+  final _inflight = <int, Future<PageFile>>{};
+
+  int get _prefetchAhead =>
+      ref.read(settingsProvider).getInt('reader_prefetch_ahead', 6);
 
   bool get _rtl =>
       ref.read(settingsProvider).getBool('reader_rtl', false);
@@ -116,6 +128,7 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
         _page = initial;
         _pageController = PageController(initialPage: initial);
       });
+      _prefetchFrom(initial);
     } catch (e) {
       // QA on-device 2026-10-18 (Bug #7): this catch used to swallow the
       // error into an eternal spinner — manga-type chapters route HERE,
@@ -136,10 +149,37 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
         pageIndex: page, completed: completed);
   }
 
+  /// One page via the shared resolver, memoized per index (see
+  /// [_inflight]). Pages [page+1 .. page+ahead] queue right behind it so
+  /// a swipe finds the file already on disk instead of a spinner.
+  Future<PageFile> _resolvePage(int idx) {
+    final existing = _inflight[idx];
+    if (existing != null) return existing;
+    final loaded = _loaded!;
+    final future = _repo.resolvePage(loaded, idx).then<PageFile>((pf) => pf,
+        onError: (Object e) {
+      _inflight.remove(idx);
+      throw e;
+    });
+    _inflight[idx] = future;
+    return future;
+  }
+
+  void _prefetchFrom(int page) {
+    final loaded = _loaded;
+    if (loaded == null) return;
+    for (var k = 1; k <= _prefetchAhead; k++) {
+      final i = page + k;
+      if (i >= loaded.pages.length) break;
+      _resolvePage(i); // memoized — already-fetched pages are free
+    }
+  }
+
   void _onPageChanged(int page) {
     final loaded = _loaded;
     if (loaded == null) return;
     setState(() => _page = page);
+    _prefetchFrom(page);
     final now = DateTime.now();
     if (now.difference(_lastSave) >= const Duration(milliseconds: 500)) {
       _lastSave = now;
@@ -314,7 +354,7 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
                 itemBuilder: (context, i) => _PageSlotPaged(
                   page: loaded.pages[i],
                   index: i,
-                  resolve: () => _repo.resolvePage(loaded, i),
+                  resolve: () => _resolvePage(i),
                   register: (i, key) => _slotKeys[i] = key,
                 ),
               ),
@@ -420,8 +460,10 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
         autoNext: settings.getBool('reader_auto_next', true),
         rtl: settings.getBool('reader_rtl', false),
         mode: settings.get('reader_mode_$seriesId', 'auto'),
-        onMode: (m) =>
-            controller.set('reader_mode_$seriesId', m),
+        onMode: (m) {
+          controller.set('reader_mode_$seriesId', m);
+          unawaited(_applyModeChange(loaded));
+        },
         onChanged: (prefetch, awake, autoNext, rtl) {
           controller.set('reader_prefetch_ahead', '$prefetch');
           controller.set('reader_keep_awake', awake ? '1' : '0');
@@ -431,6 +473,21 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
         },
       ),
     );
+  }
+
+  /// Persist where we are, then swap this route for the freshly resolved
+  /// reader when the mode actually changes screens (no-op otherwise).
+  Future<void> _applyModeChange(LoadedChapter loaded) async {
+    await _saveProgress(_page, completed: _page == loaded.pages.length - 1);
+    if (!mounted) return;
+    final settings = ref.read(settingsProvider);
+    await replaceWithResolvedReader(context,
+        chapter: loaded.chapter,
+        current: ReaderMode.paged,
+        seriesDao: ref.read(seriesDaoProvider),
+        modeOverride: effectiveModeOverride(
+            settings.get('reader_mode_${loaded.chapter.seriesId}', 'auto'),
+            settings.get('reader_mode_default', 'auto')));
   }
 
   Future<void> _openChapterPicker(LoadedChapter loaded) async {

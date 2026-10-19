@@ -17,6 +17,11 @@ import '../source_api.dart';
 ///   `#manga-content img.lazy[data-src]` inline. Detail therefore reports
 ///   exactly one chapter whose URL IS the series URL; tags come from
 ///   `a[href*="/category/"]`.
+///
+/// CLOUDFLARE BLOCKED (2026-10-19 live probe): Cloudflare's WAF
+/// fingerprint-blocks Dart's TLS stack ("Attention Required!" 403 while
+/// every browser/curl request passes) — the adapter is correct but the
+/// site is unreachable from the app, so the source seeds disabled.
 class MikuDoujinSource implements Source {
   MikuDoujinSource(this.http);
 
@@ -41,19 +46,14 @@ class MikuDoujinSource implements Source {
   }
 
   @override
-  Future<List<SourceSeries>> latest({int page = 1}) =>
-      _listing(Uri.parse('$baseUrl/').replace(queryParameters: {
-        if (page > 1) 'paged': '$page',
-      }));
+  Future<List<SourceSeries>> latest({int page = 1}) => _listing(
+      Uri.parse(page > 1 ? '$baseUrl/?paged=$page' : '$baseUrl/'));
 
   @override
   Future<List<SourceSeries>> browseGenre(String term, {int page = 1}) =>
-      _listing(Uri.parse(
-          '$baseUrl/category/${Uri.encodeComponent(term)}/').replace(
-        queryParameters: {
-          if (page > 1) 'paged': '$page',
-        },
-      ));
+      _listing(Uri.parse(page > 1
+          ? '$baseUrl/category/${Uri.encodeComponent(term)}/?paged=$page'
+          : '$baseUrl/category/${Uri.encodeComponent(term)}/'));
 
   Future<List<SourceSeries>> _listing(Uri uri) async {
     final body = await _fetch(uri);
@@ -111,10 +111,7 @@ class MikuDoujinSource implements Source {
     }
   }
 
-  bool _looksLikeCloudflare(String body) =>
-      body.contains('Just a moment...') ||
-      body.contains('challenge-platform') ||
-      body.contains('cf-mitigated');
+  bool _looksLikeCloudflare(String body) => looksLikeCloudflarePage(body);
 }
 
 // --- pure parsers (fixture-tested, no I/O) ---

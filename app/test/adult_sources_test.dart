@@ -1,12 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:star_codex/core/net/safe_http.dart';
 import 'package:star_codex/data/sources/madara/configs.dart';
 import 'package:star_codex/data/sources/madara/madara_source.dart';
 import 'package:star_codex/data/sources/miku/miku_source.dart';
 import 'package:star_codex/data/sources/hentaithai/hentaithai_source.dart';
+import 'package:star_codex/data/sources/source_api.dart';
 
 /// Adult-source adapter parsers against fixtures trimmed from the LIVE
 /// pages (probed 2026-10-19). doujin-lc = classic Madara layout;
@@ -109,6 +111,37 @@ Future<void> main() async {
       final pages = parseHentaiThaiPages(await fixture('ht_thread.html'));
       expect(pages, isNotEmpty);
       expect(pages.every((p) => p.contains('hentaithai.net/thai/')), isTrue);
+    });
+
+    test('benign Cloudflare JSD snippet is NOT a challenge (2026-10-19 '
+        'on-device report: every fetch threw cloudflare)', () async {
+      // The REAL homepage embeds Cloudflare's JS-detect script; the old
+      // marker check treated that as a challenge page and hentaithai never
+      // rendered. looksLikeCloudflarePage must stay false for it.
+      final body = '<html><head>'
+          '<script src="//hentaithai.net/cdn-cgi/challenge-platform/scripts/'
+          'jsd/main.js"></script>'
+          '</head><body>${await fixture('ht_listing.html')}</body></html>';
+      expect(looksLikeCloudflarePage(body), isFalse);
+      final http = SafeHttp(fetcher: (uri, options) async {
+        return Response<List<int>>(
+          data: utf8.encode(body),
+          statusCode: 200,
+          requestOptions: RequestOptions(path: uri.toString()),
+        );
+      });
+      final items = await HentaiThaiSource(http).latest();
+      expect(items, isNotEmpty);
+    });
+
+    test('a real block page IS detected', () {
+      expect(
+          looksLikeCloudflarePage(
+              '<title>Attention Required! | Cloudflare</title>'),
+          isTrue);
+      expect(
+          looksLikeCloudflarePage('<title>Just a moment...</title>'),
+          isTrue);
     });
   });
 }
