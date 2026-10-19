@@ -135,6 +135,19 @@ class BrowsePage {
   final List<SourceFailure> failures;
 }
 
+/// DB-enrichment fields survive group rebuilds: merges recreate every
+/// existing group as a fresh object, and without this carry the enriched
+/// date/type/tags/cover would VANISH from all earlier pages the moment
+/// infinite-scroll merges the next page (2026-10-20).
+void _carryEnrichment(SearchGroup dst, SearchGroup src) {
+  dst.dbStatus = src.dbStatus;
+  dst.dbType = src.dbType;
+  dst.dbLastUpdatedMs = src.dbLastUpdatedMs;
+  dst.dbTags = src.dbTags;
+  dst.dbCoverUrl = src.dbCoverUrl;
+  dst.dbCoverReferer = src.dbCoverReferer;
+}
+
 /// Merge [incoming] candidates into [existing] groups (Plan/07 §2):
 /// duplicate (source,url) dropped; match by exact/alt/fuzzy against every
 /// member; else a new group. Used both within one page and across latest-
@@ -142,6 +155,9 @@ class BrowsePage {
 List<SearchGroup> mergeIntoGroups(
     List<SearchGroup> existing, Iterable<BrowseCandidate> incoming) {
   final groups = [for (final g in existing) SearchGroup(g.members)];
+  for (var i = 0; i < existing.length; i++) {
+    _carryEnrichment(groups[i], existing[i]);
+  }
   for (final c in incoming) {
     if (groups.any((g) => g.members
         .any((m) => m.sourceId == c.sourceId && m.url == c.url))) {
@@ -186,6 +202,9 @@ void annotateSimilar(List<SearchGroup> groups) {
 List<SearchGroup> mergeGroupLists(
     List<SearchGroup> existing, List<SearchGroup> incoming) {
   final groups = [for (final g in existing) SearchGroup(g.members)];
+  for (var i = 0; i < existing.length; i++) {
+    _carryEnrichment(groups[i], existing[i]);
+  }
   bool anyMatch(SearchGroup a, SearchGroup b) => a.members
       .any((m) => b.members.any((n) => merges(matchTitles(m.candidate, n.candidate))));
   for (final ig in incoming) {

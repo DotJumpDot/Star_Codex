@@ -328,6 +328,79 @@ void main() {
       expect(recent.contains('q1'), isFalse); // oldest fell off
     });
 
+    test('materializeIncompleteGroups backfills dates on EVERY undated card',
+        () async {
+      // User report 2026-10-20: most search cards showed no last-update
+      // while their detail pages had every chapter stamp — the pass used
+      // to stop after a budget of 12. Here 16 cover-bearing but dateless
+      // cards must ALL get their newest-chapter stamp even with the
+      // cross-probe budget at 0 (dates must not depend on the probe).
+      // Detail titles deliberately DIFFER from the tile titles (each
+      // site's Thai subtitle differs — the live Overgeared case), so a
+      // date landing here can only come from the materialize pass
+      // writing the row it already knows onto the card, never from a
+      // title-norm lookup.
+      // Real seeded source id — series_sources FKs to `sources`.
+      const names = [
+        'Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Golf',
+        'Hotel', 'India', 'Juliet', 'Kilo', 'Lima', 'Mike', 'November',
+        'Oscar', 'Papa',
+      ];
+      final src = FakeSource('slow-manga', searchResults: {
+        'q': [
+          for (var i = 0; i < names.length; i++)
+            SourceSeries(
+              url: 'https://s/$i/',
+              title: names[i],
+              coverUrl: 'https://s/c$i.jpg', // cover fine → date is the gap
+            ),
+        ],
+      }, details: {
+        for (var i = 0; i < names.length; i++)
+          'https://s/$i/': SourceSeriesDetail(
+            title: '${names[i]} จ้าวแห่งบททดสอบ',
+            chapters: [
+              SourceChapter(
+                url: 'https://s/$i/c1/',
+                title: 'ตอนที่ 1',
+                number: 1,
+                uploadedAt: 1700000000000 + i,
+              ),
+            ],
+          ),
+      });
+      final repo = repoWith([src]);
+      final page = await repo.search('q');
+      expect(page.groups, hasLength(names.length));
+      // No onCardDone enrichment — the direct row→card write is the only
+      // path under test.
+      await repo.materializeIncompleteGroups(page.groups, budget: 0);
+      expect(src.detailCalls, names.length,
+          reason: 'every undated card needs its detail fetch');
+      for (final g in page.groups) {
+        expect(g.dbLastUpdatedMs, isNotNull,
+            reason: '${g.displayTitle} stayed dateless');
+      }
+      // Persisted + session-memoized: a re-presented page fetches nothing.
+      final again = await repo.search('q');
+      await repo.materializeIncompleteGroups(again.groups, budget: 0);
+      expect(src.detailCalls, names.length);
+    });
+
+    test('merges carry db enrichment to the rebuilt groups (2026-10-20)',
+        () async {
+      final first = mergeIntoGroups(const [], [cand('a', 'Long Series', hint: 50)]);
+      first.single.dbLastUpdatedMs = 1700000000000;
+      first.single.dbType = 'manhwa';
+      // A second page merges → every existing group is REBUILT; the
+      // enriched fields must ride along or page-1 cards lose their dates.
+      final merged = mergeGroupLists(first, [
+        SearchGroup([cand('a', 'Other Series', hint: 3)]),
+      ]);
+      expect(merged.first.dbLastUpdatedMs, 1700000000000);
+      expect(merged.first.dbType, 'manhwa');
+    });
+
     test('addToLibrary creates merged rows + cross-probes other sources',
         () async {
       // Real seeded source ids — series_sources has a FK to `sources`.

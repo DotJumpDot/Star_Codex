@@ -302,8 +302,10 @@ class BrowseController extends StateNotifier<BrowseState> {
         await _repo.enrichGroups(groups);
         if (mounted) state = state.copyWith();
         // Cards the listing alone left incomplete (madara/bully tiles
-        // carry no dates; some covers are dead/AVIF): materialize a
-        // budgeted batch in the background — re-enriching JUST the
+        // carry no dates; some covers are dead/AVIF): backfill EVERY
+        // undated card in the background (one detail fetch, persisted —
+        // the newest chapter's stamp becomes the card date; the
+        // cross-source probe stays budgeted) — re-enriching JUST the
         // finished card each time so its date/cover pops in.
         await _repo.materializeIncompleteGroups(groups,
             onCardDone: (done) async {

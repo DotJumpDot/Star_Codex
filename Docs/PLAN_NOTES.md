@@ -833,3 +833,25 @@ referer pairing, novel estimate. 165 tests green.
   `order=popular` (the ts theme ignores ordering params on `/?s=`;
   archive byte-diffs were nonces), and no source (nekopost included)
   exposes view counts. Nothing honest to sort by.
+
+## 2026-10-20 — Search-card dates: direct row→card write; merges carry enrichment
+
+- A ts search tile carries NO date; the only source of a browse card's
+  last-update stamp is the materialize pass (detail → chapters'
+  uploaded_at → series_sources.last_updated_at). That pass was
+  budget-capped (12 fetches/refresh over the first 40 groups): fine for
+  scoped feeds, hopeless for big searches (user report: Overgeared
+  cards dateless while the detail page showed every chapter stamp).
+  The DETAIL fetch is now unbudgeted — one sequential fetch per
+  incomplete card, persisted, session-memoized (once ever); `budget`
+  (still 12) caps only the cross-source probe.
+- NEVER attach enrichment by title-norm lookup when the row id is
+  already known: materialize calls `_applyRowToGroup(g, row)` directly.
+  Tile norms and row norms legitimately diverge — each site's Thai
+  subtitle differs ("จ้าวนักสู้กระทันที" vs "จ้าวแห่งยุทธภัณฑ์"),
+  "(Remake)" is stripped from the row norm, and latinOnlyNorm needs
+  ≥12 chars so short Latin titles have no fallback. enrichGroups' norm
+  path stays only for cards whose rows predate the session.
+- mergeIntoGroups/mergeGroupLists rebuild every existing group as a
+  fresh SearchGroup; `_carryEnrichment` copies the db* fields across,
+  or the next infinite-scroll page erased all earlier cards' dates.

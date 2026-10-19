@@ -153,6 +153,21 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-20 — Search cards show the newest-chapter date (user report:
+  "Overgeared from up/go-manga shows no last update but every chapter
+  has a date"). Three stacked causes: the date-backfill pass was capped
+  (12 detail fetches per refresh, first 40 groups only) so most
+  ts-source cards never got one; enrichment could attach a date only by
+  TITLE-NORM lookup, which misses when the tile's Thai subtitle differs
+  from the detail row's ("จ้าวนักสู้กระทันที" vs "จ้าวแห่งยุทธภัณฑ์",
+  "(Remake)" stripped from the row norm); and merging the next
+  infinite-scroll page rebuilt every group, WIPING whatever was
+  attached. The backfill now covers every undated card (one persisted
+  detail fetch each, paced by the per-host limiter; the cross-source
+  probe keeps its 12 budget) and writes the row it already knows
+  straight onto the card; merges carry the enrichment fields.
+  On-device: both Overgeared cards now show เมื่อสักครู่ / 3 ปีที่แล้ว.
+  213 tests green.
 - 2026-10-20 — Release: v1.2.2 — version 1.2.2+6. Ships everything
   since v1.2.1: the site-sheet clipping fix (Bully Manga row visible
   and tappable again), the user-made Star Codex logo as the app icon +

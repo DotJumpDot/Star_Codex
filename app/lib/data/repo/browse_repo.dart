@@ -105,7 +105,10 @@ class BrowseRepo {
   /// Callers run this fire-and-forget so the DB round-trips never delay
   /// the listing.
   Future<void> enrichGroups(List<SearchGroup> groups) async {
-    for (final g in groups.take(60)) {
+    // 120 (raised from 60, 2026-10-20): DB-only reads, and cards past the
+    // window showed no date even when the series row already had one —
+    // with unbudgeted date backfill the window must cover deep lists.
+    for (final g in groups.take(120)) {
       // Row lookup by the primary tile's norm, then its Latin-only
       // variant — a solo bully card ("English title + Thai subtitle")
       // materializes under the Latin norm, and the suffixed tile alone
@@ -114,22 +117,31 @@ class BrowseRepo {
           await _seriesByTileNorm(latinOnlyNorm(g.primary.title));
       if (row == null) continue;
       try {
-        g.dbStatus = row.status;
-        g.dbType = row.type;
-        g.dbLastUpdatedMs = await seriesDao.lastUpdatedAt(row.id!);
-        g.dbTags = await tagsDao.tagsOf(row.id!);
-        // DB cover: first link that carries one, paired with ITS source's
-        // referer (a first link without a cover must not donate its
-        // referer to a later link's cover — same rule as library cards).
-        for (final link in await seriesDao.sourcesOf(row.id!)) {
-          if ((link.coverUrl ?? '').isNotEmpty) {
-            g.dbCoverUrl = link.coverUrl;
-            g.dbCoverReferer = sourceById(link.sourceId)?.referer;
-            break;
-          }
-        }
+        await _applyRowToGroup(g, row);
       } catch (_) {
         // enrichment is best-effort — never fail a listing over it
+      }
+    }
+  }
+
+  /// Copy a series row's data onto a browse card. Norm lookup can miss
+  /// when a site's tile title differs from the row's (each site's Thai
+  /// subtitle differs, "(Remake)" stripped from the row norm — the
+  /// Overgeared search report 2026-10-20), so the materialize pass calls
+  /// this with the row id it ALREADY knows instead of re-guessing.
+  Future<void> _applyRowToGroup(SearchGroup g, Series row) async {
+    g.dbStatus = row.status;
+    g.dbType = row.type;
+    g.dbLastUpdatedMs = await seriesDao.lastUpdatedAt(row.id!);
+    g.dbTags = await tagsDao.tagsOf(row.id!);
+    // DB cover: first link that carries one, paired with ITS source's
+    // referer (a first link without a cover must not donate its
+    // referer to a later link's cover — same rule as library cards).
+    for (final link in await seriesDao.sourcesOf(row.id!)) {
+      if ((link.coverUrl ?? '').isNotEmpty) {
+        g.dbCoverUrl = link.coverUrl;
+        g.dbCoverReferer = sourceById(link.sourceId)?.referer;
+        break;
       }
     }
   }
@@ -150,22 +162,25 @@ class BrowseRepo {
   /// the primary's tile is dead/AVIF) — without adding anything to the
   /// library. Results persist, so each card pays this once; [onCardDone]
   /// receives the finished group so the caller can re-enrich JUST it
-  /// (progressive re-render). Budget-capped per call to stay polite;
-  /// session-memoized so pagination re-runs skip done cards.
+  /// (progressive re-render). Session-memoized so pagination re-runs
+  /// skip done cards.
+  ///
+  /// The DETAIL fetch is unbudgeted and covers every incomplete card:
+  /// ts search tiles carry no dates, so a card's newest-chapter date can
+  /// only come from this pass — capping it left most search results
+  /// permanently dateless while their detail pages showed every chapter
+  /// stamp (user report 2026-10-20: Overgeared on up/go-manga). One
+  /// sequential fetch per series, persisted → once ever; safe_http's
+  /// per-host limiter paces the pass. [budget] caps only the expensive
+  /// cross-probe (one search query per unlinked source per card).
   Future<void> materializeIncompleteGroups(
     List<SearchGroup> groups, {
-    // 12 (raised from 8, 2026-10-19): ts/one-shot tiles carry no dates, so
-    // cards only get them from this detail pass — 8 per refresh filled too
-    // slowly for scoped single-source feeds (NTR report). Still polite:
-    // per-host rate limiting paces the detail fetches.
     int budget = 12,
     Future<void> Function(SearchGroup done)? onCardDone,
   }) async {
-    for (final g in groups.take(40)) {
-      if (budget <= 0) break;
+    for (final g in groups) {
       if (!g.needsMaterialization) continue;
       if (!_materialized.add(g.primary.url)) continue;
-      budget--;
       try {
         final primary = g.primary;
         final source = sourceById(primary.sourceId);
@@ -173,6 +188,12 @@ class BrowseRepo {
         final seriesId = await seriesRepo.ensureSeries(g);
         final row = await seriesDao.byId(seriesId);
         if (row != null) {
+          // EXACT row → card (no title-norm guessing): this is what puts
+          // the newest-chapter date on a tile that carries none.
+          await _applyRowToGroup(g, row);
+        }
+        if (row != null && budget > 0) {
+          budget--;
           await seriesRepo.probeOtherSources(
             seriesId,
             candidate: TitleCandidate(
