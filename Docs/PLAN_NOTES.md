@@ -953,3 +953,22 @@ referer pairing, novel estimate. 165 tests green.
 - Band slicer verified live: slow-manga 800×25049 ch.67 now renders
   (was a solid black void); content flows continuously across band
   boundaries. hentaithai cards show CDN-path dates on-device.
+
+## 2026-10-21 — Sort-section merge + fling-preserving anchors
+
+- ONE ordering section: BrowseSortOrder.popular joins the sort chips;
+  `feedPopular` is now derived (filters.sort == popular). setFilters
+  special-cases crossing into/out of popular with a full refetch (it is
+  a server fetch param, not a view sort); sortGroups returns popular
+  groups UNTOUCHED — any client re-sort would erase the servers'
+  popularity order. The old ลำดับฟีด section + setFeedPopular are gone;
+  `browse_feed_popular` still seeds/persists the choice.
+- **jumpTo during ballistic scrolling KILLS the fling** — anchor
+  corrections landing mid-fling (late resolvers above the viewport)
+  stopped the scroll dead and read as "laggy scrolling". Use
+  `ScrollPosition.forcePixels` (protected; framework uses it for
+  pointerScroll/nested scrolling — value pre-clamped, lint ignored at
+  the one call site) to shift pixels while the activity continues.
+- Decode `cacheWidth` must cap at the SOURCE width: decoding an 800px
+  strip up to screen width (~1080px on 2.6-2.8dpr phones) costs ~1.7×
+  the pixels for zero sharpness — visible fling jank on manhwa.
