@@ -161,6 +161,10 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   skeleton loading state, and the first-read scroll-freeze fixes (page
   hashing off the UI isolate, band slicing off Android's main thread).
   223 tests green.
+- 2026-10-21 — v1.2.7 real-phone verdict: scrolling is smooth (webtoon
+  first-read included) — the reading-smoothness line of work is closed;
+  the deferred blur-up/two-stage decode lever stays documented in
+  PLAN_NOTES but is not needed.
 - 2026-10-21 — Docs refresh after v1.2.7: AGENTS.md (v1.2.7, migrations
   v2–v8 pointer incl. reader/UI-thread rules), HANDOFF.md (status block,
   release recipe now matches practice — gh release create makes the tag),

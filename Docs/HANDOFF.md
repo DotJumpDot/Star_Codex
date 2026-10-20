@@ -20,7 +20,8 @@
   height anchors, GPU band slicing for oversized strips, pipeline work
   moved off the UI threads) plus offline browse fallback, the popular
   feed, and detail skeletons — see PLAN_NOTES' 2026-10-20/21 sections
-  for the invariants. v1.2.7 awaits the user's real-phone verdict.
+  for the invariants. v1.2.7 confirmed smooth on the user's real phone
+  (2026-10-21) — the reading-smoothness work is closed.
 - **Remaining work = whatever the user asks for in chat.** There is no
   open phase. The user drives batches; land them with the checklist
   commit + push discipline (AGENTS.md → Git discipline), one CHANGELOG
