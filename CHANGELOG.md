@@ -160,6 +160,16 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   image width, exact band heights at build time, and per-frame batched
   height fix-ups. Cut for real-phone smoothness testing — the emulator
   shares the host's CPU/GPU and exaggerates jank. 220 tests green.
+- 2026-10-21 — Paged reader (หน้าต่อหน้า) swipe lag (user report after
+  v1.2.6's webtoon fixes landed: "manga mode on side slide a little
+  laggy"): its slots never set cacheWidth, so every page decoded at
+  FULL source resolution while PageView keeps ±1 neighbors built —
+  three big decodes racing the swipe. Decode is now capped at 2×
+  screen width (portrait pages are width-limited under BoxFit.contain
+  and typically ≤1080 wide sources anyway; wide double-spreads are
+  height-limited and zoomed, hence the 2× headroom) and never above
+  the source's own width. Band-slice stacks in the paged reader get
+  the same cap. 220 tests green.
 - 2026-10-21 — Two more free webtoon-scroll wins (user: "still a bit
   laggy" on the emulator): (1) band slices of oversized pages now
   reserve their EXACT height from the stored dims — each band used to

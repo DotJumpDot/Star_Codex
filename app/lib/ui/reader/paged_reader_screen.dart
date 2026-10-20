@@ -552,6 +552,23 @@ class _PageSlotPagedState extends ConsumerState<_PageSlotPaged> {
   final _gestureKey = GlobalKey<ExtendedImageGestureState>();
   Object? _error;
 
+  /// Decode width cap for paged pages: 2× screen pixels (portrait
+  /// pages render width-limited, so native ≤1080 sources cost nothing;
+  /// WIDE double-spread pages are height-limited under BoxFit.contain
+  /// and zoomed — the 2× headroom keeps their detail) and never above
+  /// the source's own width. Full-res decodes while PageView keeps ±1
+  /// neighbors built were the swipe lag (user report 2026-10-21).
+  int _cacheWidthFor(int? sourceWidth, BuildContext context) {
+    final cap = (MediaQuery.sizeOf(context).width *
+            MediaQuery.devicePixelRatioOf(context) *
+            2)
+        .round();
+    if (sourceWidth != null && sourceWidth > 0) {
+      return sourceWidth < cap ? sourceWidth : cap;
+    }
+    return cap;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -614,6 +631,7 @@ class _PageSlotPagedState extends ConsumerState<_PageSlotPaged> {
                     width: double.infinity,
                     fit: BoxFit.fitWidth,
                     clearMemoryCacheWhenDispose: false,
+                    cacheWidth: _cacheWidthFor(b.width, context),
                   ),
               ],
             ),
@@ -628,6 +646,11 @@ class _PageSlotPagedState extends ConsumerState<_PageSlotPaged> {
           // re-decode (a black flash frame) each time — forward AND back.
           // The framework ImageCache LRU-evicts under pressure instead.
           clearMemoryCacheWhenDispose: false,
+          // Decode cap (swipe-lag fix 2026-10-21): without it every page
+          // decoded at FULL source resolution while PageView keeps ±1
+          // neighbors built — three big decodes racing the swipe. See
+          // _cacheWidthFor for the 2× headroom rationale.
+          cacheWidth: _cacheWidthFor(pf.width, context),
           extendedImageGestureKey: _gestureKey,
           loadStateChanged: (state) =>
               state.extendedImageLoadState == LoadState.loading
