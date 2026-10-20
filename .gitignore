@@ -9,6 +9,10 @@ compress_test/
 .playwright-mcp/
 PLAN_NOTES.md.local
 
+# QA screenshots + pulled app data (emulator driving byproducts)
+qa_f/
+qa_v2/
+
 # scratch commit-message files (the messages live in git history proper)
 .git-msg-*
 
