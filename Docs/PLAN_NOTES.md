@@ -905,3 +905,36 @@ referer pairing, novel estimate. 165 tests green.
   blob_urls-referenced blobs; any future orphan sweep must too:
   series.cover_hash pins only the DETAIL cover, listing-tile covers
   live solely in the URL index.
+
+## 2026-10-21 — Oversized-page slicing + popular feed + offline catalog
+
+- **GPU band slicing**: pages taller than `ImagePipeline.gpuBandThreshold`
+  (8192) CANNOT render as one image — Android's max texture size is
+  commonly 16384 (slow-manga serves 800×25049 strips → black void; the
+  14373px ones passed, which is why only some chapters broke). The
+  native slicer (`star_codex/image_slice` channel in MainActivity,
+  BitmapRegionDecoder) returns ≤4096-px JPEG bands; they persist in
+  `page_bands` (db v8) keyed by the PARENT blob hash → sliced once
+  forever (unless size-evicted: band-file check per row, re-slice
+  self-heals). Both readers render bands stacked; the slot's layout
+  height still comes from the PARENT dims, so anchoring math is
+  unchanged. Cached pages fetched before dims were stored (null
+  height) skip slicing until their next refetch. The WebP compressor
+  returning EMPTY for these images is the same size limit — the
+  pipeline already falls back to storing the original.
+- **Popular feed**: `Source.latest(popular:)` — honored only by the
+  madara archive (`order=popular`, probed: genuinely different list);
+  every other engine accepts-and-ignores. Persisted setting
+  `browse_feed_popular`; search/genre never reorder (probed: the ts
+  theme ignores ordering params on `/?s=`).
+- **Offline catalog**: `_replace` falls back to `repo.cachedCatalog()`
+  (series rows + links → SearchGroups, DB-only) ONLY in latest mode
+  when every source failed; banner + `state.offline`, endReached (no
+  pagination offline). Recovery on next refresh clears it.
+- **Slider-jump**: `_goTo`/`_goPrev` in all three readers AWAIT the
+  progress write before the route swap.
+- **Deferred**: OS-level background downloading needs a foreground
+  service (new dep: workmanager/flutter_foreground_task + POST_
+  NOTIFICATIONS runtime permission) — must be verified on-device
+  before shipping; batch enqueue itself already existed (download
+  sheet: unread / next 10 / all / range).

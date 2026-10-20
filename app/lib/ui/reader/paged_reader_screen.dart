@@ -259,9 +259,13 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
     final prev = await _repo.adjacentChapter(loaded.chapter, forward: false);
     if (prev != null && mounted) {
       _switching = true;
-      Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
-        builder: (_) => PagedReaderScreen(chapter: prev),
-      ));
+      // Same rule as _goNext: land the progress write before the swap.
+      await _saveProgress(_page, completed: _page == loaded.pages.length - 1);
+      if (mounted) {
+        Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
+          builder: (_) => PagedReaderScreen(chapter: prev),
+        ));
+      }
     }
   }
 
@@ -594,6 +598,27 @@ class _PageSlotPagedState extends ConsumerState<_PageSlotPaged> {
           );
         }
         final dir = ref.read(libraryDirProvider);
+        // Oversized strip (taller than the GPU texture limit): the
+        // single-file gesture image would render as a black void — stack
+        // the GPU-safe band slices in a scroll view instead. Zoom is not
+        // offered for sliced pages (ExtendedImage gesture wraps ONE
+        // image); these strips are webtoon-mode content anyway.
+        final bands = pf.bands;
+        if (bands != null && bands.isNotEmpty) {
+          return SingleChildScrollView(
+            child: Column(
+              children: [
+                for (final b in bands)
+                  ExtendedImage.file(
+                    File('${dir.path}/${b.path}'),
+                    width: double.infinity,
+                    fit: BoxFit.fitWidth,
+                    clearMemoryCacheWhenDispose: false,
+                  ),
+              ],
+            ),
+          );
+        }
         return ExtendedImage.file(
           File('${dir.path}/${pf.path}'),
           fit: BoxFit.contain,

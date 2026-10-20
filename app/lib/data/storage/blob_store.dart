@@ -42,6 +42,12 @@ class BlobStore {
 
   Future<void> putUrlIndex(BlobUrlRow row) => _dao.upsertUrlIndex(row);
 
+  Future<List<PageBandRow>> bandRows(String parentHash) =>
+      _dao.bandRows(parentHash);
+
+  Future<void> putBands(String parentHash, List<PageBandRow> bands) =>
+      _dao.putBands(parentHash, bands);
+
   Future<void> insertRow(BlobRow row) => _dao.upsert(row);
 
   Future<void> touch(String hash, int atMs) => _dao.touch(hash, atMs);

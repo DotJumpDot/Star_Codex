@@ -203,6 +203,73 @@ void main() {
       expect(r2.fromCache, isFalse);
       expect(fetchCalls, 2);
     });
+
+    test('bandsFor slices oversized pages once, then serves from cache',
+        () async {
+      // Oversized webtoon strip (800×25049 — the slow-manga ch.67 black
+      // void, 2026-10-21). Fake slicer returns two tiny PNG bands.
+      final payload = fakePng(4, 1200);
+      var sliceCalls = 0;
+      ImagePipeline makePipeline() => ImagePipeline(
+            http: SafeHttp(
+              rateLimiter: RateLimiter(seed: 1),
+              fetcher: (uri, options) async => okResponse(uri, payload),
+            ),
+            blobs: blobs,
+            compressor: (bytes, {originalW, originalH, maxWidth}) async =>
+                Uint8List.fromList(bytes.reversed.toList()),
+            bandSlicer: (absolutePath, maxBandHeight) async {
+              sliceCalls++;
+              return [fakePng(5, 600), fakePng(6, 600)];
+            },
+          );
+      final parent =
+          await makePipeline().fetchAndStore('https://www.example.com/tall.jpg');
+      // Synthesize an oversized parent: dims come from the URL row path,
+      // so call bandsFor with a tall PageResult over the same blob.
+      final tall = PageResult(
+        hash: parent.hash,
+        path: parent.path,
+        storedBytes: parent.storedBytes,
+        width: 800,
+        height: 25049,
+        fromCache: true,
+      );
+      expect(ImagePipeline.gpuBandThreshold, lessThan(25049));
+
+      final b1 = await makePipeline().bandsFor(tall);
+      expect(b1, hasLength(2), reason: 'two bands from the fake slicer');
+      expect(sliceCalls, 1);
+
+      // Second resolve (fresh pipeline): served from page_bands, no
+      // re-slicing.
+      final b2 = await makePipeline().bandsFor(tall);
+      expect(b2, hasLength(2));
+      expect(sliceCalls, 1);
+
+      // Normal-height pages never slice.
+      final normal = PageResult(
+        hash: parent.hash,
+        path: parent.path,
+        storedBytes: parent.storedBytes,
+        width: 800,
+        height: 1200,
+        fromCache: true,
+      );
+      expect(await makePipeline().bandsFor(normal), isEmpty);
+      expect(sliceCalls, 1);
+
+      // Slicer unavailable (tests/desktop channel) with no cached rows →
+      // empty, caller renders the unsliced page.
+      await blobs.putBands(tall.hash, const []);
+      final bare = ImagePipeline(
+        http: SafeHttp(
+            rateLimiter: RateLimiter(seed: 1),
+            fetcher: (uri, options) async => okResponse(uri, payload)),
+        blobs: blobs,
+      );
+      expect(await bare.bandsFor(tall), isEmpty);
+    });
   });
 
   group('CacheJanitor', () {

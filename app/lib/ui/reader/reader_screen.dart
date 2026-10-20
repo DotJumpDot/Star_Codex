@@ -356,8 +356,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   }
 
   /// Chapter switch = replace this route with the same reader, scroll
-  /// reset (doc 10 §6).
-  void _goTo(Chapter next) {
+  /// reset (doc 10 §6). The progress save is AWAITED first: swapping
+  /// the route before the completed row landed was the slider-jump bug
+  /// — a fast drag to the end advanced chapters mid-write and the
+  /// chapter reopened from the top (QA §12 #4, fixed 2026-10-20).
+  Future<void> _goTo(Chapter next) async {
+    await _saveProgress(_currentPage, completed: _atEnd);
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
       builder: (_) => ReaderScreen(chapter: next),
     ));

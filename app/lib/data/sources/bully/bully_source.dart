@@ -66,7 +66,7 @@ class BullyMangaSource implements Source {
   }
 
   @override
-  Future<List<SourceSeries>> latest({int page = 1}) =>
+  Future<List<SourceSeries>> latest({int page = 1, bool popular = false}) =>
       _listing(_genrePage('all', page));
 
   @override

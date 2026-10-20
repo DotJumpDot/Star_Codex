@@ -46,6 +46,7 @@ class FakeSource implements Source {
   int detailCalls = 0;
   int pagesCalls = 0;
   int novelCalls = 0;
+  bool latestPopular = false; // last ordering the repo asked for
   List<String> searchedQueries = [];
 
   @override
@@ -66,7 +67,8 @@ class FakeSource implements Source {
   }
 
   @override
-  Future<List<SourceSeries>> latest({int page = 1}) async {
+  Future<List<SourceSeries>> latest({int page = 1, bool popular = false}) async {
+    latestPopular = popular;
     if (error != null) throw error!;
     return page == 1 ? latestResults : const [];
   }

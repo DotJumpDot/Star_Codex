@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
+import 'package:flutter/services.dart' show MethodChannel;
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:crypto/crypto.dart';
 
@@ -38,17 +39,46 @@ class PageResult {
 typedef WebpCompressor = Future<Uint8List?> Function(Uint8List bytes,
     {int? originalW, int? originalH, int? maxWidth});
 
+/// One GPU-safe horizontal band of an oversized page — see
+/// [ImagePipeline.bandsFor].
+class PageBand {
+  const PageBand({required this.path, this.width, this.height});
+
+  final String path; // relative under the library root
+  final int? width;
+  final int? height;
+}
+
+/// Native band slicer (Android BitmapRegionDecoder via the
+/// star_codex/image_slice channel in MainActivity). Returns JPEG bytes
+/// per full-width band, or null when unavailable (tests/desktop/failed).
+typedef BandSlicer = Future<List<Uint8List>?> Function(
+    String absolutePath, int maxBandHeight);
+
 /// Download → validate → hash → dedup → WebP q80 → atomic write (Plan/03).
 class ImagePipeline {
   ImagePipeline({
     required this.http,
     required this.blobs,
     WebpCompressor? compressor,
-  })  : _compressor = compressor ?? _defaultCompressor;
+    BandSlicer? bandSlicer,
+  })  : _compressor = compressor ?? _defaultCompressor,
+        _bandSlicer = bandSlicer ?? _channelBandSlicer;
 
   final SafeHttp http;
   final BlobStore blobs;
   final WebpCompressor _compressor;
+  final BandSlicer _bandSlicer;
+
+  /// Pages taller than this get sliced: strips beyond ~8k-16k px exceed
+  /// Android's max GPU texture size and render as a BLACK VOID (user
+  /// report 2026-10-21: slow-manga 800×25049 pages — "A Villain's Will
+  /// to Survive" ch.67/68, while the 14373px ch.69 passed).
+  static const gpuBandThreshold = 8192;
+
+  /// Each band decodes at ≤ this height — safe on every GPU (some old
+  /// Mali parts cap at 4096).
+  static const gpuBandHeight = 4096;
 
   static Future<Uint8List?> _defaultCompressor(Uint8List bytes,
       {int? originalW, int? originalH, int? maxWidth}) async {
@@ -202,6 +232,78 @@ class ImagePipeline {
       fetchedAt: DateTime.now().millisecondsSinceEpoch,
     ));
     return result;
+  }
+
+  /// GPU-safe bands for an oversized page (see [gpuBandThreshold]).
+  /// Cached in page_bands by the PARENT's content hash: as long as the
+  /// band files survive, repeat reads slice nothing. Slicing failures
+  /// (no native channel, decode error) return an EMPTY list — callers
+  /// fall back to rendering the unsliced page.
+  Future<List<PageBand>> bandsFor(PageResult parent) async {
+    if ((parent.height ?? 0) <= gpuBandThreshold) return const [];
+    final cached = await blobs.bandRows(parent.hash);
+    if (cached.isNotEmpty) {
+      var allPresent = true;
+      for (final b in cached) {
+        if (!await blobs.exists(b.hash)) {
+          allPresent = false;
+          break;
+        }
+      }
+      if (allPresent) {
+        return [
+          for (final b in cached)
+            PageBand(
+                path: (await blobs.blobRow(b.hash))!.path,
+                width: b.width,
+                height: b.height),
+        ];
+      }
+    }
+    final slices = await _bandSlicer(
+        blobs.absolutePath(parent.path), gpuBandHeight);
+    if (slices == null || slices.isEmpty) return const [];
+    final rows = <PageBandRow>[];
+    final bands = <PageBand>[];
+    for (var i = 0; i < slices.length; i++) {
+      final bytes = slices[i];
+      final hash = sha256.convert(bytes).toString();
+      final dims = imageDimensions(bytes);
+      if (!await blobs.exists(hash)) {
+        final rel = await blobs.write(hash, bytes, ext: 'jpg');
+        await blobs.insertRow(BlobRow(
+          hash: hash,
+          path: rel,
+          bytes: bytes.length,
+          lastAccess: DateTime.now().millisecondsSinceEpoch,
+        ));
+      }
+      final row = PageBandRow(
+          idx: i, hash: hash, width: dims?.width, height: dims?.height);
+      rows.add(row);
+      bands.add(PageBand(
+          path: (await blobs.blobRow(hash))!.path,
+          width: dims?.width,
+          height: dims?.height));
+    }
+    await blobs.putBands(parent.hash, rows);
+    return bands;
+  }
+
+  static Future<List<Uint8List>?> _channelBandSlicer(
+      String absolutePath, int maxBandHeight) async {
+    try {
+      final res = await const MethodChannel('star_codex/image_slice')
+          .invokeMethod<List<Object?>>('slice', {
+        'path': absolutePath,
+        'maxBandHeight': maxBandHeight,
+        'targetWidth': 0,
+      });
+      if (res == null) return null;
+      return [for (final b in res) b as Uint8List];
+    } catch (_) {
+      return null; // tests/desktop — caller renders unsliced
+    }
   }
 
   bool _isGif(Uint8List b) =>

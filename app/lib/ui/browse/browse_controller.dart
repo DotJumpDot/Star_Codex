@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
+import '../../core/settings_provider.dart';
 import '../../data/repo/browse_repo.dart';
 import '../../data/sources/source_registry.dart';
 
@@ -18,6 +19,8 @@ class BrowseState {
     this.query = '',
     this.genreSourceId,
     this.genreTerm,
+    this.feedPopular = false,
+    this.offline = false,
     this.activeSourceIds = const {},
     this.filters = const BrowseFilters(),
     this.groups = const [],
@@ -33,6 +36,15 @@ class BrowseState {
   final String query; // '' in latest/genre mode
   final String? genreSourceId;
   final String? genreTerm;
+
+  /// Latest-feed ordering (ล่าสุด ⇄ ยอดนิยม, user request 2026-10-20):
+  /// server-side `order=popular` on the sources that support it
+  /// (madara family); persisted via the provider's persistence hook.
+  final bool feedPopular;
+
+  /// True when the last fetch could not reach ANY source and the list
+  /// shows the offline catalog instead (2026-10-21) — the UI banners it.
+  final bool offline;
 
   /// Per-site filter (Plan/08 §2): empty set = all sources on.
   final Set<String> activeSourceIds;
@@ -55,6 +67,8 @@ class BrowseState {
     String? query,
     Object? genreSourceId = _keep,
     Object? genreTerm = _keep,
+    bool? feedPopular,
+    bool? offline,
     Set<String>? activeSourceIds,
     BrowseFilters? filters,
     List<SearchGroup>? groups,
@@ -71,6 +85,8 @@ class BrowseState {
         genreSourceId:
             genreSourceId == _keep ? this.genreSourceId : genreSourceId as String?,
         genreTerm: genreTerm == _keep ? this.genreTerm : genreTerm as String?,
+        feedPopular: feedPopular ?? this.feedPopular,
+        offline: offline ?? this.offline,
         activeSourceIds: activeSourceIds ?? this.activeSourceIds,
         filters: filters ?? this.filters,
         groups: groups ?? this.groups,
@@ -85,15 +101,23 @@ class BrowseState {
 /// Browse tab state machine (Plan/08): latest feed ⇄ merged search ⇄
 /// single-source genre view, with session-only filters and per-site chips.
 class BrowseController extends StateNotifier<BrowseState> {
-  BrowseController(this._repo, {Set<String>? allowedSourceIds})
+  BrowseController(this._repo,
+      {Set<String>? allowedSourceIds,
+      this.initialFeedPopular = false,
+      this.onFeedPopularChanged})
       : _allowedSourceIds = allowedSourceIds, // ignore: prefer_initializing_formals
-        super(const BrowseState());
+        super(BrowseState(feedPopular: initialFeedPopular));
 
   final BrowseRepo _repo;
 
   /// Optional universe for scoped controllers (the adult page): the feed
   /// and the site sheet only ever see these sources. Null = all.
   final Set<String>? _allowedSourceIds;
+
+  /// Latest-feed ordering seed + persistence hook (wired by the
+  /// providers to the `browse_feed_popular` setting).
+  final bool initialFeedPopular;
+  final void Function(bool popular)? onFeedPopularChanged;
 
   /// Monotonic fetch sequence — every `_fetch` invalidates all earlier
   /// in-flight ones. Without this, quickly toggling site filters let an
@@ -275,6 +299,10 @@ class BrowseController extends StateNotifier<BrowseState> {
     try {
       final result = await _fetch(page);
       if (seq != _fetchSeq) return; // superseded — a newer fetch owns state
+      if (result.groups.isEmpty && result.failures.isNotEmpty &&
+          await _offlineFallback(seq)) {
+        return;
+      }
       state = state.copyWith(
         groups: result.groups,
         failedSources: {for (final f in result.failures) f.sourceId},
@@ -282,13 +310,40 @@ class BrowseController extends StateNotifier<BrowseState> {
         loadingMore: false,
         page: page,
         endReached: result.groups.isEmpty,
+        offline: false,
       );
       _enrichInBackground(result.groups);
     } catch (_) {
       // Per-source errors never reach here (guarded in the repo); a total
-      // failure (no sources at all) shows the empty state.
+      // failure (no sources at all) shows the empty state — or the
+      // offline catalog when the DB has anything (2026-10-21).
       if (seq != _fetchSeq) return;
-      state = state.copyWith(loading: false, endReached: true);
+      if (!await _offlineFallback(seq)) {
+        state = state.copyWith(
+            loading: false, endReached: true, offline: false);
+      }
+    }
+  }
+
+  /// Feed fallback for airplane mode / total network failure: show the
+  /// visited series from the DB instead of a blank page. LATEST-mode
+  /// only (search/genre are server-bound by nature).
+  Future<bool> _offlineFallback(int seq) async {
+    if (state.mode != BrowseMode.latest) return false;
+    try {
+      final cached = await _repo.cachedCatalog();
+      if (seq != _fetchSeq || cached.isEmpty) return false;
+      state = state.copyWith(
+        groups: cached,
+        failedSources: const {},
+        loading: false,
+        loadingMore: false,
+        endReached: true, // no pagination offline
+        offline: true,
+      );
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -335,25 +390,54 @@ class BrowseController extends StateNotifier<BrowseState> {
         }
         return _repo.genre(source, term, page: page);
       case BrowseMode.latest:
-        return _repo.latest(onlySourceIds: only, page: page);
+        return _repo.latest(
+            onlySourceIds: only, page: page, popular: state.feedPopular);
     }
+  }
+
+  /// ล่าสุด ⇄ ยอดนิยม for the latest feed (user request 2026-10-20):
+  /// server-side re-ordering on the sources that support it — the whole
+  /// feed is re-fetched (ordering is a query parameter, not a client
+  /// sort). Search/genre ignore it.
+  Future<void> setFeedPopular(bool popular) async {
+    if (state.feedPopular == popular) return;
+    onFeedPopularChanged?.call(popular);
+    state = state.copyWith(
+      feedPopular: popular,
+      groups: const [],
+      failedSources: const {},
+      loading: true,
+      endReached: false,
+      page: 0,
+    );
+    await _replace(page: 1);
   }
 }
 
 final browseControllerProvider =
     StateNotifierProvider<BrowseController, BrowseState>((ref) {
   final repo = ref.watch(browseRepoProvider);
+  final settings = ref.read(settingsProvider);
   return BrowseController(repo,
       allowedSourceIds: {
         // The main feed/search never touch the 18+ sources — they live
         // on the Doujin page's own controller (user request 2026-10-19).
         for (final s in repo.sources)
           if (!adultSourceIds.contains(s.id)) s.id,
-      });
+      },
+      initialFeedPopular: settings.getBool('browse_feed_popular', false),
+      onFeedPopularChanged: (popular) => unawaited(ref
+          .read(settingsProvider.notifier)
+          .set('browse_feed_popular', popular ? '1' : '0')));
 });
 
 /// Doujin (18+) page — same repo, universe = the adult sources only.
 final adultBrowseControllerProvider =
     StateNotifierProvider<BrowseController, BrowseState>(
         (ref) => BrowseController(ref.watch(browseRepoProvider),
-            allowedSourceIds: adultSourceIds));
+            allowedSourceIds: adultSourceIds,
+            initialFeedPopular:
+                ref.read(settingsProvider).getBool('browse_feed_popular', false),
+            onFeedPopularChanged: (popular) => unawaited(ref
+                .read(settingsProvider.notifier)
+                .set('browse_feed_popular', popular ? '1' : '0'))));

@@ -5,7 +5,7 @@ import 'package:sqflite/sqflite.dart';
 /// Single SQLite database (Plan/02). All timestamps are milliseconds since
 /// epoch (int). Migrations append only: bump [dbVersion], add a `case` in
 /// [onUpgrade] — never edit v1 statements after shipping.
-const dbVersion = 7;
+const dbVersion = 8;
 const dbFileName = 'manga_reader.db';
 
 class DbException implements Exception {
@@ -130,6 +130,22 @@ Future<Database> openDb(
                 height     INTEGER,
                 fetched_at INTEGER NOT NULL
               )''');
+            continue next6; // chain to v8
+          // v8 (2026-10-21, oversized webtoon strips): GPU-safe band
+          // slices of pages taller than the texture limit (slow-manga
+          // serves 800x25049 strips that rendered as a black void —
+          // "A Villain's Will to Survive" ch.67/68 report).
+          next6:
+          case 7:
+            await db.execute('''
+              CREATE TABLE page_bands(
+                parent_hash TEXT NOT NULL,
+                idx         INTEGER NOT NULL,
+                hash        TEXT NOT NULL,
+                width       INTEGER,
+                height      INTEGER,
+                PRIMARY KEY (parent_hash, idx)
+              )''');
           // Future migrations append cases here: `case 1: ...; continue next;`
           default:
             break;
@@ -232,6 +248,15 @@ const _schemaSql = [
     width      INTEGER,
     height     INTEGER,
     fetched_at INTEGER NOT NULL
+  )''',
+  '''
+  CREATE TABLE page_bands(
+    parent_hash TEXT NOT NULL,
+    idx         INTEGER NOT NULL,
+    hash        TEXT NOT NULL,
+    width       INTEGER,
+    height      INTEGER,
+    PRIMARY KEY (parent_hash, idx)
   )''',
   '''
   CREATE TABLE read_progress(

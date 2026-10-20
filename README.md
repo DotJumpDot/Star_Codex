@@ -42,10 +42,14 @@ One app instead of seven websites — read like a site, cache like an app.
 
 ### Browsing & discovery
 - **All 9 live sources in one feed** — search everything at once, filter
-  by site, browse per-site genres, and sort the results (latest/oldest
-  update, most/fewest chapters — latest update by default); the same
-  title on several sites merges into a single card (Thai title kept,
-  original as subtitle)
+  by site, browse per-site genres, sort the results (latest/oldest
+  update, most/fewest chapters — latest update by default), and flip
+  the feed between ล่าสุด and ยอดนิยม (server-side popularity on the
+  sites that support it); the same title on several sites merges into a
+  single card (Thai title kept, original as subtitle)
+- **Works offline** — airplane mode shows your visited series from the
+  on-device catalog instead of a blank page, downloaded chapters read
+  anywhere, and covers/last-update dates persist to disk
 - **Doujin (18+) page** — a separate drawer destination with its own
   feed, site filter and scoped search, so adult sources never mix into
   the main browse

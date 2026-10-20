@@ -12,7 +12,10 @@ abstract class Source {
   Future<List<SourceSeries>> search(String query, {int page = 1});
 
   /// Latest-updated series (browse home / updates).
-  Future<List<SourceSeries>> latest({int page = 1});
+  /// [popular] asks the source for its popular/all-time ordering when it
+  /// supports one (madara-family archive `order=popular`). Sources
+  /// without server-side popularity ignore it and return `update` order.
+  Future<List<SourceSeries>> latest({int page = 1, bool popular = false});
 
   /// Full detail for a series URL: description, tags, type, status,
   /// alt titles, cover url, chapter list (ascending by number).

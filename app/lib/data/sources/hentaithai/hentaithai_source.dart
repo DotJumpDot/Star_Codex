@@ -40,7 +40,7 @@ class HentaiThaiSource implements Source {
   }
 
   @override
-  Future<List<SourceSeries>> latest({int page = 1}) async {
+  Future<List<SourceSeries>> latest({int page = 1, bool popular = false}) async {
     if (page > 1) return const []; // single-page homepage feed (probed)
     final body = await _fetch(Uri.parse('$baseUrl/'));
     if (_looksLikeCloudflare(body)) throw SourceException.cloudflare(id);
@@ -123,14 +123,52 @@ List<SourceSeries> parseHentaiThaiListing(String body) {
             ?.toString() ??
         href;
     final img = a.querySelector('img');
-    final cover = _imgUrl(img);
+    var cover = _imgUrl(img);
+    // Cards carry no <img> and no date text — both live in the card's
+    // preceding <style> block as a CDN background-image URL whose path
+    // embeds the upload date: /thai/2026/2026-10-10/05484/2.webp
+    // (probed 2026-10-21: the thread pages expose no <time> stamps).
+    if (cover == null) {
+      final bg = _cardBackgroundUrl(a);
+      cover = bg;
+    }
+    final stampUrl = cover ?? _cardBackgroundUrl(a);
     out.add(SourceSeries(
       url: url,
       title: title,
       coverUrl: cover,
+      lastUpdatedMs: hentaiThaiUploadDate(stampUrl),
     ));
   }
   return out;
+}
+
+/// The card art rides in a sibling `<style>` (`.post_N { background-image:
+/// url(...) }`) — return that URL, or null.
+String? _cardBackgroundUrl(html_dom.Element a) {
+  var node = a.previousElementSibling;
+  while (node != null) {
+    final m = RegExp(r'''url\(['"]?([^'")]+)['"]?\)''')
+        .firstMatch(node.text);
+    if (m != null) {
+      final raw = m.group(1)!.trim();
+      if (raw.isEmpty) break;
+      return raw.startsWith('//') ? 'https:$raw' : raw;
+    }
+    node = node.previousElementSibling;
+  }
+  return null;
+}
+
+/// Upload date embedded in the CDN path (`/thai/2026/2026-10-10/…`) as
+/// epoch ms (UTC midnight) — the site's only reliable stamp.
+@visibleForTesting
+int? hentaiThaiUploadDate(String? url) {
+  if (url == null) return null;
+  final m = RegExp(r'/thai/\d{4}/(\d{4})-(\d{2})-(\d{2})/').firstMatch(url);
+  if (m == null) return null;
+  final dt = DateTime.tryParse('${m.group(1)}-${m.group(2)}-${m.group(3)}');
+  return dt?.millisecondsSinceEpoch;
 }
 
 @visibleForTesting
@@ -160,6 +198,9 @@ SourceSeriesDetail? parseHentaiThaiDetail(String body, String sourceUrl) {
         url: sourceUrl,
         title: 'ตอนที่ 1',
         number: 1,
+        // Only stamp on the page: the upload date embedded in the CDN
+        // image paths (no <time> elements — probed 2026-10-21).
+        uploadedAt: hentaiThaiUploadDate(imgs.first),
       ),
     ],
   );

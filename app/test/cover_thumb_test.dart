@@ -42,6 +42,9 @@ class _StubPipeline implements ImagePipeline {
     requested.add(url);
     return _behavior(url);
   }
+
+  @override
+  Future<List<PageBand>> bandsFor(PageResult parent) async => const [];
 }
 
 Future<void> main() async {

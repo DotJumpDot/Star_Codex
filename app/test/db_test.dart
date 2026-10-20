@@ -32,6 +32,7 @@ void main() {
       'chapter_text',
       'blobs',
       'blob_urls',
+      'page_bands',
       'read_progress',
       'reading_history',
       'library',
@@ -97,10 +98,11 @@ void main() {
         last_read_at        INTEGER,
         last_read_chapter_id INTEGER REFERENCES chapters(id) ON DELETE SET NULL
       )''');
-    // Dropped so the chained v7 CREATE (blob_urls) is the one adding it —
-    // the fabricated DB is built from the CURRENT schema (see the v4 note
-    // above about duplicate columns).
+    // Dropped so the chained v7/v8 CREATEs (blob_urls, page_bands) are the
+    // ones adding them — the fabricated DB is built from the CURRENT
+    // schema (see the v4 note above about duplicate columns).
     await v1.execute('DROP TABLE blob_urls');
+    await v1.execute('DROP TABLE page_bands');
     await v1.setVersion(1);
     await v1.close();
 

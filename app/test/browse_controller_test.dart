@@ -24,19 +24,22 @@ class SlowFirstSource extends FakeSource {
   var _calls = 0;
 
   @override
-  Future<List<SourceSeries>> latest({int page = 1}) async {
+  Future<List<SourceSeries>> latest(
+      {int page = 1, bool popular = false}) async {
     if (_calls++ == 0) {
       await Future<void>.delayed(const Duration(milliseconds: 250));
     }
-    return super.latest(page: page);
+    return super.latest(page: page, popular: popular);
   }
 }
 
 void main() {
   late BrowseRepo repo;
+  late SeriesDao seriesDao;
 
   setUp(() async {
     final db = await openTestDb();
+    seriesDao = SeriesDao(db);
     final sources = [
       FakeSource('slow-manga',
           latestResults: const [
@@ -58,7 +61,7 @@ void main() {
     ];
     repo = BrowseRepo(
       sources: sources,
-      seriesDao: SeriesDao(db),
+      seriesDao: seriesDao,
       chaptersDao: ChaptersDao(db),
       libraryDao: LibraryDao(db),
       tagsDao: TagsDao(db),
@@ -81,6 +84,63 @@ void main() {
     expect(c.state.mode, BrowseMode.latest);
     expect(c.state.groups, hasLength(2)); // Alpha + Beta (different titles)
     expect(normalizeTitle('Alpha'), 'alpha'); // sanity
+  });
+
+  test('setFeedPopular refetches with the popular ordering', () async {
+    final src = repo.sources.whereType<FakeSource>().first;
+    final c = BrowseController(repo, initialFeedPopular: false);
+    await c.ensureLoaded();
+    expect(src.latestPopular, isFalse);
+    await c.setFeedPopular(true);
+    expect(c.state.feedPopular, isTrue);
+    expect(src.latestPopular, isTrue,
+        reason: 'the ordering must reach the sources');
+    // No-op when unchanged (no refetch churn).
+    await c.setFeedPopular(true);
+    expect(c.state.groups, isNotEmpty);
+  });
+
+  test('total feed failure falls back to the offline catalog (2026-10-21)',
+      () async {
+    // Seed one visited series + link so the DB has something to show.
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final sid = await seriesDao.insert(Series(
+      title: 'Cached Series',
+      titleNorm: 'cached series',
+      createdAt: now,
+      updatedAt: now,
+    ));
+    await seriesDao.upsertSource(SeriesSource(
+      seriesId: sid,
+      sourceId: 'slow-manga',
+      sourceUrl: 'https://a/cached/',
+      sourceTitle: 'Cached Series',
+      coverUrl: 'https://a/c.jpg',
+      lastChapterNumber: 12,
+      lastUpdatedAt: now,
+      fetchedAt: now,
+    ));
+
+    // Every source offline.
+    for (final s in repo.sources.whereType<FakeSource>()) {
+      s.error = StateError('offline');
+    }
+    final c = BrowseController(repo);
+    await c.ensureLoaded();
+    expect(c.state.offline, isTrue, reason: 'banner shows');
+    expect(c.state.groups, hasLength(1));
+    expect(c.state.groups.first.displayTitle, 'Cached Series');
+    expect(c.state.groups.first.dbLastUpdatedMs, now,
+        reason: 'card date from the stored link');
+    expect(c.state.endReached, isTrue, reason: 'no pagination offline');
+
+    // Recovery: sources back → next refresh clears the offline state.
+    for (final s in repo.sources.whereType<FakeSource>()) {
+      s.error = null;
+    }
+    await c.retry();
+    expect(c.state.offline, isFalse);
+    expect(c.state.groups, isNotEmpty);
   });
 
   test('chip toggle while in genre mode returns to latest, filtered',

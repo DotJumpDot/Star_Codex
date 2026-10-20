@@ -113,7 +113,7 @@ class NekopostSource implements Source {
   /// (each listing is already newest-first; novels must not vanish from
   /// Browse — decision D3). Original novels (n) surface via search.
   @override
-  Future<List<SourceSeries>> latest({int page = 1}) async {
+  Future<List<SourceSeries>> latest({int page = 1, bool popular = false}) async {
     final results = await Future.wait([
       _latestType('m', page),
       _latestType('f', page),

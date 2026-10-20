@@ -217,6 +217,15 @@ class SeriesDao {
           .map(Series.fromRow)
           .toList(growable: false);
 
+  /// Newest-touched series rows first (offline catalog, 2026-10-21) —
+  /// updated_at moves on every detail/chapter fetch, so this is the
+  /// "what the user actually reads" order.
+  Future<List<Series>> recentSeries({int limit = 60}) async {
+    final rows = await db.query('series',
+        orderBy: 'updated_at DESC, id DESC', limit: limit);
+    return rows.map(Series.fromRow).toList(growable: false);
+  }
+
   // --- series_sources ---
 
   Future<void> upsertSource(SeriesSource link) async {

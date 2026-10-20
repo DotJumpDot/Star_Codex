@@ -31,9 +31,14 @@ class MadaraSource implements Source {
   bool get supportsNovels => false; // §7.6: novels are nekopost-only
 
   @override
-  Future<List<SourceSeries>> latest({int page = 1}) =>
+  Future<List<SourceSeries>> latest({int page = 1, bool popular = false}) =>
       _parseTiles(Uri.parse('$baseUrl/${config.archivePath}/')
-          .replace(queryParameters: {'order': 'update', 'page': '$page'}));
+          .replace(queryParameters: {
+        // order=popular is server-side (probed 2026-10-20: the ts archive
+        // returns a genuinely different list; search ignores the param).
+        'order': popular ? 'popular' : 'update',
+        'page': '$page',
+      }));
 
   @override
   Future<List<SourceSeries>> search(String query, {int page = 1}) async {

@@ -33,13 +33,23 @@ class ReaderPageRef {
 /// A resolved page: relative path under the library root (+ dims sniffed
 /// from the original bytes, doc 03). [hash] is the content hash — callers
 /// use it to persist fallback results back onto the requested chapter.
+/// [bands] is non-null when the page is an oversized strip sliced into
+/// GPU-safe pieces (see ImagePipeline.bandsFor) — render those instead
+/// of the parent file, which exceeds the max texture size.
 class PageFile {
-  const PageFile({required this.path, this.hash, this.width, this.height});
+  const PageFile({
+    required this.path,
+    this.hash,
+    this.width,
+    this.height,
+    this.bands,
+  });
 
   final String path;
   final String? hash;
   final int? width;
   final int? height;
+  final List<PageBand>? bands;
 }
 
 /// The chapter the reader is currently serving — which may be a FALLBACK
@@ -259,10 +269,10 @@ class ReaderRepo {
     void Function(String sourceId)? onFallback,
   }) async {
     final cached = await cachedFile(loaded.pages[idx]);
-    if (cached != null) return cached;
+    if (cached != null) return await _withBands(cached);
     try {
-      return await fetchPage(
-          loaded.chapter.id!, loaded.pages[idx], loaded.referer);
+      return await _withBands(await fetchPage(
+          loaded.chapter.id!, loaded.pages[idx], loaded.referer));
     } catch (_) {
       for (final sib in await siblings(loaded.chapter)) {
         try {
@@ -282,12 +292,42 @@ class ReaderRepo {
                 loaded.chapter.id!, idx, pf.hash!);
           }
           onFallback?.call(sibLoaded.chapter.sourceId);
-          return pf;
+          return await _withBands(pf);
         } catch (_) {
           continue;
         }
       }
       rethrow;
+    }
+  }
+
+  /// Oversized strips (taller than the GPU texture limit) render as a
+  /// BLACK VOID — attach the persisted GPU-safe band slices instead
+  /// (2026-10-21). Best-effort: on any failure the page renders whole.
+  Future<PageFile> _withBands(PageFile pf) async {
+    if (pf.hash == null ||
+        (pf.height ?? 0) <= ImagePipeline.gpuBandThreshold) {
+      return pf;
+    }
+    try {
+      final bands = await pipeline.bandsFor(PageResult(
+        hash: pf.hash!,
+        path: pf.path,
+        storedBytes: 0,
+        width: pf.width,
+        height: pf.height,
+        fromCache: true,
+      ));
+      if (bands.isEmpty) return pf;
+      return PageFile(
+        path: pf.path,
+        hash: pf.hash,
+        width: pf.width,
+        height: pf.height,
+        bands: bands,
+      );
+    } catch (_) {
+      return pf;
     }
   }
 }

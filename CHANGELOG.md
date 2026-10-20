@@ -153,6 +153,32 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-21 — Feature batch (user picks) + black-void chapter fix.
+  READER BUG (user report: "A Villain's Will to Survive" slow-manga
+  ch.67/68 blank dark, ch.69 fine): those pages are 800×25049 strips —
+  beyond Android's max GPU texture size, so every decode rendered as a
+  black void (ch.69's 14373px squeaked under the limit). New native
+  band slicer (BitmapRegionDecoder via a star_codex/image_slice channel
+  in MainActivity, no new dependency) cuts oversized pages into
+  4096-px-tall JPEG bands; they persist in page_bands (db v8) keyed by
+  the parent blob hash — sliced once, re-served from cache — and both
+  the webtoon and paged readers render the bands stacked. SLIDER-JUMP:
+  every chapter navigation now awaits its progress write first (the
+  webtoon reader swapped routes before the completed row landed, so the
+  chapter reopened from the top). POPULAR FEED: ล่าสุด/ยอดนิยม toggle on
+  the latest feed (server-side order=popular on the madara family,
+  persisted setting; search ignores it — sites reject ordering there).
+  HENTAITHAI DATES: the site exposes no <time> stamps anywhere; the
+  upload date is embedded in the CDN image path (/thai/2026/2026-10-10/)
+  and now lands on listing cards and the chapter stamp. OFFLINE
+  BROWSE: when no source answers (airplane mode), the feed shows the
+  visited-series catalog from the DB with an ออฟไลน์ banner instead of
+  a blank page; recovery clears it. Per-series reader mode was verified
+  ALREADY shipped (drawer writes reader_mode_<seriesId>). Batch
+  download UI already shipped (download sheet: unread/next-10/all/
+  range); OS-level background downloading (foreground service) is
+  deferred pending on-device testing of a new dependency. 219 tests
+  green.
 - 2026-10-20 — Covers load from disk on warm starts (user report:
   "title pictures reload every time I open the app"). Root cause:
   fetchAndStore downloads a URL BEFORE its content-hash dedup can hit —

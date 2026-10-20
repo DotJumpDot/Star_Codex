@@ -58,6 +58,25 @@ class BlobsDao {
       },
       conflictAlgorithm: ConflictAlgorithm.replace);
 
+  /// Band rows of one oversized page, idx order (db v8; see
+  /// ImagePipeline.bandsFor).
+  Future<List<PageBandRow>> bandRows(String parentHash) async {
+    final rows = await db.query('page_bands',
+        where: 'parent_hash = ?',
+        whereArgs: [parentHash],
+        orderBy: 'idx ASC');
+    return rows.map(PageBandRow.fromRow).toList(growable: false);
+  }
+
+  Future<void> putBands(String parentHash, List<PageBandRow> bands) =>
+      db.transaction((txn) async {
+        await txn.delete('page_bands',
+            where: 'parent_hash = ?', whereArgs: [parentHash]);
+        for (final b in bands) {
+          await txn.insert('page_bands', b.toRow(parentHash));
+        }
+      });
+
   Future<BlobRow?> byHash(String hash) async {
     final rows = await db
         .query('blobs', where: 'hash = ?', whereArgs: [hash], limit: 1);
@@ -152,5 +171,37 @@ class BlobUrlRow {
         width: r['width'] as int?,
         height: r['height'] as int?,
         fetchedAt: r['fetched_at'] as int,
+      );
+}
+
+/// `page_bands` (db v8): GPU-safe horizontal slices of one oversized
+/// webtoon page, keyed by the PARENT blob's content hash — re-slicing
+/// is skipped whenever the rows (and band files) survive.
+class PageBandRow {
+  const PageBandRow({
+    required this.idx,
+    required this.hash,
+    this.width,
+    this.height,
+  });
+
+  final int idx;
+  final String hash;
+  final int? width;
+  final int? height;
+
+  Map<String, Object?> toRow(String parentHash) => {
+        'parent_hash': parentHash,
+        'idx': idx,
+        'hash': hash,
+        'width': width,
+        'height': height,
+      };
+
+  static PageBandRow fromRow(Map<String, Object?> r) => PageBandRow(
+        idx: r['idx'] as int,
+        hash: r['hash'] as String,
+        width: r['width'] as int?,
+        height: r['height'] as int?,
       );
 }

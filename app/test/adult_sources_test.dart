@@ -100,6 +100,16 @@ Future<void> main() async {
       expect(items.first.title, isNotEmpty);
     });
 
+    test('listing cards carry the CDN-path upload date (2026-10-21 probe: '
+        'no <time> stamps anywhere — the date lives only in the image path)',
+        () async {
+      final items = parseHentaiThaiListing(await fixture('ht_listing.html'));
+      expect(items.first.lastUpdatedMs, isNotNull,
+          reason: 'cards must sort by date like every other source');
+      expect(items.first.coverUrl, contains('/thai/'),
+          reason: 'the style-block background is also the card cover');
+    });
+
     test('thread: title + single chapter + s1 CDN pages only', () async {
       const url = 'https://hentaithai.net/t51996';
       final detail =
@@ -108,6 +118,8 @@ Future<void> main() async {
       expect(detail!.title, isNotEmpty);
       expect(detail.chapters, hasLength(1));
       expect(detail.chapters.first.url, url);
+      expect(detail.chapters.first.uploadedAt, isNotNull,
+          reason: 'chapter stamp from the first image path');
       final pages = parseHentaiThaiPages(await fixture('ht_thread.html'));
       expect(pages, isNotEmpty);
       expect(pages.every((p) => p.contains('hentaithai.net/thai/')), isTrue);

@@ -46,7 +46,7 @@ class MikuDoujinSource implements Source {
   }
 
   @override
-  Future<List<SourceSeries>> latest({int page = 1}) => _listing(
+  Future<List<SourceSeries>> latest({int page = 1, bool popular = false}) => _listing(
       Uri.parse(page > 1 ? '$baseUrl/?paged=$page' : '$baseUrl/'));
 
   @override

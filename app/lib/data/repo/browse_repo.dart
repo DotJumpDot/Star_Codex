@@ -78,15 +78,54 @@ class BrowseRepo {
   }
 
   Future<BrowsePage> latest(
-      {Set<String> onlySourceIds = const {}, int page = 1}) async {
-    final results =
-        await _gather(_active(onlySourceIds), (s) => s.latest(page: page));
+      {Set<String> onlySourceIds = const {}, int page = 1, bool popular = false}) async {
+    final results = await _gather(
+        _active(onlySourceIds), (s) => s.latest(page: page, popular: popular));
     // Latest feed keeps append order: each site's listing is already
-    // newest-first; sources are interleaved (Plan/05 drift addendum —
-    // listings carry no timestamps to sort by).
+    // newest-first (or popularity-ordered when [popular] — server-side,
+    // probed 2026-10-20); sources are interleaved (Plan/05 drift
+    // addendum — listings carry no timestamps to sort by).
     return BrowsePage(
         groups: mergeIntoGroups(const [], _candidates(results)),
         failures: _failures(results));
+  }
+
+  /// Offline catalog (user request 2026-10-21): the series rows the user
+  /// has visited/materialized, as browse cards — when the network can't
+  /// answer (airplane mode, every source failing), the feed goes STALE
+  /// instead of blank. DB-only; covers/dates/types are the stored ones.
+  Future<List<SearchGroup>> cachedCatalog({int limit = 60}) async {
+    final out = <SearchGroup>[];
+    for (final row in await seriesDao.recentSeries(limit: limit)) {
+      final links = await seriesDao.sourcesOf(row.id!);
+      if (links.isEmpty) continue;
+      final members = <BrowseCandidate>[
+        for (final l in links)
+          BrowseCandidate(
+            sourceId: l.sourceId,
+            referer: sourceById(l.sourceId)?.referer ?? '',
+            url: l.sourceUrl,
+            title: l.sourceTitle ?? row.title,
+            coverUrl: l.coverUrl,
+            chapterCountHint: l.lastChapterNumber?.toInt(),
+            lastUpdatedMs: l.lastUpdatedAt,
+          ),
+      ];
+      final g = SearchGroup(members);
+      g.dbStatus = row.status;
+      g.dbType = row.type;
+      g.dbLastUpdatedMs = await seriesDao.lastUpdatedAt(row.id!);
+      g.dbTags = await tagsDao.tagsOf(row.id!);
+      for (final l in links) {
+        if ((l.coverUrl ?? '').isNotEmpty) {
+          g.dbCoverUrl = l.coverUrl;
+          g.dbCoverReferer = sourceById(l.sourceId)?.referer;
+          break;
+        }
+      }
+      out.add(g);
+    }
+    return out;
   }
 
   Future<BrowsePage> genre(Source source, String term, {int page = 1}) async {

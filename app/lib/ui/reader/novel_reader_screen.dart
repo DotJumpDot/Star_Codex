@@ -196,9 +196,13 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
     final prev = await _repo.adjacentChapter(widget.chapter, forward: false);
     if (prev != null && mounted) {
       _switching = true;
-      Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
-        builder: (_) => NovelReaderScreen(chapter: prev),
-      ));
+      // Same rule as _goNext: land the progress write before the swap.
+      await _saveProgress(_percent, completed: _percent >= 97);
+      if (mounted) {
+        Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
+          builder: (_) => NovelReaderScreen(chapter: prev),
+        ));
+      }
     }
   }
 

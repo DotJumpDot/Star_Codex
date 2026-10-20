@@ -106,6 +106,42 @@ class _PageSlotState extends ConsumerState<PageSlot> {
           return _placeholder(context);
         }
         final dir = ref.read(libraryDirProvider);
+        final bands = pf.bands;
+        if (bands != null && bands.isNotEmpty) {
+          // Oversized strip: render the GPU-safe band slices stacked —
+          // the parent file exceeds the max texture size and would show
+          // as a black void (2026-10-21). The slot's total height is
+          // reserved from the PARENT dims (via _load's onDimensions), so
+          // the screen's anchoring math is unchanged.
+          final cacheW =
+              (widget.screenWidth * MediaQuery.devicePixelRatioOf(context))
+                  .round();
+          return Stack(
+            children: [
+              Column(
+                children: [
+                  for (final b in bands)
+                    ExtendedImage.file(
+                      File('${dir.path}/${b.path}'),
+                      width: widget.screenWidth,
+                      fit: BoxFit.fitWidth,
+                      clearMemoryCacheWhenDispose: false,
+                      cacheWidth: cacheW,
+                      loadStateChanged: (state) => state
+                                  .extendedImageLoadState ==
+                              LoadState.loading
+                          ? _placeholderBox(
+                              context,
+                              (b.width != null && b.height != null && b.width! > 0)
+                                  ? widget.screenWidth * b.height! / b.width!
+                                  : widget.screenWidth * 2)
+                          : null,
+                    ),
+                ],
+              ),
+            ],
+          );
+        }
         final file = File('${dir.path}/${pf.path}');
         final w = pf.width ?? widget.ref.width;
         final h = pf.height ?? widget.ref.height;
