@@ -216,6 +216,21 @@ void main() {
       }
     });
 
+    test('popular keeps the server order (merged sort section 2026-10-21)',
+        () {
+      final groups = mergeIntoGroups(const [], [
+        cand('a', 'Tall', hint: 10, updated: 1000),
+        cand('a', 'Short', hint: 1, updated: 9000),
+      ]);
+      final out = sortGroups(groups, BrowseSortOrder.popular);
+      expect(out.map((g) => g.displayTitle), ['Tall', 'Short'],
+          reason: 'a client re-sort would erase the popularity order');
+      expect(
+          const BrowseFilters(sort: BrowseSortOrder.popular).isDefault,
+          isFalse,
+          reason: 'ยอดนิยม is a non-default choice — badge shows');
+    });
+
     test('BrowseFilters: default sort latestUpdate; non-default flips badge',
         () {
       const filters = BrowseFilters();

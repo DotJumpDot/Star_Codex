@@ -230,13 +230,20 @@ List<SearchGroup> mergeGroupLists(
   return groups;
 }
 
-/// View sort order for the browse/search list (user request 2026-10-20).
-/// Pure client-side ordering of what already loaded — the listing itself
-/// keeps paging in source order. "Popular" is deliberately absent: the ts
-/// themes ignore ordering params on search (probed 2026-10-20 — identical
-/// tile order with/without m_orderby=views / order=popular) and no source
-/// carries view counts, so there is nothing honest to sort by.
-enum BrowseSortOrder { latestUpdate, oldestUpdate, chaptersDesc, chaptersAsc }
+/// View sort order for the browse/search list (user request 2026-10-20;
+/// merged with the feed ordering 2026-10-21). Pure client-side ordering
+/// of what already loaded — the listing itself keeps paging in source
+/// order. [popular] is the exception: it requests the servers' own
+/// popularity ordering (feed fetch param) and then does NOT re-sort
+/// client-side, so that order shows through. "Popular" is only
+/// honored by the ts archive; search ignores ordering params there.
+enum BrowseSortOrder {
+  latestUpdate,
+  oldestUpdate,
+  chaptersDesc,
+  chaptersAsc,
+  popular,
+}
 
 /// Session-only browse filters (Plan/08 §3) — NEVER written to settings;
 /// defaults OFF per decision L1 (restart ⇒ defaults). Sort is the one
@@ -313,6 +320,11 @@ List<SearchGroup> filterGroups(List<SearchGroup> groups, BrowseFilters f) {
 /// (no date yet / no chapter hint) sink to the bottom in BOTH directions
 /// rather than claiming to be newest/oldest/most/fewest.
 List<SearchGroup> sortGroups(List<SearchGroup> groups, BrowseSortOrder order) {
+  if (order == BrowseSortOrder.popular) {
+    // Server ordering (feed fetch param): show it through untouched —
+    // a client re-sort would erase the popularity order.
+    return groups;
+  }
   final positions = List<int>.generate(groups.length, (i) => i);
   int compare(int a, int b) {
     final ka = _sortKey(groups[a], order);
@@ -338,6 +350,8 @@ int? _sortKey(SearchGroup g, BrowseSortOrder order) {
     case BrowseSortOrder.chaptersDesc:
     case BrowseSortOrder.chaptersAsc:
       return g.chapterCount;
+    case BrowseSortOrder.popular:
+      return null; // unreachable — sortGroups returns early for popular
   }
 }
 

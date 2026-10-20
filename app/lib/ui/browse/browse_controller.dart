@@ -20,7 +20,6 @@ class BrowseState {
     this.query = '',
     this.genreSourceId,
     this.genreTerm,
-    this.feedPopular = false,
     this.offline = false,
     this.activeSourceIds = const {},
     this.filters = const BrowseFilters(),
@@ -38,10 +37,10 @@ class BrowseState {
   final String? genreSourceId;
   final String? genreTerm;
 
-  /// Latest-feed ordering (ล่าสุด ⇄ ยอดนิยม, user request 2026-10-20):
-  /// server-side `order=popular` on the sources that support it
-  /// (madara family); persisted via the provider's persistence hook.
-  final bool feedPopular;
+  /// True when the current view shows the servers' popularity ordering
+  /// (feed fetch param — see BrowseSortOrder.popular; merged UI
+  /// 2026-10-21).
+  bool get feedPopular => filters.sort == BrowseSortOrder.popular;
 
   /// True when the last fetch could not reach ANY source and the list
   /// shows the offline catalog instead (2026-10-21) — the UI banners it.
@@ -68,7 +67,6 @@ class BrowseState {
     String? query,
     Object? genreSourceId = _keep,
     Object? genreTerm = _keep,
-    bool? feedPopular,
     bool? offline,
     Set<String>? activeSourceIds,
     BrowseFilters? filters,
@@ -86,7 +84,6 @@ class BrowseState {
         genreSourceId:
             genreSourceId == _keep ? this.genreSourceId : genreSourceId as String?,
         genreTerm: genreTerm == _keep ? this.genreTerm : genreTerm as String?,
-        feedPopular: feedPopular ?? this.feedPopular,
         offline: offline ?? this.offline,
         activeSourceIds: activeSourceIds ?? this.activeSourceIds,
         filters: filters ?? this.filters,
@@ -107,7 +104,11 @@ class BrowseController extends StateNotifier<BrowseState> {
       this.initialFeedPopular = false,
       this.onFeedPopularChanged})
       : _allowedSourceIds = allowedSourceIds, // ignore: prefer_initializing_formals
-        super(BrowseState(feedPopular: initialFeedPopular));
+        super(BrowseState(
+          filters: initialFeedPopular
+              ? const BrowseFilters(sort: BrowseSortOrder.popular)
+              : const BrowseFilters(),
+        ));
 
   final BrowseRepo _repo;
 
@@ -115,8 +116,9 @@ class BrowseController extends StateNotifier<BrowseState> {
   /// and the site sheet only ever see these sources. Null = all.
   final Set<String>? _allowedSourceIds;
 
-  /// Latest-feed ordering seed + persistence hook (wired by the
-  /// providers to the `browse_feed_popular` setting).
+  /// Popular-ordering seed + persistence hook (wired by the providers to
+  /// the `browse_feed_popular` setting; the choice lives in the sort
+  /// section since 2026-10-21).
   final bool initialFeedPopular;
   final void Function(bool popular)? onFeedPopularChanged;
 
@@ -254,9 +256,26 @@ class BrowseController extends StateNotifier<BrowseState> {
 
   Future<void> leaveGenre() => clearSearch();
 
-  /// Filters are view-level: re-filter cached groups, never re-fetch.
-  void setFilters(BrowseFilters filters) =>
-      state = state.copyWith(filters: filters);
+  /// Filters are view-level: re-filter cached groups, never re-fetch —
+  /// ONE exception: popular is a SERVER fetch parameter (the ts archive's
+  /// own ordering), so crossing into/out of it re-fetches the feed
+  /// (2026-10-21, merged sort section).
+  void setFilters(BrowseFilters filters) {
+    final wasPopular = state.feedPopular;
+    state = state.copyWith(filters: filters);
+    final isPopular = filters.sort == BrowseSortOrder.popular;
+    if (isPopular != wasPopular) {
+      onFeedPopularChanged?.call(isPopular);
+      state = state.copyWith(
+        groups: const [],
+        failedSources: const {},
+        loading: true,
+        endReached: false,
+        page: 0,
+      );
+      _replace(page: 1);
+    }
+  }
 
   /// Tag chip on the detail screen (Plan/09 §4): pre-filter browse,
   /// session-only. Listings carry no tags yet, so enforcement stays an
@@ -403,24 +422,6 @@ class BrowseController extends StateNotifier<BrowseState> {
         return _repo.latest(
             onlySourceIds: only, page: page, popular: state.feedPopular);
     }
-  }
-
-  /// ล่าสุด ⇄ ยอดนิยม for the latest feed (user request 2026-10-20):
-  /// server-side re-ordering on the sources that support it — the whole
-  /// feed is re-fetched (ordering is a query parameter, not a client
-  /// sort). Search/genre ignore it.
-  Future<void> setFeedPopular(bool popular) async {
-    if (state.feedPopular == popular) return;
-    onFeedPopularChanged?.call(popular);
-    state = state.copyWith(
-      feedPopular: popular,
-      groups: const [],
-      failedSources: const {},
-      loading: true,
-      endReached: false,
-      page: 0,
-    );
-    await _replace(page: 1);
   }
 }
 

@@ -245,12 +245,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       if (raw >= 0 && raw <= _scroll.position.maxScrollExtent) {
         // Shift BEFORE the relayout frame: the frame that first sees the
         // new height also sees the moved offset, so content stays pinned
-        // with NO intermediate shifted frame. Doing this post-frame left
-        // one rendered frame of shifted content — the "jerky shake" while
-        // flinging through first-read chapters (fin-manga report,
-        // 2026-10-20). Only legal when the target fits the CURRENT
-        // extent; otherwise fall through to the post-frame path.
-        _scroll.jumpTo(raw);
+        // with NO intermediate shifted frame. forcePixels (not jumpTo):
+        // jumpTo KILLS the ballistic activity — every late correction
+        // during a down-fling stopped the scroll dead, which read as
+        // laggy scrolling (user report 2026-10-21); forcePixels moves
+        // the pixels and lets the fling continue from the new position.
+        // Protected member: the framework uses it for this exact purpose
+        // (pointerScroll, nested scrolling); the value is pre-clamped to
+        // the current extent.
+        // ignore: invalid_use_of_protected_member
+        _scroll.position.forcePixels(raw);
         setState(() => _heights[idx] = exact);
         return;
       }

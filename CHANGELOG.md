@@ -153,6 +153,17 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-21 — Filter-sheet merge + webtoon fling smoothness (user
+  round). The separate ลำดับฟีด section is GONE — ยอดนิยม now lives in
+  the เรียงลำดับ chips (one ordering section; picking it re-fetches
+  with the servers' popularity param and shows that order through with
+  no client re-sort; persisted). Reader fling jank on manhwa chapters:
+  height-correction anchors used jumpTo, which KILLS the ballistic
+  fling — every late correction mid-scroll stopped the scroll dead;
+  anchors now shift pixels via forcePixels and the fling continues.
+  Also: decode cacheWidth is capped at the SOURCE image width (800px
+  strips were being upscaled ~1.7× at decode for zero sharpness).
+  220 tests green.
 - 2026-10-21 — Release: v1.2.5 — version 1.2.5+9. Ships everything
   since v1.2.4: the black-void chapter fix (oversized webtoon strips
   now slice into GPU-safe bands — "A Villain's Will to Survive"

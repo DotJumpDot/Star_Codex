@@ -39,10 +39,13 @@ class _FilterSheetBody extends ConsumerStatefulWidget {
 class _FilterSheetBodyState extends ConsumerState<_FilterSheetBody> {
   late Future<List<String>> _tags;
 
-  /// Sort chips (user request 2026-10-20): default latest-update —
-  /// [BrowseFilters]'s own default, so "รีเซ็ต" lands back on it.
+  /// Sort chips (user request 2026-10-20; popular joined from the old
+  /// separate feed-ordering section 2026-10-21 — two "ordering" sections
+  /// read as duplicated filters). ยอดนิยม = the servers' own popularity
+  /// order (feed fetch param; search ignores it).
   static const _sortLabels = {
     BrowseSortOrder.latestUpdate: 'browse.sort.latest',
+    BrowseSortOrder.popular: 'browse.feed.popular',
     BrowseSortOrder.oldestUpdate: 'browse.sort.oldest',
     BrowseSortOrder.chaptersDesc: 'browse.sort.chapters_desc',
     BrowseSortOrder.chaptersAsc: 'browse.sort.chapters_asc',
@@ -59,7 +62,6 @@ class _FilterSheetBodyState extends ConsumerState<_FilterSheetBody> {
   @override
   Widget build(BuildContext context) {
     final filters = ref.watch(widget.provider).filters;
-    final feedPopular = ref.watch(widget.provider).feedPopular;
     return SafeArea(
       child: SingleChildScrollView(
         child: Padding(
@@ -80,27 +82,6 @@ class _FilterSheetBodyState extends ConsumerState<_FilterSheetBody> {
                     onPressed: () =>
                         _controller.setFilters(const BrowseFilters()),
                     child: Text(t(context, 'browse.filter.reset')),
-                  ),
-                ],
-              ),
-              // ล่าสุด ⇄ ยอดนิยม for the latest FEED (user request
-              // 2026-10-21: lives here, not as always-visible chips on
-              // the browse screen). Server-side ordering on the sources
-              // that support it; the whole feed re-fetches on change.
-              _sectionLabel(context, 'browse.filter.feed'),
-              Wrap(
-                spacing: 6,
-                children: [
-                  ChoiceChip(
-                    label: Text(t(context, 'browse.feed.latest')),
-                    selected: !feedPopular,
-                    onSelected: (_) => _controller.setFeedPopular(false),
-                  ),
-                  const SizedBox(width: 6),
-                  ChoiceChip(
-                    label: Text(t(context, 'browse.feed.popular')),
-                    selected: feedPopular,
-                    onSelected: (_) => _controller.setFeedPopular(true),
                   ),
                 ],
               ),

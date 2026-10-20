@@ -113,9 +113,6 @@ class _PageSlotState extends ConsumerState<PageSlot> {
           // as a black void (2026-10-21). The slot's total height is
           // reserved from the PARENT dims (via _load's onDimensions), so
           // the screen's anchoring math is unchanged.
-          final cacheW =
-              (widget.screenWidth * MediaQuery.devicePixelRatioOf(context))
-                  .round();
           return Stack(
             children: [
               Column(
@@ -126,7 +123,7 @@ class _PageSlotState extends ConsumerState<PageSlot> {
                       width: widget.screenWidth,
                       fit: BoxFit.fitWidth,
                       clearMemoryCacheWhenDispose: false,
-                      cacheWidth: cacheW,
+                      cacheWidth: _cacheWidthFor(b.width, context),
                       loadStateChanged: (state) => state
                                   .extendedImageLoadState ==
                               LoadState.loading
@@ -160,9 +157,7 @@ class _PageSlotState extends ConsumerState<PageSlot> {
               // (placeholder flash + jank) on every revisit. cacheWidth
               // keeps each entry small; the framework LRU evicts.
               clearMemoryCacheWhenDispose: false,
-              cacheWidth:
-                  (widget.screenWidth * MediaQuery.devicePixelRatioOf(context))
-                      .round(),
+              cacheWidth: _cacheWidthFor(w, context),
               loadStateChanged: (state) {
                 if (state.extendedImageLoadState == LoadState.loading) {
                   return _placeholderBox(context, height);
@@ -194,8 +189,21 @@ class _PageSlotState extends ConsumerState<PageSlot> {
     );
   }
 
-  Widget _placeholder(BuildContext context) => _placeholderBox(
-      context,
+  /// Decode width: screen pixels, but never ABOVE the source's own
+  /// width — upscaling at decode time made every 800px-wide strip
+  /// decode ~1.7× the pixels for zero sharpness and showed up as fling
+  /// jank on manhwa chapters (user report 2026-10-21).
+  int _cacheWidthFor(int? sourceWidth, BuildContext context) {
+    final screen = (widget.screenWidth *
+            MediaQuery.devicePixelRatioOf(context))
+        .round();
+    if (sourceWidth != null && sourceWidth > 0) {
+      return sourceWidth < screen ? sourceWidth : screen;
+    }
+    return screen;
+  }
+
+  Widget _placeholder(BuildContext context) => _placeholderBox(      context,
       widget.ref.hasDims
           ? _reservedHeight
           : widget.screenWidth * widget._aspect);

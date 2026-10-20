@@ -86,18 +86,27 @@ void main() {
     expect(normalizeTitle('Alpha'), 'alpha'); // sanity
   });
 
-  test('setFeedPopular refetches with the popular ordering', () async {
+  test('popular as a sort chip refetches with the popular ordering '
+      '(merged sort section 2026-10-21)', () async {
     final src = repo.sources.whereType<FakeSource>().first;
-    final c = BrowseController(repo, initialFeedPopular: false);
+    final c = BrowseController(repo);
     await c.ensureLoaded();
     expect(src.latestPopular, isFalse);
-    await c.setFeedPopular(true);
+
+    // Pick ยอดนิยม in the sort section → server param + no re-sort.
+    c.setFilters(const BrowseFilters(sort: BrowseSortOrder.popular));
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
     expect(c.state.feedPopular, isTrue);
     expect(src.latestPopular, isTrue,
         reason: 'the ordering must reach the sources');
-    // No-op when unchanged (no refetch churn).
-    await c.setFeedPopular(true);
-    expect(c.state.groups, isNotEmpty);
+
+    // Back to the default sort → refetch without popular.
+    c.setFilters(const BrowseFilters());
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+    expect(c.state.feedPopular, isFalse);
+    expect(src.latestPopular, isFalse);
   });
 
   test('total feed failure falls back to the offline catalog (2026-10-21)',
