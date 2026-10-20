@@ -938,3 +938,18 @@ referer pairing, novel estimate. 165 tests green.
   NOTIFICATIONS runtime permission) — must be verified on-device
   before shipping; batch enqueue itself already existed (download
   sheet: unread / next 10 / all / range).
+
+## 2026-10-21 — On-device QA round (feature batch)
+
+- Offline fallback raced: mount fires TWO overlapping `_replace`s; the
+  superseded one's fallback attempt returns false (`seq != _fetchSeq`)
+  and FELL THROUGH to its stale empty-state emission, clobbering the
+  winner's offline catalog (intermittent — order-dependent). Fix: the
+  non-fallback emission re-checks `seq != _fetchSeq` after the fallback
+  attempt. Verified stable across 3 offline cold starts + recovery.
+- ล่าสุด/ยอดนิยม moved into the filter sheet (ลำดับฟีด section) per
+  user request — the feed stays clean; the choice persists via
+  `browse_feed_popular`.
+- Band slicer verified live: slow-manga 800×25049 ch.67 now renders
+  (was a solid black void); content flows continuously across band
+  boundaries. hentaithai cards show CDN-path dates on-device.
