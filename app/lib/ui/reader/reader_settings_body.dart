@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/i18n/i18n.dart';
+import 'reader_crop.dart';
 
 /// Novel reader themes (doc 11 B): ขาว / น้ำตาลเหลือง (sepia) / ดำ. The
 /// background color is further scaled by the `novel_bg_opacity` setting.
@@ -31,6 +32,10 @@ class ReaderSettingsBody extends StatefulWidget {
     this.novelTheme = 'dark',
     this.bgOpacity = 1.0,
     this.onNovelChanged,
+    this.crop,
+    this.onCrop,
+    this.onCropAuto,
+    this.cropAutoBusy = false,
   });
 
   final int prefetchAhead;
@@ -51,6 +56,13 @@ class ReaderSettingsBody extends StatefulWidget {
   final double bgOpacity;
   final void Function(int font, double line, String theme, double opacity)?
       onNovelChanged;
+
+  /// Webtoon-only screen-crop controls (letterboxed chapters). Non-null
+  /// [crop] shows the section.
+  final ReaderCrop? crop;
+  final ValueChanged<ReaderCrop>? onCrop;
+  final VoidCallback? onCropAuto;
+  final bool cropAutoBusy;
 
   @override
   State<ReaderSettingsBody> createState() => _ReaderSettingsBodyState();
@@ -149,6 +161,85 @@ class _ReaderSettingsBodyState extends State<ReaderSettingsBody> {
           ),
           trailing: Text('$prefetch'),
         ),
+        if (widget.crop != null && widget.onCrop != null) ...[
+          const Divider(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Text(t(context, 'reader.crop.title'),
+                style: Theme.of(context).textTheme.labelLarge),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+            child: Text(t(context, 'reader.crop.position_hint'),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          ),
+          ListTile(
+            dense: true,
+            title: Text(t(context, 'reader.crop.zoom')),
+            subtitle: Slider(
+              min: 1.0,
+              max: 3.0,
+              divisions: 20,
+              label: '${widget.crop!.zoom.toStringAsFixed(1)}×',
+              value: widget.crop!.zoom.clamp(1.0, 3.0),
+              onChanged: (v) => widget.onCrop!(
+                  ReaderCrop(zoom: v, cropX: widget.crop!.cropX)),
+            ),
+            trailing: Text('${widget.crop!.zoom.toStringAsFixed(1)}×'),
+          ),
+          ListTile(
+            dense: true,
+            title: Text(t(context, 'reader.crop.position')),
+            subtitle: Slider(
+              min: 0.0,
+              max: 1.0,
+              divisions: 20,
+              value: widget.crop!.cropX,
+              label: widget.crop!.cropX < 0.33
+                  ? t(context, 'reader.crop.position_left')
+                  : widget.crop!.cropX > 0.67
+                      ? t(context, 'reader.crop.position_right')
+                      : t(context, 'reader.crop.position_center'),
+              onChanged: widget.crop!.zoom > 1.01
+                  ? (v) => widget.onCrop!(
+                      ReaderCrop(zoom: widget.crop!.zoom, cropX: v))
+                  : null,
+            ),
+            trailing: const Icon(Icons.swap_horiz, size: 18),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: widget.cropAutoBusy
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.crop_free, size: 18),
+                    label: Text(t(context, 'reader.crop.auto')),
+                    onPressed:
+                        widget.cropAutoBusy ? null : widget.onCropAuto,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextButton(
+                    onPressed: widget.crop!.active
+                        ? () =>
+                            widget.onCrop!(const ReaderCrop())
+                        : null,
+                    child: Text(t(context, 'reader.crop.reset')),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         if (widget.novel) ...[
           const Divider(),
           ListTile(

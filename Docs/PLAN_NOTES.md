@@ -1034,3 +1034,30 @@ referer pairing, novel estimate. 165 tests green.
   low-width pass first, swap the full decode in later) is deliberately
   NOT implemented yet; it's the next lever if real-phone first-read jank
   persists after the threading fixes (splits the raster texture upload).
+
+## 2026-10-21 — Webtoon crop/zoom invariants
+
+- Crop = slot WIDTH, not clipping: ListView children cannot exceed the
+  cross-axis extent (constraints clamp them), so the zoomed slot lays
+  out inside a per-item OverflowBox (minWidth=maxWidth=slotWidth) and
+  the viewport's own clip crops it. Horizontal position is an Alignment
+  (2*cropX-1) — X is a RENDER state, never a pan gesture: "can't go
+  left/right" is structural, not a locked flag.
+- Pinch uses a raw-pointer Listener (no gesture arena entry) — single-
+  finger scrolling must keep winning the arena (that's why Interactive-
+  Viewer/GestureDetector-onScale were rejected). On 2nd pointer down:
+  jumpTo(offset) kills the in-flight drag + physics flips to
+  NeverScrollable for the pinch; incremental zoom = current ×
+  (dist/lastDist), hidden-left px held CONSTANT so the strip point under
+  the start focal stays put.
+- Zoom changes rescale _heights by the zoom ratio AND the scroll offset
+  post-frame (anchor × ratio, clamped) — heights derive from _slotWidth
+  (= screen × zoom), so the estimate/fix-up math needs no other change.
+- Auto-detect: column MEAN luminance over the full page height,
+  threshold 40 (bars ≤5, artwork ≥138 measured on ch.96) — immune to
+  the watermarks baked onto the bars (they lift a bar column's mean to
+  ~24 max) and to dark artwork touching the column edges. Windows only
+  0.2–0.95 wide count as letterboxed. Decoded at 64px wide via
+  instantiateImageCodec(targetWidth:) — one-shot per chapter.
+- Crop persists per chapter (reader_crop_ch<id>, empty = off) — NEVER
+  global: normal chapters must stay full-width (user requirement).

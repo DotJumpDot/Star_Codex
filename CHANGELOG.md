@@ -161,6 +161,22 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   skeleton loading state, and the first-read scroll-freeze fixes (page
   hashing off the UI isolate, band slicing off Android's main thread).
   223 tests green.
+- 2026-10-21 — Webtoon screen crop + pinch zoom (user request, the
+  letterboxed dark-manga ch.96 case): the webtoon reader now supports a
+  per-CHAPTER crop — slots render zoom× wider than the screen and the
+  reader shows one fixed horizontal window, so horizontal movement is
+  inherently locked (scroll up/down only). Two-finger pinch zooms the
+  strip (raw-pointer Listener — never enters the gesture arena, so
+  single-finger scrolling is untouched; scrolling freezes for the pinch
+  duration). The right drawer gains a "ครอปหน้าจอ (ตอนนี้เท่านั้น)"
+  section: zoom + horizontal-position sliders, reset, and AUTO-DETECT —
+  a column-luminance profile of the first page finds the artwork window
+  between the black bars (measured: bar columns ≤5 luminance, artwork
+  ≥138, threshold 40 ignores watermarks) and snaps the crop to it
+  (≈1.7× centered for the sashimi-knife pages). Persisted per chapter
+  via reader_crop_ch<id> — normal chapters stay full-width. Zoom
+  changes rescale slot heights and re-anchor the scroll offset so the
+  artwork under you stays put. 228 tests green.
 - 2026-10-21 — v1.2.7 real-phone verdict: scrolling is smooth (webtoon
   first-read included) — the reading-smoothness line of work is closed;
   the deferred blur-up/two-stage decode lever stays documented in

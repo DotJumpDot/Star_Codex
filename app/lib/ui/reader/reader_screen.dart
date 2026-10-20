@@ -20,6 +20,7 @@ import 'chapter_picker_sheet.dart';
 import 'page_slot.dart';
 import 'pull_next.dart';
 import 'reader_chrome.dart';
+import 'reader_crop.dart';
 import 'reader_drawer.dart';
 import 'reader_progress.dart';
 import 'reader_router.dart';
@@ -102,6 +103,19 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   final _pendingDims = <int, double>{};
   bool _dimsFlushScheduled = false;
 
+  /// Per-chapter screen crop (letterboxed strips — see ReaderCrop).
+  /// Loaded from `reader_crop_ch<id>` on open, saved on every change.
+  ReaderCrop _crop = const ReaderCrop();
+  bool _cropAutoBusy = false;
+
+  /// Raw-pointer pinch state (Listener-based, so it NEVER competes with
+  /// the ListView's drag recognizers — single-finger scrolling is
+  /// untouched and two-finger pinches zoom).
+  final _pointers = <int, Offset>{};
+  double? _pinchDist0;
+  double? _pinchHiddenPx0;
+  bool _pinching = false;
+
   bool get _keepAwake =>
       ref.read(settingsProvider).getBool('reader_keep_awake', true);
   bool get _autoNext =>
@@ -134,6 +148,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   @override
   void initState() {
     super.initState();
+    _crop = ReaderCrop.decode(
+        ref.read(settingsProvider).get('reader_crop_ch${widget.chapter.id}', ''));
     _setImmersive(true);
     if (_keepAwake) _setAwake(true);
     WidgetsBinding.instance.addPostFrameCallback((_) => _open());
@@ -187,7 +203,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   ? _observedAspectSum / _observedAspectCount
                   : PageSlot.estimatedAspect);
 
-  double get _slotWidth => MediaQuery.sizeOf(context).width;
+  double get _screenWidth => MediaQuery.sizeOf(context).width;
+
+  /// Slot layout width: screen width scaled by the crop zoom. Heights
+  /// derive from this, so zooming rescales the whole strip uniformly.
+  double get _slotWidth => _screenWidth * _crop.zoom;
 
   /// Seed pages [0..5] into the queue (doc 10 §Prefetch), then keep
   /// [ _prefetchAhead ] pages moving as the user scrolls (the setting
@@ -401,6 +421,142 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   /// the route before the completed row landed was the slider-jump bug
   /// — a fast drag to the end advanced chapters mid-write and the
   /// chapter reopened from the top (QA §12 #4, fixed 2026-10-20).
+  /// Swap the crop: rescales every reserved height by the zoom ratio and
+  /// re-anchors the scroll offset (multiplied by the same ratio) so the
+  /// artwork under the reader stays put. Persisted per chapter — empty
+  /// value when inactive.
+  void _applyCrop(ReaderCrop next, {bool persist = true}) {
+    if (next == _crop) return;
+    final ratio = next.zoom / _crop.zoom;
+    final rescale = (ratio - 1).abs() > 0.001;
+    final anchor = _scroll.hasClients ? _scroll.offset : null;
+    setState(() {
+      _crop = next;
+      if (rescale) {
+        _heights = [for (final h in _heights) h * ratio];
+      }
+    });
+    if (rescale && anchor != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_scroll.hasClients) return;
+        final target =
+            (anchor * ratio).clamp(0.0, _scroll.position.maxScrollExtent);
+        if ((target - _scroll.offset).abs() > 0.5) _scroll.jumpTo(target);
+      });
+    }
+    if (persist) {
+      final key = 'reader_crop_ch${widget.chapter.id}';
+      ref
+          .read(settingsProvider.notifier)
+          .set(key, next.active ? next.encode() : '');
+    }
+  }
+
+  /// Drawer's auto-detect: column-luminance profile of the first page →
+  /// artwork window → crop (letterbox measurement, 2026-10-21).
+  Future<void> _autoDetectCrop() async {
+    if (_loaded == null || _cropAutoBusy) return;
+    setState(() => _cropAutoBusy = true);
+    try {
+      final pf = _pageFiles[0] ?? await _resolvePage(0);
+      if (!mounted) return;
+      final dir = ref.read(libraryDirProvider);
+      final means = await columnLuminanceMeans('${dir.path}/${pf.path}');
+      if (!mounted) return;
+      final win = means == null ? null : detectArtworkWindow(means);
+      final crop = win == null ? null : cropForWindow(win.left, win.width);
+      if (crop == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(t(context, 'reader.crop.not_found'))));
+      } else {
+        _applyCrop(crop);
+      }
+    } catch (_) {
+      // Page resolve/decode failure — same contract as a miss.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(t(context, 'reader.crop.not_found'))));
+      }
+    } finally {
+      if (mounted) setState(() => _cropAutoBusy = false);
+    }
+  }
+
+  // --- Raw-pointer pinch (see _pointers doc) ---------------------------
+
+  void _onPointerDown(PointerDownEvent e) {
+    _pointers[e.pointer] = e.localPosition;
+    if (_pointers.length == 2) {
+      final pts = _pointers.values.toList();
+      _pinchDist0 = (pts[0] - pts[1]).distance;
+      // Keep the hidden-left px constant during the pinch: the strip
+      // point under the start focal stays under it (zoom grows to the
+      // right). Anchoring to a fixed point avoids cropX drift entirely.
+      _pinchHiddenPx0 = _crop.offsetPx(_screenWidth);
+      if (_pinchDist0! > 8) {
+        // Freeze scrolling for the pinch: kill the in-flight drag and
+        // lock physics until the fingers lift.
+        if (_scroll.hasClients) _scroll.jumpTo(_scroll.offset);
+        setState(() => _pinching = true);
+      } else {
+        _pinchDist0 = null;
+      }
+    }
+  }
+
+  void _onPointerMove(PointerMoveEvent e) {
+    if (!_pointers.containsKey(e.pointer)) return;
+    _pointers[e.pointer] = e.localPosition;
+    final dist0 = _pinchDist0;
+    final hidden0 = _pinchHiddenPx0;
+    if (dist0 == null || hidden0 == null || _pointers.length != 2) return;
+    final pts = _pointers.values.toList();
+    final dist = (pts[0] - pts[1]).distance;
+    if (dist < 1) return;
+    final zoom = (_crop.zoom * dist / dist0).clamp(1.0, 4.0);
+    final overflow = _screenWidth * zoom - _screenWidth;
+    // Zoom is relative to the CURRENT zoom each move — so the base must
+    // advance too, else the scale compounds wrongly across events.
+    _pinchDist0 = dist;
+    final cropX =
+        overflow <= 1 ? 0.5 : (hidden0 / overflow).clamp(0.0, 1.0);
+    _applyCrop(ReaderCrop(zoom: zoom, cropX: cropX), persist: false);
+  }
+
+  void _onPointerUp(int pointer) {
+    _pointers.remove(pointer);
+    if (_pointers.length < 2) {
+      final wasPinching = _pinchDist0 != null;
+      _pinchDist0 = null;
+      _pinchHiddenPx0 = null;
+      if (_pinching) setState(() => _pinching = false);
+      if (wasPinching) {
+        // One persist at gesture end, not per movement tick.
+        final key = 'reader_crop_ch${widget.chapter.id}';
+        ref
+            .read(settingsProvider.notifier)
+            .set(key, _crop.active ? _crop.encode() : '');
+      }
+    }
+  }
+
+  /// Slot wrapper for the crop window: ListView children cannot exceed
+  /// the cross-axis extent (constraints clamp them), so an OverflowBox
+  /// lays the oversized slot out at the zoomed width and the viewport's
+  /// own clip crops it — horizontally FIXED (the lock), vertically it
+  /// scrolls with the list.
+  Widget _cropBox(Widget slot) {
+    if (!_crop.active) return slot;
+    return OverflowBox(
+      minWidth: _slotWidth,
+      maxWidth: _slotWidth,
+      minHeight: 0,
+      maxHeight: double.infinity,
+      alignment: Alignment(2 * _crop.cropX - 1, -1),
+      child: slot,
+    );
+  }
+
   Future<void> _goTo(Chapter next) async {
     await _saveProgress(_currentPage, completed: _atEnd);
     if (!mounted) return;
@@ -458,7 +614,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       backgroundColor: Colors.black,
       endDrawerEnableOpenDragGesture: false,
       endDrawer: loaded == null ? null : _buildDrawer(loaded),
-      body: Stack(
+      // Raw-pointer pinch guard: sees every touch without entering the
+      // gesture arena, so scrolling/taps behave exactly as before and
+      // two-finger pinches zoom the strip.
+      body: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: _onPointerDown,
+        onPointerMove: _onPointerMove,
+        onPointerUp: (e) => _onPointerUp(e.pointer),
+        onPointerCancel: (e) => _onPointerUp(e.pointer),
+        child: Stack(
         children: [
           if (loaded == null)
             Center(
@@ -503,12 +668,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               },
               child: ListView.builder(
                 controller: _scroll,
+                // Frozen while a pinch is active (see _onPointerDown).
+                physics: _pinching
+                    ? const NeverScrollableScrollPhysics()
+                    : null,
                 // ~5 viewports: slots (and their height fix-ups) resolve
                 // well before entering the viewport, so first-read
                 // corrections shift content the user can't see yet.
                 scrollCacheExtent: ScrollCacheExtent.pixels(4500),
                 itemCount: loaded.pages.length,
-                itemBuilder: (context, i) => PageSlot(
+                itemBuilder: (context, i) => _cropBox(PageSlot(
                   ref: loaded.pages[i],
                   screenWidth: _slotWidth,
                   resolve: () => _resolvePage(i),
@@ -519,7 +688,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   observedAspect: _observedAspectCount >= 3
                       ? _observedAspectSum / _observedAspectCount
                       : null,
-                ),
+                )),
               ),
             ),
             // Middle-60% tap toggles chrome (doc 10 §6).
@@ -569,6 +738,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               ),
           ],
         ],
+        ),
       ),
     );
   }
@@ -615,6 +785,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         autoNext: settings.getBool('reader_auto_next', true),
         rtl: settings.getBool('reader_rtl', false),
         mode: settings.get('reader_mode_$seriesId', 'auto'),
+        crop: _crop,
+        cropAutoBusy: _cropAutoBusy,
+        onCrop: (c) => _applyCrop(c),
+        onCropAuto: () => unawaited(_autoDetectCrop()),
         onMode: (m) {
           controller.set('reader_mode_$seriesId', m);
           unawaited(_applyModeChange(loaded, chosen: m));
