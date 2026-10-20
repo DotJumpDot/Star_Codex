@@ -108,13 +108,22 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   ReaderCrop _crop = const ReaderCrop();
   bool _cropAutoBusy = false;
 
-  /// Raw-pointer pinch state (Listener-based, so it NEVER competes with
-  /// the ListView's drag recognizers — single-finger scrolling is
-  /// untouched and two-finger pinches zoom).
+  /// Raw-pointer pinch/pan state (Listener-based, so it NEVER competes
+  /// with the ListView's drag recognizers — single-finger scrolling is
+  /// untouched). Two fingers: pinch = zoom, focal drift = pan the crop
+  /// window. One finger with an ACTIVE crop: a clearly horizontal drag
+  /// slides the window (the vertical ListView rejects exactly these
+  /// gestures, so scrolling is unaffected) — this is the manual crop
+  /// selection.
   final _pointers = <int, Offset>{};
-  double? _pinchDist0;
-  double? _pinchHiddenPx0;
+  double? _pinchLastDist;
+  Offset? _pinchLastFocal;
+  double? _pinchHiddenPx;
   bool _pinching = false;
+  int? _hDragPointer;
+  Offset? _hDragStart;
+  Offset? _hDragLast;
+  bool _hDragging = false;
 
   bool get _keepAwake =>
       ref.read(settingsProvider).getBool('reader_keep_awake', true);
@@ -444,12 +453,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         if ((target - _scroll.offset).abs() > 0.5) _scroll.jumpTo(target);
       });
     }
-    if (persist) {
-      final key = 'reader_crop_ch${widget.chapter.id}';
-      ref
-          .read(settingsProvider.notifier)
-          .set(key, next.active ? next.encode() : '');
-    }
+    if (persist) _persistCrop();
+  }
+
+  void _persistCrop() {
+    final key = 'reader_crop_ch${widget.chapter.id}';
+    ref
+        .read(settingsProvider.notifier)
+        .set(key, _crop.active ? _crop.encode() : '');
   }
 
   /// Drawer's auto-detect: column-luminance profile of the first page →
@@ -482,61 +493,114 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     }
   }
 
-  // --- Raw-pointer pinch (see _pointers doc) ---------------------------
+  // --- Raw-pointer gestures (see the field docs) -----------------------
 
   void _onPointerDown(PointerDownEvent e) {
     _pointers[e.pointer] = e.localPosition;
     if (_pointers.length == 2) {
+      _cancelHDrag();
       final pts = _pointers.values.toList();
-      _pinchDist0 = (pts[0] - pts[1]).distance;
-      // Keep the hidden-left px constant during the pinch: the strip
-      // point under the start focal stays under it (zoom grows to the
-      // right). Anchoring to a fixed point avoids cropX drift entirely.
-      _pinchHiddenPx0 = _crop.offsetPx(_screenWidth);
-      if (_pinchDist0! > 8) {
+      _pinchLastDist = (pts[0] - pts[1]).distance;
+      _pinchLastFocal = (pts[0] + pts[1]) / 2;
+      _pinchHiddenPx = _crop.offsetPx(_screenWidth);
+      if (_pinchLastDist! > 8) {
         // Freeze scrolling for the pinch: kill the in-flight drag and
         // lock physics until the fingers lift.
         if (_scroll.hasClients) _scroll.jumpTo(_scroll.offset);
         setState(() => _pinching = true);
       } else {
-        _pinchDist0 = null;
+        _pinchLastDist = null;
       }
+    } else if (_pointers.length == 1 && _crop.active) {
+      _hDragPointer = e.pointer;
+      _hDragStart = e.localPosition;
+      _hDragLast = e.localPosition;
+      _hDragging = false;
     }
   }
 
   void _onPointerMove(PointerMoveEvent e) {
     if (!_pointers.containsKey(e.pointer)) return;
     _pointers[e.pointer] = e.localPosition;
-    final dist0 = _pinchDist0;
-    final hidden0 = _pinchHiddenPx0;
-    if (dist0 == null || hidden0 == null || _pointers.length != 2) return;
-    final pts = _pointers.values.toList();
-    final dist = (pts[0] - pts[1]).distance;
-    if (dist < 1) return;
-    final zoom = (_crop.zoom * dist / dist0).clamp(1.0, 4.0);
-    final overflow = _screenWidth * zoom - _screenWidth;
-    // Zoom is relative to the CURRENT zoom each move — so the base must
-    // advance too, else the scale compounds wrongly across events.
-    _pinchDist0 = dist;
-    final cropX =
-        overflow <= 1 ? 0.5 : (hidden0 / overflow).clamp(0.0, 1.0);
-    _applyCrop(ReaderCrop(zoom: zoom, cropX: cropX), persist: false);
+
+    if (_pointers.length == 2) {
+      final dist0 = _pinchLastDist;
+      final focal0 = _pinchLastFocal;
+      final hidden = _pinchHiddenPx;
+      if (dist0 == null || focal0 == null || hidden == null) return;
+      final pts = _pointers.values.toList();
+      final dist = (pts[0] - pts[1]).distance;
+      final focal = (pts[0] + pts[1]) / 2;
+      if (dist >= 1 && dist0 >= 1) {
+        // Incremental zoom (relative to the CURRENT zoom) + window pan
+        // from the focal drift — content follows the fingers.
+        var zoom = (_crop.zoom * dist / dist0).clamp(1.0, 4.0);
+        var newHidden = hidden - (focal.dx - focal0.dx);
+        var overflow = _screenWidth * zoom - _screenWidth;
+        if (overflow <= 1) {
+          zoom = 1.0;
+          overflow = 0;
+          newHidden = 0;
+        } else {
+          newHidden = newHidden.clamp(0.0, overflow);
+        }
+        _pinchHiddenPx = newHidden;
+        _applyCrop(
+            ReaderCrop(zoom: zoom, cropX: overflow <= 1 ? 0.5 : newHidden / overflow),
+            persist: false);
+      }
+      _pinchLastDist = dist;
+      _pinchLastFocal = focal;
+      return;
+    }
+
+    // Single pointer with an active crop: horizontal drag slides the
+    // window — the manual crop selection.
+    if (_crop.active && e.pointer == _hDragPointer) {
+      final start = _hDragStart;
+      final last = _hDragLast;
+      if (start == null || last == null) return;
+      if (!_hDragging) {
+        final total = e.localPosition - start;
+        if (total.dx.abs() > 18 && total.dx.abs() > total.dy.abs() * 1.5) {
+          _hDragging = true;
+        }
+      }
+      if (_hDragging) {
+        final d = e.localPosition - last;
+        _hDragLast = e.localPosition;
+        final overflow = _screenWidth * _crop.zoom - _screenWidth;
+        if (overflow > 1) {
+          final newHidden =
+              (_crop.offsetPx(_screenWidth) - d.dx).clamp(0.0, overflow);
+          _applyCrop(
+              ReaderCrop(zoom: _crop.zoom, cropX: newHidden / overflow),
+              persist: false);
+        }
+      }
+    }
+  }
+
+  void _cancelHDrag() {
+    _hDragPointer = null;
+    _hDragStart = null;
+    _hDragLast = null;
+    _hDragging = false;
   }
 
   void _onPointerUp(int pointer) {
     _pointers.remove(pointer);
-    if (_pointers.length < 2) {
-      final wasPinching = _pinchDist0 != null;
-      _pinchDist0 = null;
-      _pinchHiddenPx0 = null;
+    if (_pointers.length < 2 && _pinchLastDist != null) {
+      _pinchLastDist = null;
+      _pinchLastFocal = null;
+      _pinchHiddenPx = null;
       if (_pinching) setState(() => _pinching = false);
-      if (wasPinching) {
-        // One persist at gesture end, not per movement tick.
-        final key = 'reader_crop_ch${widget.chapter.id}';
-        ref
-            .read(settingsProvider.notifier)
-            .set(key, _crop.active ? _crop.encode() : '');
-      }
+      _persistCrop(); // one persist at gesture end, not per movement tick
+    }
+    if (pointer == _hDragPointer) {
+      final wasDragging = _hDragging;
+      _cancelHDrag();
+      if (wasDragging) _persistCrop();
     }
   }
 

@@ -112,7 +112,7 @@
   "reader.auto_next_hint": "ปลายตอน: ดึงต่อจนถึงขีดแล้วปล่อยเพื่อเปิดตอนถัดไป",
   "reader.prefetch_ahead": "โหลดหน้าล่วงหน้า",
   "reader.crop.title": "ครอปหน้าจอ (ตอนนี้เท่านั้น)",
-  "reader.crop.position_hint": "ซูมแล้วล็อกแนวนอน — เลื่อนได้เฉพาะขึ้น-ลง เหมาะกับตอนที่มีแถบดำซ้าย-ขวา",
+  "reader.crop.position_hint": "บีบสองนิ้วเพื่อซูม · ลากแนวนอน (หนึ่งหรือสองนิ้ว) เพื่อเลือกจุดครอป · เลื่อนขึ้น-ลงตามปกติ",
   "reader.crop.zoom": "ซูม",
   "reader.crop.position": "ตำแหน่งแนวนอน",
   "reader.crop.position_left": "ซ้าย",

@@ -161,6 +161,16 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   skeleton loading state, and the first-read scroll-freeze fixes (page
   hashing off the UI isolate, band slicing off Android's main thread).
   223 tests green.
+- 2026-10-21 — Manual crop selection (user feedback: auto-detect alone
+  was "weird" — they want to pick the crop themselves): with a crop
+  active, a clearly-horizontal ONE-finger drag slides the window left/
+  right (the vertical ListView rejects exactly those gestures, so
+  scrolling is untouched), and two-finger focal drift pans the window
+  alongside the pinch zoom — content follows the fingers. Intent guard:
+  the one-finger path only engages past 18px with 1.5× horizontal
+  dominance. Drawer hint rewritten to teach the gestures; auto-detect
+  stays as a one-tap convenience. Persist still lands once per gesture.
+  228 tests green.
 - 2026-10-21 — Webtoon screen crop + pinch zoom (user request, the
   letterboxed dark-manga ch.96 case): the webtoon reader now supports a
   per-CHAPTER crop — slots render zoom× wider than the screen and the
