@@ -153,6 +153,14 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-21 — Release: v1.2.5 — version 1.2.5+9. Ships everything
+  since v1.2.4: the black-void chapter fix (oversized webtoon strips
+  now slice into GPU-safe bands — "A Villain's Will to Survive"
+  ch.67/68), covers loading instantly from disk on every app start
+  (blob_urls index, db v7), the ล่าสุด/ยอดนิยม feed ordering in the
+  filter sheet, the offline browse fallback with recovery, hentaithai
+  card dates, the slider-jump progress fix, and the offline-fallback
+  race fix. 219 tests green.
 - 2026-10-21 — Offline-fallback race fix (caught during on-device QA):
   the browse screen fires TWO overlapping feed fetches on mount, and the
   superseded one's failed fallback attempt fell through to a stale
