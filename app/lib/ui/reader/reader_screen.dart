@@ -83,6 +83,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   double _observedAspectSum = 0;
   int _observedAspectCount = 0;
 
+  /// Slot REBUILDS re-fire onDimensions off the memoized resolve —
+  /// without this set, a page scrolled past N times would weigh N× in
+  /// the running average (review pass 2026-10-20).
+  final _aspectCounted = <int>{};
+
   bool get _keepAwake =>
       ref.read(settingsProvider).getBool('reader_keep_awake', true);
   bool get _autoNext =>
@@ -221,8 +226,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     if (w == null || h == null || w <= 0 || !mounted) return;
     if (idx >= _heights.length) return;
     final aspect = h / w;
-    _observedAspectSum += aspect;
-    _observedAspectCount++;
+    if (_aspectCounted.add(idx)) {
+      _observedAspectSum += aspect;
+      _observedAspectCount++;
+    }
     final exact = _slotWidth * aspect;
     if ((exact - _heights[idx]).abs() < 1) return;
     // Anchor preservation: when the corrected slot sits ABOVE the

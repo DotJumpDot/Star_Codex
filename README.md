@@ -33,6 +33,10 @@ One app instead of seven websites — read like a site, cache like an app.
 - **Prefetch in every mode** — pages ahead of you download in the
   background (configurable 3–12), so page turns and going back never
   flash a loading spinner
+- **Smooth webtoon scrolling** — decoded pages stay in a large memory
+  cache and rebuild instantly in both directions, page heights converge
+  to the chapter's real shape (no jump-then-settle), and height fixes
+  never shift what's under your finger
 - **Cross-source chapter fallback** — when one site's page fails, another
   site's copy of the same chapter loads instead, badged with its origin
 

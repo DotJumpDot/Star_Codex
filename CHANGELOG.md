@@ -153,6 +153,16 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-20 — Post-reader-smoothness review pass (big model): re-read
+  the whole batch (reader memory cache, pre-frame anchor, adaptive
+  aspect, parallel backfill). One real bug fixed — the observed-aspect
+  running average double-counted pages (slot rebuilds re-fire
+  onDimensions off the memoized resolve, so a page scrolled past N
+  times weighed N×); now deduped per page index. Verified safe: the
+  worker pool's next/budget counters are synchronous (no interleaving),
+  initialData renders correctly for already-complete futures, jumpTo
+  semantics during drags are unchanged from the old post-frame path.
+  213 tests green.
 - 2026-10-20 — Webtoon scroll smoothness + fast search dates (user
   reports: jerky shake while scrolling down — worst on fin-manga "I
   Will Protect My Tyrant Dad!" ch.1; scrolling UP re-loaded
