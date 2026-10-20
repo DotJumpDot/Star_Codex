@@ -499,8 +499,9 @@ class SeriesRepo {
     final pipe = pipeline;
     if (coverUrl != null && pipe != null) {
       try {
-        coverHash =
-            (await pipe.fetchAndStore(coverUrl, referer: source.referer)).hash;
+        coverHash = (await pipe.fetchAndStoreIndexed(coverUrl,
+                referer: source.referer))
+            .hash;
       } catch (_) {
         // Cover is optional; the series row is still created.
       }

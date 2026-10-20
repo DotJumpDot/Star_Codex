@@ -9,14 +9,17 @@ import '../../data/storage/image_pipeline.dart';
 
 /// Session memo for cover fetches — every rebuild of a card must not
 /// re-download/re-hash the same cover. Failures are cached as null too
-/// (no retry storm on a dead CDN).
+/// (no retry storm on a dead CDN). The PERSISTENT layer is the
+/// blob_urls index inside [ImagePipeline.fetchAndStoreIndexed]: warm
+/// starts answer from disk without a network round-trip (db v7,
+/// 2026-10-20 — covers used to re-download on every app start).
 class CoverCache {
   final _cache = <String, Future<PageResult?>>{};
 
   Future<PageResult?> get(String url, String referer, ImagePipeline pipeline) {
     return _cache.putIfAbsent(url, () async {
       try {
-        return await pipeline.fetchAndStore(url, referer: referer);
+        return await pipeline.fetchAndStoreIndexed(url, referer: referer);
       } catch (_) {
         return null; // covers are optional
       }

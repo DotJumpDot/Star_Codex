@@ -38,6 +38,10 @@ class BlobStore {
 
   Future<BlobRow?> blobRow(String hash) => _dao.byHash(hash);
 
+  Future<BlobUrlRow?> urlIndex(String url) => _dao.urlIndex(url);
+
+  Future<void> putUrlIndex(BlobUrlRow row) => _dao.upsertUrlIndex(row);
+
   Future<void> insertRow(BlobRow row) => _dao.upsert(row);
 
   Future<void> touch(String hash, int atMs) => _dao.touch(hash, atMs);

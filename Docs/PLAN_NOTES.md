@@ -883,3 +883,25 @@ referer pairing, novel estimate. 165 tests green.
 - hentaithai series stayed undated after a full pass (0/5 links) —
   either its detail fetches fail or its pages expose no parseable
   chapter stamps. Probe before assuming either.
+
+## 2026-10-20 — Cover disk cache: blob_urls index (db v7)
+
+- `ImagePipeline.fetchAndStore` MUST download before its content-hash
+  dedup fires (hash is of the original bytes). Reader pages never
+  notice — chapter_pages answers by URL first — but covers went through
+  the SESSION-only CoverCache, so every app start re-downloaded every
+  cover to dedupe against itself (user report 2026-10-20).
+- `fetchAndStoreIndexed(url)` (covers only; CoverCache + the
+  series.cover_hash detail path): checks blob_urls → disk hit with
+  LRU touch; miss (first fetch OR LRU-evicted blob — store.exists
+  checks row AND file) → fetchAndStore + upsert the index row. Reader
+  pages stay on plain fetchAndStore.
+- Staleness tradeoff accepted: a site replacing a cover AT THE SAME URL
+  serves the indexed copy forever. WP uploads change filename on
+  change, so this is near-zero risk; revisit only if a source is
+  observed reusing URLs for new content.
+- `orphanHashes` is DEAD CODE (nothing calls it — the janitor's
+  integrity pass only drops rows-without-files) but its query now keeps
+  blob_urls-referenced blobs; any future orphan sweep must too:
+  series.cover_hash pins only the DETAIL cover, listing-tile covers
+  live solely in the URL index.

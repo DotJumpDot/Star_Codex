@@ -5,7 +5,7 @@ import 'package:sqflite/sqflite.dart';
 /// Single SQLite database (Plan/02). All timestamps are milliseconds since
 /// epoch (int). Migrations append only: bump [dbVersion], add a `case` in
 /// [onUpgrade] — never edit v1 statements after shipping.
-const dbVersion = 6;
+const dbVersion = 7;
 const dbFileName = 'manga_reader.db';
 
 class DbException implements Exception {
@@ -111,6 +111,25 @@ Future<Database> openDb(
             await db.execute(
                 "UPDATE sources SET enabled = 0 "
                 "WHERE id IN ('doujin-lc', 'miku-doujin') AND enabled = 1");
+            continue next5; // chain to v7
+          // v7 (2026-10-20, cover disk cache): URL → blob-hash index so
+          // covers load from disk on warm starts. fetchAndStore always
+          // re-downloads before its content-hash dedup can hit — fine for
+          // reader pages (they keep their own URL tables), wrong for
+          // covers, which re-fetched EVERY cover on every app start
+          // (user report 2026-10-20). No FK to blobs on purpose: an
+          // LRU-evicted blob makes the lookup miss and the next fetch
+          // self-heals the row.
+          next5:
+          case 6:
+            await db.execute('''
+              CREATE TABLE blob_urls(
+                url        TEXT PRIMARY KEY,
+                hash       TEXT NOT NULL,
+                width      INTEGER,
+                height     INTEGER,
+                fetched_at INTEGER NOT NULL
+              )''');
           // Future migrations append cases here: `case 1: ...; continue next;`
           default:
             break;
@@ -205,6 +224,14 @@ const _schemaSql = [
     bytes       INTEGER NOT NULL,
     is_pinned   INTEGER NOT NULL DEFAULT 0,
     last_access INTEGER NOT NULL
+  )''',
+  '''
+  CREATE TABLE blob_urls(
+    url        TEXT PRIMARY KEY,
+    hash       TEXT NOT NULL,
+    width      INTEGER,
+    height     INTEGER,
+    fetched_at INTEGER NOT NULL
   )''',
   '''
   CREATE TABLE read_progress(

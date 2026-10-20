@@ -153,6 +153,19 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-20 — Covers load from disk on warm starts (user report:
+  "title pictures reload every time I open the app"). Root cause:
+  fetchAndStore downloads a URL BEFORE its content-hash dedup can hit —
+  reader pages are unaffected (their URL tables answer first), but
+  covers had only a session memo, so every app start re-downloaded
+  every cover just to discover the blob already existed. db v7 adds a
+  blob_urls index (url → hash, dims, fetched_at); the pipeline's new
+  fetchAndStoreIndexed answers from it with zero network, touches LRU,
+  and self-heals when a blob was size-evicted (lookup misses →
+  re-fetch → row updated). CoverCache and the detail-path series cover
+  both use it; reader pages keep the plain path. orphanHashes (dead
+  code, but kept consistent) now also preserves blob_urls-referenced
+  blobs. 215 tests green.
 - 2026-10-20 — Release: v1.2.4 — version 1.2.4+8. Ships everything since
   v1.2.3: webtoon scroll smoothness (500 MiB decoded-page cache, instant
   rebuilds both directions, pre-frame height anchoring, adaptive aspect

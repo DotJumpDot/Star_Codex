@@ -36,6 +36,12 @@ class _StubPipeline implements ImagePipeline {
     requested.add(url);
     return _behavior(url);
   }
+
+  @override
+  Future<PageResult> fetchAndStoreIndexed(String url, {String? referer}) {
+    requested.add(url);
+    return _behavior(url);
+  }
 }
 
 Future<void> main() async {

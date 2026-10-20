@@ -170,6 +170,40 @@ class ImagePipeline {
     );
   }
 
+  /// URL-indexed variant for COVERS (db v7, 2026-10-20): [fetchAndStore]
+  /// must download a URL before its content-hash dedup can hit — fine
+  /// for reader pages (their URL tables answer before the network), but
+  /// covers re-downloaded EVERY cover on EVERY app start. This checks
+  /// the persistent blob_urls index first and answers from disk; an
+  /// LRU-evicted blob makes the lookup miss and the fetch self-heals
+  /// the row. Reader pages keep [fetchAndStore] (their repos own
+  /// freshness via chapter_pages).
+  Future<PageResult> fetchAndStoreIndexed(String url, {String? referer}) async {
+    final indexed = await blobs.urlIndex(url);
+    if (indexed != null && await blobs.exists(indexed.hash)) {
+      final row = (await blobs.blobRow(indexed.hash))!;
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await blobs.touch(indexed.hash, now);
+      return PageResult(
+        hash: indexed.hash,
+        path: row.path,
+        storedBytes: row.bytes,
+        width: indexed.width,
+        height: indexed.height,
+        fromCache: true,
+      );
+    }
+    final result = await fetchAndStore(url, referer: referer);
+    await blobs.putUrlIndex(BlobUrlRow(
+      url: url,
+      hash: result.hash,
+      width: result.width,
+      height: result.height,
+      fetchedAt: DateTime.now().millisecondsSinceEpoch,
+    ));
+    return result;
+  }
+
   bool _isGif(Uint8List b) =>
       b.length > 6 &&
       (b[0] == 0x47 && b[1] == 0x49 && b[2] == 0x46) && // 'GIF'

@@ -141,6 +141,68 @@ void main() {
         throwsA(isA<StoreException>()),
       );
     });
+
+    test('fetchAndStoreIndexed: warm start answers from disk, no network',
+        () async {
+      // User report 2026-10-20: covers re-downloaded on every app start
+      // because the content-hash dedup only fires AFTER a download. The
+      // blob_urls index must make the second app start (fresh pipeline
+      // AND fresh session memo — only the DB/store persist) a pure disk
+      // hit.
+      final payload = fakePng(2, 800);
+      var fetchCalls = 0;
+      ImagePipeline makePipeline() => ImagePipeline(
+            http: SafeHttp(
+              rateLimiter: RateLimiter(seed: 1),
+              fetcher: (uri, options) async {
+                fetchCalls++;
+                return okResponse(uri, payload);
+              },
+            ),
+            blobs: blobs,
+            compressor: (bytes, {originalW, originalH, maxWidth}) async =>
+                Uint8List.fromList(bytes.reversed.toList()),
+          );
+
+      final r1 = await makePipeline()
+          .fetchAndStoreIndexed('https://www.example.com/cover.jpg');
+      expect(r1.fromCache, isFalse);
+      expect(fetchCalls, 1);
+
+      // "App restart": new pipeline instance, same DB + store.
+      final r2 = await makePipeline()
+          .fetchAndStoreIndexed('https://www.example.com/cover.jpg');
+      expect(r2.fromCache, isTrue, reason: 'warm start must not re-download');
+      expect(r2.hash, r1.hash);
+      expect(r2.path, r1.path);
+      expect(fetchCalls, 1);
+    });
+
+    test('fetchAndStoreIndexed self-heals after LRU eviction', () async {
+      final payload = fakePng(3, 500);
+      var fetchCalls = 0;
+      ImagePipeline makePipeline() => ImagePipeline(
+            http: SafeHttp(
+              rateLimiter: RateLimiter(seed: 1),
+              fetcher: (uri, options) async {
+                fetchCalls++;
+                return okResponse(uri, payload);
+              },
+            ),
+            blobs: blobs,
+            compressor: (bytes, {originalW, originalH, maxWidth}) async =>
+                Uint8List.fromList(bytes.reversed.toList()),
+          );
+      const url = 'https://www.example.com/evicted.jpg';
+      final r1 = await makePipeline().fetchAndStoreIndexed(url);
+      expect(fetchCalls, 1);
+      // Evict the blob (janitor LRU): the index row alone must miss and
+      // re-fetch rather than answering with a dead path.
+      await blobs.delete(r1.hash);
+      final r2 = await makePipeline().fetchAndStoreIndexed(url);
+      expect(r2.fromCache, isFalse);
+      expect(fetchCalls, 2);
+    });
   });
 
   group('CacheJanitor', () {

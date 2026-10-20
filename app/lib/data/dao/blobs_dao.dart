@@ -41,6 +41,23 @@ class BlobsDao {
   Future<void> upsert(BlobRow b) =>
       db.insert('blobs', b.toRow(), conflictAlgorithm: ConflictAlgorithm.replace);
 
+  Future<BlobUrlRow?> urlIndex(String url) async {
+    final rows = await db
+        .query('blob_urls', where: 'url = ?', whereArgs: [url], limit: 1);
+    return rows.isEmpty ? null : BlobUrlRow.fromRow(rows.first);
+  }
+
+  Future<void> upsertUrlIndex(BlobUrlRow row) => db.insert(
+      'blob_urls',
+      {
+        'url': row.url,
+        'hash': row.hash,
+        'width': row.width,
+        'height': row.height,
+        'fetched_at': row.fetchedAt,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace);
+
   Future<BlobRow?> byHash(String hash) async {
     final rows = await db
         .query('blobs', where: 'hash = ?', whereArgs: [hash], limit: 1);
@@ -93,13 +110,47 @@ class BlobsDao {
     return rows.map(BlobRow.fromRow).toList(growable: false);
   }
 
-  /// Blobs not referenced by any chapter_pages or series cover (orphans).
+  /// Blobs not referenced by any chapter_pages, series cover, or
+  /// blob_urls entry (orphans). Currently uncalled (the janitor's
+  /// integrity pass only drops rows without files) — but any future
+  /// orphan sweep MUST keep the blob_urls clause: a series row pins
+  /// only the DETAIL cover, so listing-tile covers live solely in the
+  /// URL index (2026-10-20).
   Future<List<String>> orphanHashes() async {
     final rows = await db.rawQuery('''
       SELECT b.hash FROM blobs b
       WHERE b.hash NOT IN (SELECT content_hash FROM chapter_pages WHERE content_hash IS NOT NULL)
         AND b.hash NOT IN (SELECT cover_hash FROM series WHERE cover_hash IS NOT NULL)
+        AND b.hash NOT IN (SELECT hash FROM blob_urls)
     ''');
     return rows.map((r) => r['hash'] as String).toList(growable: false);
   }
+}
+
+/// `blob_urls` — URL → blob-hash index (db v7): lets covers load from
+/// disk on warm starts. fetchAndStore must download a URL before its
+/// content-hash dedup can hit, so without this index every cover
+/// re-fetched on every app start (user report 2026-10-20).
+class BlobUrlRow {
+  const BlobUrlRow({
+    required this.url,
+    required this.hash,
+    this.width,
+    this.height,
+    required this.fetchedAt,
+  });
+
+  final String url;
+  final String hash;
+  final int? width;
+  final int? height;
+  final int fetchedAt;
+
+  static BlobUrlRow fromRow(Map<String, Object?> r) => BlobUrlRow(
+        url: r['url'] as String,
+        hash: r['hash'] as String,
+        width: r['width'] as int?,
+        height: r['height'] as int?,
+        fetchedAt: r['fetched_at'] as int,
+      );
 }

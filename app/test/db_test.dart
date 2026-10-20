@@ -31,6 +31,7 @@ void main() {
       'chapter_pages',
       'chapter_text',
       'blobs',
+      'blob_urls',
       'read_progress',
       'reading_history',
       'library',
@@ -96,6 +97,10 @@ void main() {
         last_read_at        INTEGER,
         last_read_chapter_id INTEGER REFERENCES chapters(id) ON DELETE SET NULL
       )''');
+    // Dropped so the chained v7 CREATE (blob_urls) is the one adding it —
+    // the fabricated DB is built from the CURRENT schema (see the v4 note
+    // above about duplicate columns).
+    await v1.execute('DROP TABLE blob_urls');
     await v1.setVersion(1);
     await v1.close();
 
@@ -119,9 +124,16 @@ void main() {
     expect(quota.first['value'], '21474836480');
     final libCols = await db.rawQuery('PRAGMA table_info(library)');
     expect(
-        libCols.where((c) => c['name'] == 'last_seen_at'),
-        isNotEmpty,
-        reason: 'v4 adds the last_seen_at visit stamp for the New chip');
+      libCols.where((c) => c['name'] == 'last_seen_at'),
+      isNotEmpty,
+      reason: 'v4 adds the last_seen_at visit stamp for the New chip');
+    // v7 creates the cover URL→blob index (fetchAndStoreIndexed).
+    await db.insert('blob_urls', {
+      'url': 'https://x/c.jpg',
+      'hash': 'ab',
+      'fetched_at': 1,
+    });
+    expect(await db.query('blob_urls'), hasLength(1));
     await db.close();
   });
 
