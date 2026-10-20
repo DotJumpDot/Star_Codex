@@ -161,6 +161,12 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   skeleton loading state, and the first-read scroll-freeze fixes (page
   hashing off the UI isolate, band slicing off Android's main thread).
   223 tests green.
+- 2026-10-21 — Release: v1.2.8 — version 1.2.8+12. Ships the webtoon
+  per-chapter screen crop: pinch to zoom, drag horizontally (one or two
+  fingers) to select where to crop, locked to vertical scrolling while
+  reading; auto-detect one-tap for letterboxed chapters; drawer sliders
+  for fine control; persisted per chapter (normal chapters unaffected).
+  228 tests green.
 - 2026-10-21 — Manual crop selection (user feedback: auto-detect alone
   was "weird" — they want to pick the crop themselves): with a crop
   active, a clearly-horizontal ONE-finger drag slides the window left/
