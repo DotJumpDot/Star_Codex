@@ -153,6 +153,14 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-21 — Release: v1.2.7 — version 1.2.7+11. Ships everything since
+  v1.2.6 for real-phone testing: the paged reader (หน้าต่อหน้า) swipe
+  decode cap (min(source, 2× screen) — full-res decodes raced every
+  swipe), the back-from-reader "warpy" layout shift fix (system bars
+  restore at pop start, not after the transition), the series-detail
+  skeleton loading state, and the first-read scroll-freeze fixes (page
+  hashing off the UI isolate, band slicing off Android's main thread).
+  223 tests green.
 - 2026-10-21 — First-read scroll freezes fixed (user report: "first
   time reading a new chapter, scrolling stutters; fully loaded pages
   scroll smooth"): the load pipeline was stealing UI-thread time while
