@@ -35,8 +35,13 @@ One app instead of seven websites — read like a site, cache like an app.
   flash a loading spinner
 - **Smooth webtoon scrolling** — decoded pages stay in a large memory
   cache and rebuild instantly in both directions, page heights converge
-  to the chapter's real shape (no jump-then-settle), and height fixes
-  never shift what's under your finger
+  to the chapter's real shape (no jump-then-settle), height fixes
+  never shift what's under your finger, and loading work (hashing,
+  slicing, compression) runs off the UI threads so first-time reads
+  scroll without stutter
+- **Oversized pages just work** — strips taller than the GPU texture
+  limit (8k+ px, the "black page" chapters on some sites) are silently
+  sliced into GPU-safe bands and cached that way
 - **Cross-source chapter fallback** — when one site's page fails, another
   site's copy of the same chapter loads instead, badged with its origin
 
@@ -61,6 +66,8 @@ One app instead of seven websites — read like a site, cache like an app.
   (green = hours → grey = years)
 - **Background enrichment** — cards missing dates or covers get them
   filled in automatically from a budgeted detail fetch, no tapping needed
+- **Skeleton loading** — browse cards and series detail pages show
+  shape-matching placeholders while they load, never bare spinners
 - **Robust covers** — dead or undecodable (AVIF) covers fall back to
   another site's copy of the same series
 
@@ -126,18 +133,20 @@ Requires Android 6.0+ (API 23).
 > **Upgrading from a debug/test build?** Uninstall it first — release
 > builds are signed with a different key.
 
-See [what changed in v1.2.0](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.2.0).
+See [what changed in v1.2.7](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.2.7).
 
 ## 🛠️ Tech stack
 
 - **Flutter 3.47 / Dart** — Material 3, no codegen (plain classes, manual
   Riverpod providers)
-- **SQLite** (sqflite) — append-only migrations, currently v6
+- **SQLite** (sqflite) — append-only migrations, currently v8
 - **Image pipeline** — download → magic-byte validation → SHA-256 dedup →
-  WebP q80 recompress (flutter_image_compress) → atomic write
+  WebP q80 recompress (flutter_image_compress) → atomic write; hashing
+  and oversized-strip slicing run on background threads/isolates so
+  loading never stutters scrolling
 - **Scraping** — `html` parser for the Madara/ts/classic themes and the
   custom engines; JSON POST API for nekopost
-- **205 tests**, `flutter analyze` clean
+- **223 tests**, `flutter analyze` clean
 
 ## 🔨 Build from source
 
@@ -170,15 +179,16 @@ Star_Codex/
 ├── Picture/           the Star Codex logo (banner + icon sources)
 ├── scripts/           emulator boot helpers for low-load situations
 ├── AGENTS.md          operating instructions for AI coding agents
-└── CHANGELOG.md       one line per completed batch, newest last
+└── CHANGELOG.md       one entry per completed batch
 ```
 
 ## 📜 Status
 
-**v1.2.0 (2026-10-19)** — all 11 build phases complete, four user-driven
-UX rounds shipped, the Doujin (18+) page live, on-device QA verified
-(see [CHANGELOG.md](./CHANGELOG.md) for the full history). Every batch
-landed as a commit with a `- [x] item complete` checklist.
+**v1.2.7 (2026-10-21)** — all 11 build phases complete, seven user-driven
+rounds shipped (UX, Doujin 18+, sort/popular feeds, offline fallback,
+reading smoothness), on-device QA verified (see
+[CHANGELOG.md](./CHANGELOG.md) for the full history). Every batch landed
+as a commit with a `- [x] item complete` checklist.
 
 ## ⚠️ Disclaimer
 

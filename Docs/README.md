@@ -35,7 +35,7 @@ with per-chapter source fallback, and cards enrich themselves in the
 background (dates, covers) when the listings alone don't carry them.
 Navigation is a left drawer — Browse · Doujin 18+ · Library · History ·
 Offline · Settings. Thai-first UI with an English toggle, 25 themes
-(including a true-black OLED family), 12 fonts. SQLite schema v6.
+(including a true-black OLED family), 12 fonts. SQLite schema v8.
 No server, no cloud, no login.
 
 ## Key decisions

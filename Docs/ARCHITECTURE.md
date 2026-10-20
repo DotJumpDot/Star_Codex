@@ -25,8 +25,10 @@ StarCodex/
 │   │   │   ├── utils/           title_norm, thai collation, chapter-number parse, jaro_winkler
 │   │   │   └── net/             safe_http (host-validated) + rate_limiter  ← ONLY network door
 │   │   ├── data/
-│   │   │   ├── db.dart + dao/   sqflite, append-only migrations (v1→v6, Plan/02 + PLAN_NOTES)
-│   │   │   ├── storage/         blob_store / image_pipeline / cache_janitor (Plan/03)
+│   │   │   ├── db.dart + dao/   sqflite, append-only migrations (v1→v8, Plan/02 + PLAN_NOTES)
+│   │   │   ├── storage/         blob_store / image_pipeline / cache_janitor (Plan/03; big-buffer hashing
+in a bg isolate; GPU band slicer via the native star_codex/image_slice
+channel on a worker thread)
 │   │   │   ├── sources/         source_api + madara/ (ts + classic) + nekopost/ + bully/ + miku/ + hentaithai/
 │   │   │   └── repo/            browse / series / reader / library / updates repos
 │   │   └── ui/                  shell/ browse/ detail/ reader/ library/ downloads/ settings/

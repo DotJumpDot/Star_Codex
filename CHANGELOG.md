@@ -161,6 +161,12 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   skeleton loading state, and the first-read scroll-freeze fixes (page
   hashing off the UI isolate, band slicing off Android's main thread).
   223 tests green.
+- 2026-10-21 — Docs refresh after v1.2.7: AGENTS.md (v1.2.7, migrations
+  v2–v8 pointer incl. reader/UI-thread rules), HANDOFF.md (status block,
+  release recipe now matches practice — gh release create makes the tag),
+  README.md (v1.2.7 links/status, band-slicing + skeleton + threading
+  features, 223 tests), ARCHITECTURE.md + Docs/README.md (schema v8,
+  pipeline threading notes).
 - 2026-10-21 — First-read scroll freezes fixed (user report: "first
   time reading a new chapter, scrolling stutters; fully loaded pages
   scroll smooth"): the load pipeline was stealing UI-thread time while

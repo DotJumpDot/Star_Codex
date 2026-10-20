@@ -14,7 +14,7 @@ engine + nekopost API incl. novels) plus a separate **Doujin 18+ page**
 (ntr-manga, hentaithai; doujin-lc + miku-doujin seed disabled behind a
 Cloudflare TLS-fingerprint block — see PLAN_NOTES 2026-10-19). Streaming
 reading, silent WebP q80 caching, content-hash dedup. Personal local use
-only — no server, no cloud, no login. **v1.2.0 released** (GitHub
+only — no server, no cloud, no login. **v1.2.7 released** (GitHub
 Releases, release-signed APK); the repo is public.
 
 ## Startup sequence (every session)
@@ -24,15 +24,16 @@ Releases, release-signed APK); the repo is public.
    [`Docs/Plan/15-BUILD-ORDER.md`](Docs/Plan/15-BUILD-ORDER.md).
 3. Check `git log --oneline -10` and [`CHANGELOG.md`](CHANGELOG.md) (repo
    root) for progress. All 11 build phases are complete and **v1.0.0 →
-   v1.2.0 are shipped**; remaining work is whatever the user asks for in
+   v1.2.7 are shipped**; remaining work is whatever the user asks for in
    chat, landing as `Phase`/`Fix`/feature commits per the discipline
    below.
 4. [`Docs/Plan/00-DECISIONS.md`](Docs/Plan/00-DECISIONS.md) is the contract —
    it wins over any phase doc. Never violate it silently.
 5. [`Docs/PLAN_NOTES.md`](Docs/PLAN_NOTES.md) carries the post-plan
-   invariants (source quirks, db migrations v2–v6, cover fallbacks,
-   probe matching, Cloudflare blocks). Read its newest sections before
-   touching sources, merge logic, or the DB.
+   invariants (source quirks, db migrations v2–v8, cover fallbacks,
+   probe matching, Cloudflare blocks, reader smoothness + UI-thread
+   rules). Read its newest sections before touching sources, merge
+   logic, the reader, or the DB.
 
 ## Hard rules
 
