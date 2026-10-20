@@ -415,7 +415,7 @@ class _SourceTileState extends ConsumerState<_SourceTile> {
 class AboutSection extends StatelessWidget {
   const AboutSection({super.key});
 
-  static const appVersion = '1.2.3';
+  static const appVersion = '1.2.4';
   static const githubUrl = 'https://github.com/DotJumpDot/Star_Codex';
 
   @override

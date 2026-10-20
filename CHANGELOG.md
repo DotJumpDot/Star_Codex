@@ -153,6 +153,11 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-20 — Release: v1.2.4 — version 1.2.4+8. Ships everything since
+  v1.2.3: webtoon scroll smoothness (500 MiB decoded-page cache, instant
+  rebuilds both directions, pre-frame height anchoring, adaptive aspect
+  estimates) and the fast parallel search-date backfill (all results
+  dated, not just the first 30–40). 213 tests green.
 - 2026-10-20 — Post-reader-smoothness review pass (big model): re-read
   the whole batch (reader memory cache, pre-frame anchor, adaptive
   aspect, parallel backfill). One real bug fixed — the observed-aspect
