@@ -972,3 +972,18 @@ referer pairing, novel estimate. 165 tests green.
 - Decode `cacheWidth` must cap at the SOURCE width: decoding an 800px
   strip up to screen width (~1080px on 2.6-2.8dpr phones) costs ~1.7×
   the pixels for zero sharpness — visible fling jank on manhwa.
+
+## 2026-10-21 — Webtoon scroll: band heights + batched fix-ups
+
+- Band slices MUST reserve height from page_bands dims at BUILD time.
+  Without an explicit height each ExtendedImage band sizes itself after
+  its decode lands — a 7-band page relayouts the Column (and everything
+  below it) up to 7 times, all while the user flings. Exact-height
+  reserve kills that entirely.
+- Height fix-ups batch per frame (_pendingDims + post-frame flush): ONE
+  relayout + ONE anchor shift (summed heightAnchorDelta) instead of N
+  setStates when several pages resolve in the same frame. The anchor
+  shift keeps the forcePixels semantics (pre-clamped, fling continues).
+- precacheImage-based decode-ahead is NOT viable with extended_image:
+  cacheWidth routes to ExtendedResizeImageProvider (its own obtainKey),
+  so a standard ResizeImage precache would double-decode.

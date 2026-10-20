@@ -88,6 +88,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   /// the running average (review pass 2026-10-20).
   final _aspectCounted = <int>{};
 
+  /// Height fix-ups waiting to be applied — batched into ONE relayout
+  /// per frame. During a first-read fling, several pages resolve within
+  /// the same frame; an immediate setState per page meant several full
+  /// ListView relayouts back to back (smoothness report 2026-10-21).
+  final _pendingDims = <int, double>{};
+  bool _dimsFlushScheduled = false;
+
   bool get _keepAwake =>
       ref.read(settingsProvider).getBool('reader_keep_awake', true);
   bool get _autoNext =>
@@ -232,42 +239,64 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     }
     final exact = _slotWidth * aspect;
     if ((exact - _heights[idx]).abs() < 1) return;
-    // Anchor preservation: when the corrected slot sits ABOVE the
-    // viewport (the scroll-back-up case), shifting the offset by the
-    // same delta keeps the visible pages under the finger — without
-    // this, unmeasured pages above growing to real heights shove the
-    // viewport content down: the feed feels stuck, then jumps.
-    final adjust = heightAnchorDelta(
-        slotOffsets(_heights), _heights, idx, exact - _heights[idx],
-        _scroll.hasClients ? _scroll.offset : 0);
-    if (adjust != 0 && _scroll.hasClients) {
-      final raw = _scroll.offset + adjust;
-      if (raw >= 0 && raw <= _scroll.position.maxScrollExtent) {
-        // Shift BEFORE the relayout frame: the frame that first sees the
-        // new height also sees the moved offset, so content stays pinned
-        // with NO intermediate shifted frame. forcePixels (not jumpTo):
-        // jumpTo KILLS the ballistic activity — every late correction
-        // during a down-fling stopped the scroll dead, which read as
-        // laggy scrolling (user report 2026-10-21); forcePixels moves
-        // the pixels and lets the fling continue from the new position.
-        // Protected member: the framework uses it for this exact purpose
-        // (pointerScroll, nested scrolling); the value is pre-clamped to
-        // the current extent.
-        // ignore: invalid_use_of_protected_member
-        _scroll.position.forcePixels(raw);
-        setState(() => _heights[idx] = exact);
+    _pendingDims[idx] = exact;
+    _scheduleDimFlush();
+  }
+
+  /// Apply every queued fix-up in one setState + ONE anchor shift.
+  void _scheduleDimFlush() {
+    if (_dimsFlushScheduled) return;
+    _dimsFlushScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _dimsFlushScheduled = false;
+      if (!mounted || _pendingDims.isEmpty) return;
+      if (!_scroll.hasClients) {
+        _pendingDims.clear();
         return;
       }
-    }
-    setState(() => _heights[idx] = exact);
-    if (adjust != 0 && _scroll.hasClients) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || !_scroll.hasClients) return;
-        final target = (_scroll.offset + adjust)
-            .clamp(0.0, _scroll.position.maxScrollExtent);
-        if ((target - _scroll.offset).abs() >= 1) _scroll.jumpTo(target);
+      var totalAdjust = 0.0;
+      final offsets = slotOffsets(_heights);
+      _pendingDims.removeWhere((idx, exact) {
+        if (idx >= _heights.length) return true;
+        final delta = exact - _heights[idx];
+        if (delta.abs() < 1) return true;
+        totalAdjust += heightAnchorDelta(
+            offsets, _heights, idx, delta, _scroll.offset);
+        return false;
       });
-    }
+      if (_pendingDims.isEmpty) return;
+      setState(() {
+        _pendingDims.forEach((idx, exact) {
+          _heights[idx] = exact;
+        });
+      });
+      _pendingDims.clear();
+      if (totalAdjust == 0) return;
+      final raw = _scroll.offset + totalAdjust;
+      if (raw >= 0 && raw <= _scroll.position.maxScrollExtent) {
+        // Shift BEFORE the relayout frame: the frame that first sees the
+        // new heights also sees the moved offset, so content stays
+        // pinned with NO intermediate shifted frame. forcePixels (not
+        // jumpTo): jumpTo KILLS the ballistic activity — every late
+        // correction during a down-fling stopped the scroll dead, which
+        // read as laggy scrolling (user report 2026-10-21); forcePixels
+        // moves the pixels and lets the fling continue from the new
+        // position. Protected member: the framework uses it for this
+        // exact purpose (pointerScroll, nested scrolling); the value is
+        // pre-clamped to the current extent.
+        // ignore: invalid_use_of_protected_member
+        _scroll.position.forcePixels(raw);
+      } else {
+        // Target outside the CURRENT extent (corrections grew it): the
+        // old post-frame clamp, against the relayouted extent.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || !_scroll.hasClients) return;
+          final target = (_scroll.offset + totalAdjust)
+              .clamp(0.0, _scroll.position.maxScrollExtent);
+          if ((target - _scroll.offset).abs() >= 1) _scroll.jumpTo(target);
+        });
+      }
+    });
   }
 
   bool get _atEnd {

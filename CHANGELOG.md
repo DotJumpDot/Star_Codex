@@ -153,6 +153,18 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-21 — Two more free webtoon-scroll wins (user: "still a bit
+  laggy" on the emulator): (1) band slices of oversized pages now
+  reserve their EXACT height from the stored dims — each band used to
+  size itself only after decoding, so tall-strip chapters relayouted
+  the whole stack below per band, repeatedly, mid-scroll; (2) height
+  fix-ups are batched into one relayout + one anchor shift per frame —
+  a first-read fling resolving several pages in the same frame used to
+  trigger back-to-back full ListView relayouts. Decode-ahead via
+  precacheImage was evaluated and REJECTED: ExtendedImage routes
+  cacheWidth through its own ExtendedResizeImageProvider key class, so
+  a framework-provider precache would double-decode instead of sharing
+  the entry. 220 tests green.
 - 2026-10-21 — Filter-sheet merge + webtoon fling smoothness (user
   round). The separate ลำดับฟีด section is GONE — ยอดนิยม now lives in
   the เรียงลำดับ chips (one ordering section; picking it re-fetches
