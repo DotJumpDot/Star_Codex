@@ -4,11 +4,14 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.BitmapRegionDecoder
 import android.graphics.Rect
+import android.os.Handler
+import android.os.Looper
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.ByteArrayOutputStream
 import java.io.FileInputStream
+import kotlin.concurrent.thread
 
 class MainActivity : FlutterActivity() {
     private val channelName = "star_codex/image_slice"
@@ -26,10 +29,19 @@ class MainActivity : FlutterActivity() {
                             result.error("bad_args", "path required", null)
                             return@setMethodCallHandler
                         }
-                        try {
-                            result.success(slice(path, maxBandHeight, targetWidth))
-                        } catch (e: Exception) {
-                            result.error("slice_failed", e.message, null)
+                        // MethodChannel handlers run on the platform MAIN
+                        // thread — decoding+compressing a multi-MB strip
+                        // here froze the whole UI for hundreds of ms
+                        // (2026-10-21). Do the work on a worker thread and
+                        // post the (exactly-once) reply back on the looper.
+                        val main = Handler(Looper.getMainLooper())
+                        thread(name = "sc-image-slice") {
+                            try {
+                                val bands = slice(path, maxBandHeight, targetWidth)
+                                main.post { result.success(bands) }
+                            } catch (e: Exception) {
+                                main.post { result.error("slice_failed", e.message, null) }
+                            }
                         }
                     }
                     else -> result.notImplemented()

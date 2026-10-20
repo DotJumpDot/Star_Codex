@@ -153,6 +153,19 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-21 — First-read scroll freezes fixed (user report: "first
+  time reading a new chapter, scrolling stutters; fully loaded pages
+  scroll smooth"): the load pipeline was stealing UI-thread time while
+  pages resolved. Two causes, both off the hot threads now — (1) every
+  downloaded page was SHA-256-hashed in pure Dart on the main isolate
+  (tens of ms per multi-MB strip, several in flight with prefetch);
+  buffers ≥256 KB now hash in a background isolate (band slices
+  included); (2) the native band slicer ran decode+JPEG-compress of
+  giant strips on Android's platform MAIN thread inside the
+  MethodChannel handler (hundreds of ms hard freeze); it now runs on a
+  worker thread and posts the reply back on the main looper. WebP
+  compression was already on the plugin's native 8-thread pool. 223
+  tests green.
 - 2026-10-21 — Detail skeleton + back-navigation warp fix (user reports):
   the series detail page shows a shape-mirroring skeleton (hero row, action
   row, search row, chapter rows — same surfaceContainerHighest convention

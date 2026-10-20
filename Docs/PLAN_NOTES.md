@@ -1015,3 +1015,22 @@ referer pairing, novel estimate. 165 tests green.
   browse convention (flat surfaceContainerHighest, no animation —
   FakeAsync-safe). New screens: spinner → error only, never a bare
   CircularProgressIndicator for structured content.
+
+## 2026-10-21 — Pipeline work must stay off the UI threads
+
+- First-read scroll freezes (user report) were load-pipeline work on
+  hot threads, not decode/network themselves: (1) `sha256.convert` over
+  full page bytes is PURE DART on the main isolate — ImagePipeline
+  buffers ≥256 KB hash via `Isolate.run` (`_hashOf`; covers band
+  slices); (2) MethodChannel handlers run on Android's platform MAIN
+  thread — MainActivity's slicer now does BitmapRegionDecoder work on a
+  `kotlin.concurrent.thread` worker and posts the exactly-once reply via
+  `Handler(Looper.getMainLooper())`. flutter_image_compress already runs
+  on its native 8-thread pool. Rule for any new pipeline step: name the
+  thread it runs on; if it's the Dart main isolate or the platform main
+  thread and costs >1 ms, move it.
+- Blur-up/240p-then-HD (asked 2026-10-21): NOT server-side — the source
+  sites serve one size per page URL. Possible local variant (decode a
+  low-width pass first, swap the full decode in later) is deliberately
+  NOT implemented yet; it's the next lever if real-phone first-read jank
+  persists after the threading fixes (splits the raster texture upload).

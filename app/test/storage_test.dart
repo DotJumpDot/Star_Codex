@@ -104,6 +104,28 @@ void main() {
           reason: 'identical bytes stored exactly once (S1)');
     });
 
+    test('big buffers hash off the UI isolate, hash value unchanged',
+        () async {
+      // > _isolateHashThreshold (256 KiB) → Isolate.run path. Regression
+      // (2026-10-21): pure-Dart sha256 over multi-MB webtoon strips ran
+      // on the UI isolate and froze first-read scrolling. Only magic
+      // bytes gate entry into the pipeline, so a synthetic payload with
+      // a PNG header exercises the hashing path fine.
+      final payload = fakePng(7, 600 * 1024);
+      final pipeline = ImagePipeline(
+        http: SafeHttp(
+          rateLimiter: RateLimiter(seed: 1),
+          fetcher: (uri, options) async => okResponse(uri, payload),
+        ),
+        blobs: blobs,
+        compressor: (bytes, {originalW, originalH, maxWidth}) async => null,
+      );
+      final r =
+          await pipeline.fetchAndStore('https://www.example.com/big.png');
+      expect(r.hash, sha256.convert(payload).toString());
+      expect(r.storedBytes, payload.length);
+    });
+
     test('GIF passthrough: stored as-is with .gif, no re-encode', () async {
       final gif = Uint8List.fromList(
           [0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 1, 2, 3, 4, 5, 6]);

@@ -1,3 +1,4 @@
+import 'dart:isolate' show Isolate;
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
@@ -124,6 +125,21 @@ class ImagePipeline {
     return true;
   }
 
+  /// Buffers at least this big hash in a background isolate: pure-Dart
+  /// sha256 over a multi-MB webtoon strip froze the UI thread for tens
+  /// of ms per page — the "first-read scroll stutters, fully-loaded is
+  /// smooth" report (2026-10-21). The isolate-message copy costs ~one
+  /// memcpy; small buffers (covers, band slices under the line) stay
+  /// inline — spawn overhead would exceed the hash itself.
+  static const _isolateHashThreshold = 256 * 1024;
+
+  Future<String> _hashOf(Uint8List bytes) async {
+    if (bytes.length < _isolateHashThreshold) {
+      return sha256.convert(bytes).toString();
+    }
+    return Isolate.run(() => sha256.convert(bytes).toString());
+  }
+
   Future<PageResult> fetchAndStore(String url, {String? referer}) async {
     final Uint8List original;
     try {
@@ -141,7 +157,7 @@ class ImagePipeline {
     // carries dimensions (chapter_pages.width/height, reader aspect ratio).
     final dims = imageDimensions(original);
 
-    final hash = sha256.convert(original).toString();
+    final hash = await _hashOf(original);
 
     // Dedup: same original bytes already stored → touch + reuse (03 §3).
     if (await blobs.exists(hash)) {
@@ -267,7 +283,7 @@ class ImagePipeline {
     final bands = <PageBand>[];
     for (var i = 0; i < slices.length; i++) {
       final bytes = slices[i];
-      final hash = sha256.convert(bytes).toString();
+      final hash = await _hashOf(bytes);
       final dims = imageDimensions(bytes);
       if (!await blobs.exists(hash)) {
         final rel = await blobs.write(hash, bytes, ext: 'jpg');
