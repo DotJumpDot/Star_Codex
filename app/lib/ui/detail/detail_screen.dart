@@ -11,6 +11,7 @@ import 'chapter_list.dart';
 import 'detail_controller.dart';
 import 'detail_dialogs.dart';
 import 'detail_hero.dart';
+import 'detail_skeleton.dart';
 
 /// Series detail (Plan/09). Opened with an id (library) or with the browse
 /// listing group ([DetailScreen.fromGroup] — the row materializes on load).
@@ -63,7 +64,9 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
         ),
       );
     } else if (vm == null) {
-      body = const Center(child: CircularProgressIndicator());
+      // Skeleton mirrors the loaded body's shape (Plan/08: skeletons, not
+      // spinners) — the swap to real content doesn't relayout the page.
+      body = const DetailSkeleton();
     } else {
       // Children must talk to THIS screen's controller (DetailKey =
       // -1-keyed when opened from a browse card — vm.series.id would

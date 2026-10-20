@@ -43,6 +43,12 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   bool _chromeVisible = true;
   bool _switching = false;
 
+  /// See the webtoon reader: pops restore the system bars at
+  /// reverse-start (not dispose) so the revealed page doesn't shift.
+  bool _barsHidden = false;
+  Animation<double>? _routeAnimation;
+  bool _routeHooked = false;
+
   /// See the webtoon reader: the drawer opens via the KEY (the chrome's
   /// callback context sits above this Scaffold).
   final _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -86,6 +92,7 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   ReaderRepo get _repo => ref.read(readerRepoProvider);
 
   Future<void> _setImmersive(bool on) async {
+    _barsHidden = on;
     try {
       await SystemChrome.setEnabledSystemUIMode(
           on ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge);
@@ -303,9 +310,33 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_routeHooked) return;
+    final animation = ModalRoute.of(context)?.animation;
+    if (animation == null) return;
+    _routeHooked = true;
+    _routeAnimation = animation;
+    animation.addStatusListener(_onRouteStatus);
+  }
+
+  /// See the webtoon reader: dispose runs after the exit transition, so
+  /// restoring there shifted the revealed page's insets (user report
+  /// 2026-10-21). Reverse-start hides the bar change behind the outgoing
+  /// route's slide.
+  void _onRouteStatus(AnimationStatus status) {
+    if (status == AnimationStatus.reverse && _barsHidden) {
+      _setImmersive(false);
+    }
+  }
+
+  @override
   void dispose() {
     _pageController?.dispose();
-    _setImmersive(false);
+    _routeAnimation?.removeStatusListener(_onRouteStatus);
+    // Replacement exits (chapter/mode switch) never run reverse — those
+    // still restore here; pop exits already restored at reverse-start.
+    if (_barsHidden) _setImmersive(false);
     _setAwake(false);
     super.dispose();
   }

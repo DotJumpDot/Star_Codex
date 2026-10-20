@@ -999,3 +999,19 @@ referer pairing, novel estimate. 165 tests green.
   headroom preserves their zoom detail. GestureConfig.inPageView is
   for the package's OWN ExtendedImageGesturePageView — meaningless
   with a standard PageView (checked, not applicable).
+
+## 2026-10-21 — Reader exit must restore system bars at reverse-start
+
+- Both immersive readers (webtoon + paged) hid the bars in initState and
+  restored them ONLY in dispose — dispose runs after the pop transition,
+  so the revealed page's top inset changed while fully visible: the whole
+  detail page shifted ("warpy" pull-and-retract on back, user report).
+  Invariant: restore on AnimationStatus.reverse of the route's primary
+  animation (hooked once in didChangeDependencies); dispose restores only
+  when _barsHidden is still set (un-popped replacement exits — chapter/
+  mode switch — never run reverse). immersiveSticky also self-rehides on
+  Android, which is why the replacement-order flash was never visible.
+- Detail loading state is a SKELETON (DetailSkeleton), matching the
+  browse convention (flat surfaceContainerHighest, no animation —
+  FakeAsync-safe). New screens: spinner → error only, never a bare
+  CircularProgressIndicator for structured content.

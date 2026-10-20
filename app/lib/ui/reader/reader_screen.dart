@@ -46,6 +46,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   int _currentPage = 0;
   bool _chromeVisible = true;
 
+  /// True while this screen left the system bars hidden. dispose()
+  /// restores only when set — pops restore EARLIER (see [_onRouteStatus])
+  /// and clear the flag, so the platform call isn't sent twice.
+  bool _barsHidden = false;
+  Animation<double>? _routeAnimation;
+  bool _routeHooked = false;
+
   /// Scaffold key — the chrome's menu button must open the end drawer via
   /// the KEY, not Scaffold.of(): the callback's context sits ABOVE the
   /// Scaffold this screen builds, so Scaffold.of can never find it.
@@ -107,6 +114,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   /// Platform-channel calls are cosmetic in unit tests (no handler) —
   /// failures are swallowed so the reader still works in widget tests.
   Future<void> _setImmersive(bool on) async {
+    _barsHidden = on;
     try {
       await SystemChrome.setEnabledSystemUIMode(
           on ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge);
@@ -410,9 +418,34 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_routeHooked) return;
+    final animation = ModalRoute.of(context)?.animation;
+    if (animation == null) return;
+    _routeHooked = true;
+    _routeAnimation = animation;
+    animation.addStatusListener(_onRouteStatus);
+  }
+
+  /// Restore the status bar the moment THIS route starts animating OUT,
+  /// not in dispose: dispose runs after the exit transition, so the page
+  /// underneath was already fully revealed when its top inset came back —
+  /// the whole layout visibly shifted ("warpy" pull-and-retract on back
+  /// from the reader, user report 2026-10-21).
+  void _onRouteStatus(AnimationStatus status) {
+    if (status == AnimationStatus.reverse && _barsHidden) {
+      _setImmersive(false);
+    }
+  }
+
+  @override
   void dispose() {
     _scroll.dispose();
-    _setImmersive(false);
+    _routeAnimation?.removeStatusListener(_onRouteStatus);
+    // Replacement exits (chapter/mode switch) never run reverse — those
+    // still restore here; pop exits already restored at reverse-start.
+    if (_barsHidden) _setImmersive(false);
     _setAwake(false);
     super.dispose();
   }

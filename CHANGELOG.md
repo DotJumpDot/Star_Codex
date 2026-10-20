@@ -153,6 +153,16 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-21 — Detail skeleton + back-navigation warp fix (user reports):
+  the series detail page shows a shape-mirroring skeleton (hero row, action
+  row, search row, chapter rows — same surfaceContainerHighest convention
+  as the browse skeleton) instead of a bare spinner while loading; and the
+  "warpy" pull-and-retract seen when returning from the reader was the
+  system bars restoring in dispose() — AFTER the pop transition, so the
+  revealed page's top inset shifted its whole layout. Both readers now
+  restore at the exit transition's start (AnimationStatus.reverse hook;
+  dispose only covers un-popped replacement exits), and the platform call
+  is sent exactly once per exit. 222 tests green.
 - 2026-10-21 — Release: v1.2.6 — version 1.2.6+10. Ships everything
   since v1.2.5: the merged เรียงลำดับ filter section (ยอดนิยม as a sort
   chip, server order shown through), fling-preserving scroll anchors
