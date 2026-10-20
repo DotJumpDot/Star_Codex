@@ -987,3 +987,15 @@ referer pairing, novel estimate. 165 tests green.
 - precacheImage-based decode-ahead is NOT viable with extended_image:
   cacheWidth routes to ExtendedResizeImageProvider (its own obtainKey),
   so a standard ResizeImage precache would double-decode.
+
+## 2026-10-21 — Paged reader decode cap
+
+- _PageSlotPaged had NO cacheWidth: every page decoded at full source
+  resolution while PageView (allowImplicitScrolling) keeps ±1 neighbors
+  built — three full-res decodes raced every swipe = the "manga mode
+  side slide" lag. Cap = min(sourceWidth, 2× screen px): portrait
+  pages are width-limited under BoxFit.contain (≤1080 sources decode
+  native), wide double-spreads are height-limited AND zoomed — the 2×
+  headroom preserves their zoom detail. GestureConfig.inPageView is
+  for the package's OWN ExtendedImageGesturePageView — meaningless
+  with a standard PageView (checked, not applicable).
