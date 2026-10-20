@@ -128,27 +128,6 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                 ],
               ),
             ),
-          // ล่าสุด ⇄ ยอดนิยม ordering for the latest feed (server-side on
-          // the madara family; other sources keep their update order).
-          if (state.mode == BrowseMode.latest)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
-              child: Row(
-                children: [
-                  ChoiceChip(
-                    label: Text(t(context, 'browse.feed.latest')),
-                    selected: !state.feedPopular,
-                    onSelected: (_) => controller.setFeedPopular(false),
-                  ),
-                  const SizedBox(width: 6),
-                  ChoiceChip(
-                    label: Text(t(context, 'browse.feed.popular')),
-                    selected: state.feedPopular,
-                    onSelected: (_) => controller.setFeedPopular(true),
-                  ),
-                ],
-              ),
-            ),
           if (genreHeader != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
@@ -303,6 +304,11 @@ class BrowseController extends StateNotifier<BrowseState> {
           await _offlineFallback(seq)) {
         return;
       }
+      // The fallback attempt may itself have been superseded (the double
+      // ensureLoaded on mount) — its false return must NOT fall through
+      // to a stale emission that clobbers the newer fetch's offline
+      // state (observed on-device 2026-10-21).
+      if (seq != _fetchSeq) return;
       state = state.copyWith(
         groups: result.groups,
         failedSources: {for (final f in result.failures) f.sourceId},
@@ -332,6 +338,10 @@ class BrowseController extends StateNotifier<BrowseState> {
     if (state.mode != BrowseMode.latest) return false;
     try {
       final cached = await _repo.cachedCatalog();
+      if (kDebugMode) {
+        debugPrint('OFFLINE FB mode=latest cached=${cached.length} '
+            'seq=$seq fetchSeq=$_fetchSeq');
+      }
       if (seq != _fetchSeq || cached.isEmpty) return false;
       state = state.copyWith(
         groups: cached,

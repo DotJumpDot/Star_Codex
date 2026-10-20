@@ -59,6 +59,7 @@ class _FilterSheetBodyState extends ConsumerState<_FilterSheetBody> {
   @override
   Widget build(BuildContext context) {
     final filters = ref.watch(widget.provider).filters;
+    final feedPopular = ref.watch(widget.provider).feedPopular;
     return SafeArea(
       child: SingleChildScrollView(
         child: Padding(
@@ -79,6 +80,27 @@ class _FilterSheetBodyState extends ConsumerState<_FilterSheetBody> {
                     onPressed: () =>
                         _controller.setFilters(const BrowseFilters()),
                     child: Text(t(context, 'browse.filter.reset')),
+                  ),
+                ],
+              ),
+              // ล่าสุด ⇄ ยอดนิยม for the latest FEED (user request
+              // 2026-10-21: lives here, not as always-visible chips on
+              // the browse screen). Server-side ordering on the sources
+              // that support it; the whole feed re-fetches on change.
+              _sectionLabel(context, 'browse.filter.feed'),
+              Wrap(
+                spacing: 6,
+                children: [
+                  ChoiceChip(
+                    label: Text(t(context, 'browse.feed.latest')),
+                    selected: !feedPopular,
+                    onSelected: (_) => _controller.setFeedPopular(false),
+                  ),
+                  const SizedBox(width: 6),
+                  ChoiceChip(
+                    label: Text(t(context, 'browse.feed.popular')),
+                    selected: feedPopular,
+                    onSelected: (_) => _controller.setFeedPopular(true),
                   ),
                 ],
               ),

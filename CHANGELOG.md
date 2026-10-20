@@ -153,6 +153,12 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-21 — Offline-fallback race fix (caught during on-device QA):
+  the browse screen fires TWO overlapping feed fetches on mount, and the
+  superseded one's failed fallback attempt fell through to a stale
+  empty-state emission that clobbered the winner's offline catalog. The
+  non-fallback emission now re-checks the fetch sequence after the
+  fallback attempt.
 - 2026-10-21 — Feature batch (user picks) + black-void chapter fix.
   READER BUG (user report: "A Villain's Will to Survive" slow-manga
   ch.67/68 blank dark, ch.69 fine): those pages are 800×25049 strips —
@@ -167,7 +173,9 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   webtoon reader swapped routes before the completed row landed, so the
   chapter reopened from the top). POPULAR FEED: ล่าสุด/ยอดนิยม toggle on
   the latest feed (server-side order=popular on the madara family,
-  persisted setting; search ignores it — sites reject ordering there).
+  persisted setting; the ล่าสุด/ยอดนิยม pair lives in the FILTER SHEET's
+  ลำดับฟีด section, not as always-visible chips — user request
+  2026-10-21; search ignores it — sites reject ordering there).
   HENTAITHAI DATES: the site exposes no <time> stamps anywhere; the
   upload date is embedded in the CDN image path (/thai/2026/2026-10-10/)
   and now lands on listing cards and the chapter stamp. OFFLINE

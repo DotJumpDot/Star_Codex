@@ -42,6 +42,7 @@
   "browse.feed.popular": "Popular",
   "browse.offline_cached": "Offline — showing previously loaded series",
   "browse.filter.sort": "Sort",
+  "browse.filter.feed": "Feed order",
   "browse.sort.latest": "Latest update",
   "browse.sort.oldest": "Oldest update",
   "browse.sort.chapters_desc": "Most chapters",

@@ -42,6 +42,7 @@
   "browse.feed.popular": "ยอดนิยม",
   "browse.offline_cached": "ออฟไลน์ — แสดงเฉพาะเรื่องที่เคยโหลดไว้",
   "browse.filter.sort": "เรียงลำดับ",
+  "browse.filter.feed": "ลำดับฟีด",
   "browse.sort.latest": "อัปเดตล่าสุด",
   "browse.sort.oldest": "อัปเดตเก่าสุด",
   "browse.sort.chapters_desc": "ตอนมากสุด",
