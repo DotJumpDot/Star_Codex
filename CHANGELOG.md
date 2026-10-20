@@ -153,6 +153,13 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-21 — Release: v1.2.6 — version 1.2.6+10. Ships everything
+  since v1.2.5: the merged เรียงลำดับ filter section (ยอดนิยม as a sort
+  chip, server order shown through), fling-preserving scroll anchors
+  (forcePixels instead of jumpTo), decode width capped at the source
+  image width, exact band heights at build time, and per-frame batched
+  height fix-ups. Cut for real-phone smoothness testing — the emulator
+  shares the host's CPU/GPU and exaggerates jank. 220 tests green.
 - 2026-10-21 — Two more free webtoon-scroll wins (user: "still a bit
   laggy" on the emulator): (1) band slices of oversized pages now
   reserve their EXACT height from the stored dims — each band used to
