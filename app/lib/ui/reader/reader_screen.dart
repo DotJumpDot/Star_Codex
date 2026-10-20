@@ -68,6 +68,21 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   /// screen's lifetime; failures are evicted so Retry works.
   final _inflight = <int, Future<PageFile>>{};
 
+  /// Resolved PageFiles for this chapter session. Scrolling away
+  /// DISPOSES slots; without this, rebuilding one on the way back up
+  /// always started from an unresolved FutureBuilder → a spinner frame
+  /// on every already-seen page (user report 2026-10-20). Passed back
+  /// into the slot as `initial` so the first frame renders the image.
+  final _pageFiles = <int, PageFile>{};
+
+  /// Running average aspect of this chapter's resolved pages. First
+  /// reads start every slot on the 1.9 constant — on sources whose
+  /// strips run much taller (fin-manga report, 2026-10-20) the estimate
+  /// error was huge and every correction visibly shifted the list.
+  /// As pages resolve, estimates converge to the chapter's real shape.
+  double _observedAspectSum = 0;
+  int _observedAspectCount = 0;
+
   bool get _keepAwake =>
       ref.read(settingsProvider).getBool('reader_keep_awake', true);
   bool get _autoNext =>
@@ -147,7 +162,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   double _estimatedHeight(ReaderPageRef p) =>
       p.hasDims
           ? _slotWidth * p.height! / p.width!
-          : _slotWidth * PageSlot.estimatedAspect;
+          : _slotWidth *
+              (_observedAspectCount >= 3
+                  ? _observedAspectSum / _observedAspectCount
+                  : PageSlot.estimatedAspect);
 
   double get _slotWidth => MediaQuery.sizeOf(context).width;
 
@@ -188,7 +206,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             context, 'reader.fallback_source', {'source': sourceId})),
         duration: const Duration(seconds: 2),
       ));
-    }).then<PageFile>((pf) => pf, onError: (Object e) {
+    }).then<PageFile>((pf) {
+      _pageFiles[idx] = pf;
+      return pf;
+    }, onError: (Object e) {
       _inflight.remove(idx);
       throw e;
     });
@@ -199,7 +220,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   void _onDimensions(int idx, int? w, int? h) {
     if (w == null || h == null || w <= 0 || !mounted) return;
     if (idx >= _heights.length) return;
-    final exact = _slotWidth * h / w;
+    final aspect = h / w;
+    _observedAspectSum += aspect;
+    _observedAspectCount++;
+    final exact = _slotWidth * aspect;
     if ((exact - _heights[idx]).abs() < 1) return;
     // Anchor preservation: when the corrected slot sits ABOVE the
     // viewport (the scroll-back-up case), shifting the offset by the
@@ -209,6 +233,21 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final adjust = heightAnchorDelta(
         slotOffsets(_heights), _heights, idx, exact - _heights[idx],
         _scroll.hasClients ? _scroll.offset : 0);
+    if (adjust != 0 && _scroll.hasClients) {
+      final raw = _scroll.offset + adjust;
+      if (raw >= 0 && raw <= _scroll.position.maxScrollExtent) {
+        // Shift BEFORE the relayout frame: the frame that first sees the
+        // new height also sees the moved offset, so content stays pinned
+        // with NO intermediate shifted frame. Doing this post-frame left
+        // one rendered frame of shifted content — the "jerky shake" while
+        // flinging through first-read chapters (fin-manga report,
+        // 2026-10-20). Only legal when the target fits the CURRENT
+        // extent; otherwise fall through to the post-frame path.
+        _scroll.jumpTo(raw);
+        setState(() => _heights[idx] = exact);
+        return;
+      }
+    }
     setState(() => _heights[idx] = exact);
     if (adjust != 0 && _scroll.hasClients) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -386,13 +425,22 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               },
               child: ListView.builder(
                 controller: _scroll,
-                scrollCacheExtent: ScrollCacheExtent.pixels(2500),
+                // ~5 viewports: slots (and their height fix-ups) resolve
+                // well before entering the viewport, so first-read
+                // corrections shift content the user can't see yet.
+                scrollCacheExtent: ScrollCacheExtent.pixels(4500),
                 itemCount: loaded.pages.length,
                 itemBuilder: (context, i) => PageSlot(
                   ref: loaded.pages[i],
                   screenWidth: _slotWidth,
                   resolve: () => _resolvePage(i),
                   onDimensions: _onDimensions,
+                  // Session memo: a slot rebuilt on the way back up
+                  // renders its image on the FIRST frame — no spinner.
+                  initial: _pageFiles[i],
+                  observedAspect: _observedAspectCount >= 3
+                      ? _observedAspectSum / _observedAspectCount
+                      : null,
                 ),
               ),
             ),

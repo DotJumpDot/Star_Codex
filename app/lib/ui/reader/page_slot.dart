@@ -20,6 +20,8 @@ class PageSlot extends ConsumerStatefulWidget {
     required this.resolve,
     required this.onDimensions,
     this.errorBadge,
+    this.initial,
+    this.observedAspect,
   });
 
   final ReaderPageRef ref;
@@ -37,7 +39,22 @@ class PageSlot extends ConsumerStatefulWidget {
   /// "จาก go-manga" style chip shown when this slot came from a fallback.
   final String? errorBadge;
 
+  /// Session-memoized resolution of this page (screen keeps it): a slot
+  /// REBUILT after dispose (scrolling back up) renders the image on its
+  /// first frame instead of flashing the placeholder while the future
+  /// re-awaits (2026-10-20).
+  final PageFile? initial;
+
+  /// Height estimate for unknown dims — the screen passes the chapter's
+  /// OBSERVED running average so first-read estimates converge to the
+  /// real strip shape (constant 1.9 was far off for tall strips).
+  final double? observedAspect;
+
   static const estimatedAspect = 1.9; // height = width * 1.9 (doc 10)
+
+  /// Aspect used to size unknown-dim slots: observed average once this
+  /// chapter has produced enough data points, else the doc-10 constant.
+  double get _aspect => observedAspect ?? estimatedAspect;
 
   @override
   ConsumerState<PageSlot> createState() => _PageSlotState();
@@ -72,7 +89,7 @@ class _PageSlotState extends ConsumerState<PageSlot> {
     if (ref.hasDims) {
       return widget.screenWidth * ref.height! / ref.width!;
     }
-    return widget.screenWidth * PageSlot.estimatedAspect;
+    return widget.screenWidth * widget._aspect;
   }
 
   @override
@@ -82,6 +99,7 @@ class _PageSlotState extends ConsumerState<PageSlot> {
     }
     return FutureBuilder<PageFile?>(
       future: _future,
+      initialData: widget.initial,
       builder: (context, snap) {
         final pf = snap.data;
         if (pf == null) {
@@ -144,7 +162,7 @@ class _PageSlotState extends ConsumerState<PageSlot> {
       context,
       widget.ref.hasDims
           ? _reservedHeight
-          : widget.screenWidth * PageSlot.estimatedAspect);
+          : widget.screenWidth * widget._aspect);
 
   Widget _placeholderBox(BuildContext context, double height) => Container(
         width: widget.screenWidth,

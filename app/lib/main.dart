@@ -27,6 +27,13 @@ Future<bool> isUnmeteredNow() async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Webtoon pages decode at ~8–15 MB each; the framework's 100 MiB
+  // default image cache holds only ~8–12 of them, so scrolling back up
+  // re-decoded already-seen pages (placeholder flash + jank, user report
+  // 2026-10-20). 300 MiB ≈ 25–35 pages. The OS memory-pressure signal
+  // still clears the whole cache (PaintingBinding handles it), so a
+  // large cap is safe on constrained devices.
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 300 << 20;
   await I18nService.load();
   final db = await openDb();
   final libraryDir = await defaultLibraryDir();

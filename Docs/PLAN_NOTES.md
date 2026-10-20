@@ -855,3 +855,31 @@ referer pairing, novel estimate. 165 tests green.
 - mergeIntoGroups/mergeGroupLists rebuild every existing group as a
   fresh SearchGroup; `_carryEnrichment` copies the db* fields across,
   or the next infinite-scroll page erased all earlier cards' dates.
+
+## 2026-10-20 — Reader smoothness invariants + backfill concurrency
+
+- Image cache: `PaintingBinding.instance.imageCache.maximumSizeBytes =
+  300 MiB` in main(). Framework default 100 MiB holds only ~8–12
+  decoded webtoon pages, so scrolling back up evicted and re-decoded
+  pages the user had JUST seen (spinner flash). OS memory-pressure
+  still clears the whole cache, so the larger cap is safe.
+- The reader screen keeps a per-chapter `_pageFiles` memo and passes
+  each slot `initial:` — a slot REBUILT after dispose must render its
+  image on frame one. FutureBuilder without initialData flashes the
+  placeholder even when the file is already on disk.
+- Height fix-ups: when the anchor correction's target offset fits the
+  CURRENT extent, jump the offset BEFORE `setState` of the new height —
+  the relayout frame then sees height+offset together (zero shifted
+  frames). Post-frame jump remains only for the grow-the-extent case.
+  Unknown-dim slots estimate from the chapter's OBSERVED average aspect
+  after 3 resolved pages (`observedAspect`), not the flat 1.9 constant
+  — fin-manga strips run far taller and the constant compounded every
+  correction into visible shake (user report, ch.1 first read).
+- `materializeIncompleteGroups` runs 6 concurrent workers. The
+  pending/memo registration happens UP FRONT (before workers start), so
+  overlapping callers can't double-fetch. Sequential dating was ~1
+  card/second — big searches only ever filled their first 30–40 cards
+  (user report). safe_http's per-host limiter stays the politeness gate.
+- hentaithai series stayed undated after a full pass (0/5 links) —
+  either its detail fetches fail or its pages expose no parseable
+  chapter stamps. Probe before assuming either.

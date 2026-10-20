@@ -170,54 +170,69 @@ class BrowseRepo {
   /// only come from this pass — capping it left most search results
   /// permanently dateless while their detail pages showed every chapter
   /// stamp (user report 2026-10-20: Overgeared on up/go-manga). One
-  /// sequential fetch per series, persisted → once ever; safe_http's
-  /// per-host limiter paces the pass. [budget] caps only the expensive
-  /// cross-probe (one search query per unlinked source per card).
+  /// fetch per series, persisted → once ever. Workers run CONCURRENTLY
+  /// (a strictly sequential pass dated ~1 card/second — a big search
+  /// filled only its first 30–40 cards in the time a user waits,
+  /// 2026-10-20 report) — safe_http's per-host limiter is the real
+  /// politeness gate and paces each host independently. [budget] caps
+  /// only the expensive cross-probe (one search query per unlinked
+  /// source per card).
   Future<void> materializeIncompleteGroups(
     List<SearchGroup> groups, {
     int budget = 12,
     Future<void> Function(SearchGroup done)? onCardDone,
   }) async {
+    final pending = <SearchGroup>[];
     for (final g in groups) {
       if (!g.needsMaterialization) continue;
       if (!_materialized.add(g.primary.url)) continue;
-      try {
-        final primary = g.primary;
-        final source = sourceById(primary.sourceId);
-        if (source == null) continue;
-        final seriesId = await seriesRepo.ensureSeries(g);
-        final row = await seriesDao.byId(seriesId);
-        if (row != null) {
-          // EXACT row → card (no title-norm guessing): this is what puts
-          // the newest-chapter date on a tile that carries none.
-          await _applyRowToGroup(g, row);
-        }
-        if (row != null && budget > 0) {
-          budget--;
-          await seriesRepo.probeOtherSources(
-            seriesId,
-            candidate: TitleCandidate(
-              norm: row.titleNorm,
-              altNorms: [
-                for (final m in g.members) normalizeTitle(m.title),
-              ],
-            ),
-            // One query per unlinked source — the interactive open path
-            // can afford retries with alternates, the background pass
-            // must stay polite (probeOtherSources tries queries.take(3)
-            // per source).
-            queries: <String>[g.displayTitle],
-          );
-        }
-      } catch (_) {
-        // best-effort — an unreachable source never breaks the feed
-      }
-      if (onCardDone != null) {
+      pending.add(g);
+    }
+    var next = 0;
+    Future<void> worker() async {
+      while (true) {
+        if (next >= pending.length) return;
+        final g = pending[next++];
         try {
-          await onCardDone(g);
-        } catch (_) {}
+          final primary = g.primary;
+          final source = sourceById(primary.sourceId);
+          if (source == null) continue;
+          final seriesId = await seriesRepo.ensureSeries(g);
+          final row = await seriesDao.byId(seriesId);
+          if (row != null) {
+            // EXACT row → card (no title-norm guessing): this is what puts
+            // the newest-chapter date on a tile that carries none.
+            await _applyRowToGroup(g, row);
+            if (budget > 0) {
+              budget--;
+              await seriesRepo.probeOtherSources(
+                seriesId,
+                candidate: TitleCandidate(
+                  norm: row.titleNorm,
+                  altNorms: [
+                    for (final m in g.members) normalizeTitle(m.title),
+                  ],
+                ),
+                // One query per unlinked source — the interactive open path
+                // can afford retries with alternates, the background pass
+                // must stay polite (probeOtherSources tries queries.take(3)
+                // per source).
+                queries: <String>[g.displayTitle],
+              );
+            }
+          }
+        } catch (_) {
+          // best-effort — an unreachable source never breaks the feed
+        }
+        if (onCardDone != null) {
+          try {
+            await onCardDone(g);
+          } catch (_) {}
+        }
       }
     }
+
+    await Future.wait([for (var i = 0; i < 6; i++) worker()]);
   }
 
   /// Primary URLs already sent to materialization this session — filter

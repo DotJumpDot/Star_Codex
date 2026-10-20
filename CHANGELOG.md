@@ -153,6 +153,24 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   render — parsers now skip .avif, CoverThumb walks a fallback chain
   (un-suffixed full-size original, then sibling sites' covers for merged
   cards/hero); Thai status string กำลังเข้า → กำลังแปล. 183 tests green.
+- 2026-10-20 — Webtoon scroll smoothness + fast search dates (user
+  reports: jerky shake while scrolling down — worst on fin-manga "I
+  Will Protect My Tyrant Dad!" ch.1; scrolling UP re-loaded
+  already-seen pages with a spinner; only the first 30–40 search
+  results ever got dates). Reader: image cache raised 100→300 MiB (the
+  default held only ~10 decoded webtoon pages, so scroll-up evicted and
+  re-decoded them), the screen memoizes resolved pages per chapter and
+  hands them to slots as initialData (a rebuilt slot renders its image
+  on the first frame — no spinner), height corrections that shift
+  content above the viewport now jump the offset BEFORE the relayout
+  frame (no intermediate shifted frame while flinging), and
+  unknown-height slots estimate from the chapter's observed average
+  aspect instead of the flat 1.9× (fin-manga strips run much taller).
+  Search: the date backfill runs 6 concurrent workers instead of one
+  fetch per second. On-device: fling down/up render clean on the
+  reported chapter; DB audit 210/215 series dated (hentaithai's 5
+  stayed undated — its pages expose no parseable chapter stamps; to
+  probe). 213 tests green.
 - 2026-10-20 — Release: v1.2.3 — version 1.2.3+7. Ships everything since
   v1.2.2: the browse sort orders (latest/oldest update, most/fewest
   chapters — latest update by default) and the search-card date fix
