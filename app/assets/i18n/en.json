@@ -112,7 +112,7 @@
   "reader.auto_next_hint": "At a chapter's end: keep pulling to the mark, then release to advance",
   "reader.prefetch_ahead": "Prefetch pages ahead",
   "reader.crop.title": "Screen crop (this chapter only)",
-  "reader.crop.position_hint": "Pinch with two fingers to zoom · drag horizontally (one or two fingers) to choose the crop · scroll up/down as usual",
+  "reader.crop.position_hint": "Locked horizontally — set it with the sliders below or auto-detect · pinch = temporary website-style zoom (pinch back in to reset)",
   "reader.crop.zoom": "Zoom",
   "reader.crop.position": "Horizontal position",
   "reader.crop.position_left": "Left",

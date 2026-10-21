@@ -108,20 +108,17 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   /// Raw-pointer pinch/pan state (Listener-based, so it NEVER competes
   /// with the ListView's drag recognizers — single-finger scrolling is
-  /// untouched). Two fingers: pinch = zoom, focal drift = pan the crop
-  /// window. One finger with an ACTIVE crop: a clearly horizontal drag
-  /// slides the window (the vertical ListView rejects exactly these
-  /// gestures, so scrolling is unaffected) — this is the manual crop
-  /// selection.
+  /// untouched). Pinch = transient website-style VIEW zoom (ViewZoom:
+  /// paint transform, focal-anchored; exits by pinching back to 1×).
+  /// The CROP has no gestures at all — once set (sliders/auto-detect) it
+  /// is a real lock: the window never moves during reading (user report
+  /// 2026-10-21: the old drag let the window wander into the bars).
   final _pointers = <int, Offset>{};
   double? _pinchLastDist;
-  Offset? _pinchLastFocal;
-  double? _pinchHiddenPx;
-  bool _pinching = false;
-  int? _hDragPointer;
-  Offset? _hDragStart;
-  Offset? _hDragLast;
-  bool _hDragging = false;
+  Offset? _pinchFocal0;
+  ViewZoom _pinchBase = const ViewZoom();
+  ViewZoom _view = const ViewZoom();
+  bool _scrollFrozen = false;
 
   bool get _keepAwake =>
       ref.read(settingsProvider).getBool('reader_keep_awake', true);
@@ -529,24 +526,18 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   void _onPointerDown(PointerDownEvent e) {
     _pointers[e.pointer] = e.localPosition;
     if (_pointers.length == 2) {
-      _cancelHDrag();
       final pts = _pointers.values.toList();
       _pinchLastDist = (pts[0] - pts[1]).distance;
-      _pinchLastFocal = (pts[0] + pts[1]) / 2;
-      _pinchHiddenPx = _crop.offsetPx(_screenWidth);
+      _pinchFocal0 = (pts[0] + pts[1]) / 2;
+      _pinchBase = _view;
       if (_pinchLastDist! > 8) {
         // Freeze scrolling for the pinch: kill the in-flight drag and
-        // lock physics until the fingers lift.
+        // lock physics while the fingers (or the resulting zoom) hold.
         if (_scroll.hasClients) _scroll.jumpTo(_scroll.offset);
-        setState(() => _pinching = true);
+        setState(() => _scrollFrozen = true);
       } else {
         _pinchLastDist = null;
       }
-    } else if (_pointers.length == 1 && _crop.active) {
-      _hDragPointer = e.pointer;
-      _hDragStart = e.localPosition;
-      _hDragLast = e.localPosition;
-      _hDragging = false;
     }
   }
 
@@ -556,89 +547,44 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
     if (_pointers.length == 2) {
       final dist0 = _pinchLastDist;
-      final focal0 = _pinchLastFocal;
-      final hidden = _pinchHiddenPx;
-      if (dist0 == null || focal0 == null || hidden == null) return;
+      final focal0 = _pinchFocal0;
+      if (dist0 == null || focal0 == null) return;
       final pts = _pointers.values.toList();
       final dist = (pts[0] - pts[1]).distance;
       final focal = (pts[0] + pts[1]) / 2;
       if (dist >= 1 && dist0 >= 1) {
-        // Incremental zoom (relative to the CURRENT zoom) + window pan
-        // from the focal drift — content follows the fingers.
-        var zoom = (_crop.zoom * dist / dist0).clamp(1.0, 4.0);
-        var newHidden = hidden - (focal.dx - focal0.dx);
-        var overflow = _screenWidth * zoom - _screenWidth;
-        if (overflow <= 1) {
-          zoom = 1.0;
-          overflow = 0;
-          newHidden = 0;
-        } else {
-          newHidden = newHidden.clamp(0.0, overflow);
-        }
-        _pinchHiddenPx = newHidden;
-        _applyCrop(
-          ReaderCrop(
-            zoom: zoom,
-            cropX: overflow <= 1 ? 0.5 : newHidden / overflow,
-          ),
-          persist: false,
+        final viewport = Size(_screenWidth, MediaQuery.sizeOf(context).height);
+        final next = ViewZoom.zoomAround(
+          base: _pinchBase,
+          nextScale: _pinchBase.scale * dist / dist0,
+          focal0: focal0,
+          focal: focal,
+          viewport: viewport,
         );
+        if (next != _view) setState(() => _view = next);
       }
-      _pinchLastDist = dist;
-      _pinchLastFocal = focal;
       return;
     }
 
-    // Single pointer with an active crop: horizontal drag slides the
-    // window — the manual crop selection.
-    if (_crop.active && e.pointer == _hDragPointer) {
-      final start = _hDragStart;
-      final last = _hDragLast;
-      if (start == null || last == null) return;
-      if (!_hDragging) {
-        final total = e.localPosition - start;
-        if (total.dx.abs() > 18 && total.dx.abs() > total.dy.abs() * 1.5) {
-          _hDragging = true;
-        }
-      }
-      if (_hDragging) {
-        final d = e.localPosition - last;
-        _hDragLast = e.localPosition;
-        final overflow = _screenWidth * _crop.zoom - _screenWidth;
-        if (overflow > 1) {
-          final newHidden = (_crop.offsetPx(_screenWidth) - d.dx).clamp(
-            0.0,
-            overflow,
-          );
-          _applyCrop(
-            ReaderCrop(zoom: _crop.zoom, cropX: newHidden / overflow),
-            persist: false,
-          );
-        }
-      }
+    // One finger while view-zoomed: pan the zoomed content — the list's
+    // physics are frozen, so this never fights scrolling.
+    if (_view.active) {
+      final viewport = Size(_screenWidth, MediaQuery.sizeOf(context).height);
+      final next = _view.panBy(e.delta, viewport);
+      if (next != _view) setState(() => _view = next);
     }
-  }
-
-  void _cancelHDrag() {
-    _hDragPointer = null;
-    _hDragStart = null;
-    _hDragLast = null;
-    _hDragging = false;
   }
 
   void _onPointerUp(int pointer) {
     _pointers.remove(pointer);
     if (_pointers.length < 2 && _pinchLastDist != null) {
       _pinchLastDist = null;
-      _pinchLastFocal = null;
-      _pinchHiddenPx = null;
-      if (_pinching) setState(() => _pinching = false);
-      _persistCrop(); // one persist at gesture end, not per movement tick
-    }
-    if (pointer == _hDragPointer) {
-      final wasDragging = _hDragging;
-      _cancelHDrag();
-      if (wasDragging) _persistCrop();
+      _pinchFocal0 = null;
+      // View zoom is transient: back at 1x, scrolling resumes; while
+      // still zoomed, one finger pans (see _onPointerMove) — stay frozen.
+      if (!_view.active && _scrollFrozen) {
+        setState(() => _scrollFrozen = false);
+      }
     }
   }
 
@@ -772,44 +718,55 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 ),
               )
             else ...[
-              NotificationListener<ScrollNotification>(
-                onNotification: (n) {
-                  if (n is ScrollUpdateNotification) _onScroll();
-                  if (n is OverscrollNotification) {
-                    _onOverscroll(n.overscroll);
-                  }
-                  if (n is ScrollEndNotification) {
-                    // Keep the end-state handling off the notification path
-                    // (it awaits chapter lookups).
-                    _onScrollEnd();
-                  }
-                  return false;
-                },
-                child: ListView.builder(
-                  controller: _scroll,
-                  // Frozen while a pinch is active (see _onPointerDown).
-                  physics: _pinching
-                      ? const NeverScrollableScrollPhysics()
-                      : null,
-                  // ~5 viewports: slots (and their height fix-ups) resolve
-                  // well before entering the viewport, so first-read
-                  // corrections shift content the user can't see yet.
-                  scrollCacheExtent: ScrollCacheExtent.pixels(4500),
-                  itemCount: loaded.pages.length,
-                  itemBuilder: (context, i) => _cropBox(
-                    PageSlot(
-                      ref: loaded.pages[i],
-                      screenWidth: _slotWidth,
-                      resolve: () => _resolvePage(i),
-                      onDimensions: _onDimensions,
-                      // Session memo: a slot rebuilt on the way back up
-                      // renders its image on the FIRST frame — no spinner.
-                      initial: _pageFiles[i],
-                      observedAspect: _observedAspectCount >= 3
-                          ? _observedAspectSum / _observedAspectCount
-                          : null,
+              // Website-style view zoom: a PAINT transform over the list
+              // (no relayout — the strip never re-flows or shakes while
+              // zooming). Clipped by the Stack; chrome/tap zones above
+              // are unaffected. See ViewZoom for the math.
+              Transform(
+                transform: Matrix4.identity()
+                  ..translateByDouble(_view.dx, _view.dy, 0, 1)
+                  ..scaleByDouble(_view.scale, _view.scale, 1, 1),
+                alignment: Alignment.topLeft,
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: (n) {
+                    if (n is ScrollUpdateNotification) _onScroll();
+                    if (n is OverscrollNotification) {
+                      _onOverscroll(n.overscroll);
+                    }
+                    if (n is ScrollEndNotification) {
+                      // Keep the end-state handling off the notification path
+                      // (it awaits chapter lookups).
+                      _onScrollEnd();
+                    }
+                    return false;
+                  },
+                  child: ListView.builder(
+                    controller: _scroll,
+                    // Frozen while a pinch or an active view zoom holds —
+                    // one finger then PANS the zoomed view instead.
+                    physics: _scrollFrozen || _view.active
+                        ? const NeverScrollableScrollPhysics()
+                        : null,
+                    // ~5 viewports: slots (and their height fix-ups) resolve
+                    // well before entering the viewport, so first-read
+                    // corrections shift content the user can't see yet.
+                    scrollCacheExtent: ScrollCacheExtent.pixels(4500),
+                    itemCount: loaded.pages.length,
+                    itemBuilder: (context, i) => _cropBox(
+                      PageSlot(
+                        ref: loaded.pages[i],
+                        screenWidth: _slotWidth,
+                        resolve: () => _resolvePage(i),
+                        onDimensions: _onDimensions,
+                        // Session memo: a slot rebuilt on the way back up
+                        // renders its image on the FIRST frame — no spinner.
+                        initial: _pageFiles[i],
+                        observedAspect: _observedAspectCount >= 3
+                            ? _observedAspectSum / _observedAspectCount
+                            : null,
+                      ),
+                      i < _heights.length ? _heights[i] : _screenWidth * 1.9,
                     ),
-                    i < _heights.length ? _heights[i] : _screenWidth * 1.9,
                   ),
                 ),
               ),

@@ -1077,3 +1077,29 @@ referer pairing, novel estimate. 165 tests green.
   on the emulator (ch.96 letterbox → full-bleed artwork, scroll
   intact). Rule: OverflowBox inside a sliver (unbounded main axis)
   MUST set deferToChild or carry a bounded parent.
+
+## 2026-10-21 — Crop lock + ViewZoom (website-style pinch)
+
+- The per-chapter CROP has NO gestures by design (user: sliding into
+  the bars = "not locked"): set it via the drawer sliders / auto-detect;
+  after that the window is immutable until changed in the drawer. The
+  earlier one-finger horizontal drag + two-finger window pan were
+  REMOVED (emulator proof: hard h-swipe → zero pixel diff).
+- Webtoon pinch = ViewZoom: a paint-level Transform over the ListView
+  (Matrix4 translateByDouble/scaleByDouble — the plain translate/scale
+  are deprecated on 3.47). NEVER a layout zoom: the old pinch changed
+  ReaderCrop.zoom per move → whole-strip relayout + scroll re-anchor =
+  vertical shaking + top-left anchoring. ViewZoom anchors the CONTENT
+  point under the pinch-start focal to the moving focal, clamps the
+  translate so scaled content always covers the viewport (dx∈[W(1−s),0],
+  dy∈[H(1−s),0]), is TRANSIENT (no persistence — exits by pinching to
+  ≤1.01), and while active the list physics stay frozen with one-finger
+  pan feeding ViewZoom.panBy. Crop zoom (layout) and view zoom (paint)
+  compose.
+- Paged reader: PageView physics freeze when (a) two pointers are down
+  (pinch intent — the pinch's first sideways motion used to lose the
+  arena to the page drag and flip the page) or (b) the current image's
+  ExtendedImageGestureState.gestureDetails.totalScale > 1 (zoomed pages
+  pan inside the slot instead of sliding). Synced from a raw Listener
+  on pointer down/up/cancel edges (pointer COUNT tracked; totalScale is
+  the public zoom read; initialScale is 1.0 by default).

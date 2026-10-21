@@ -161,6 +161,22 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   skeleton loading state, and the first-read scroll-freeze fixes (page
   hashing off the UI isolate, band slicing off Android's main thread).
   223 tests green.
+- 2026-10-21 — Crop lock + website-style pinch zoom (user feedback
+  round on v1.2.9): (1) the crop is now a REAL lock — the horizontal
+  drag/pan gestures were removed (they let the window wander into the
+  black bars during reading); selection = drawer sliders + auto-detect.
+  Emulator-verified: a hard 650px horizontal swipe changed ZERO pixels
+  of the cropped page. (2) Webtoon pinch zoom is completely reworked —
+  the old pinch re-laid-out the whole strip (vertical shaking, anchored
+  top-left); it is now a transient website-style VIEW zoom: a paint
+  transform over the list, anchored to your fingers (content under the
+  pinch start focal stays under it), clamped so the screen is always
+  covered, one finger pans while zoomed, pinch back in to reset. No
+  persistence — the per-chapter crop keeps its own saved zoom.
+  (3) Paged reader (หน้าต่อหน้า): the page no longer slides while the
+  image is zoomed (PageView freezes; the zoomed image pans in its
+  slot), and a two-finger hold never flips the page. ViewZoom math unit
+  tested (focal anchoring, clamping, reset); 233 tests green.
 - 2026-10-21 — Release: v1.2.9 — version 1.2.9+13. Fixes v1.2.8's
   broken screen crop (all-black screen whenever the crop applied):
   the crop window's OverflowBox sized itself infinite under the

@@ -49,6 +49,19 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   Animation<double>? _routeAnimation;
   bool _routeHooked = false;
 
+  /// True while the CURRENT page's image is zoomed in (user report
+  /// 2026-10-21: while zoomed, stray drags slipped into page slides).
+  /// PageView physics freeze until the image returns to 1x — the zoomed
+  /// image pans inside its slot instead.
+  bool _pageZoomed = false;
+
+  /// True while TWO pointers are down (pinch intent): page slides never
+  /// win then — the other failure mode from the same report (a pinch's
+  /// first sideways motion let the PageView steal the gesture and flip
+  /// the page). Page turns are one-finger swipes / tap zones.
+  bool _pinchHold = false;
+  int _activePointers = 0;
+
   /// See the webtoon reader: the drawer opens via the KEY (the chrome's
   /// callback context sits above this Scaffold).
   final _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -82,8 +95,7 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   int get _prefetchAhead =>
       ref.read(settingsProvider).getInt('reader_prefetch_ahead', 6);
 
-  bool get _rtl =>
-      ref.read(settingsProvider).getBool('reader_rtl', false);
+  bool get _rtl => ref.read(settingsProvider).getBool('reader_rtl', false);
   bool get _autoNext =>
       ref.read(settingsProvider).getBool('reader_auto_next', true);
   bool get _keepAwake =>
@@ -95,7 +107,8 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
     _barsHidden = on;
     try {
       await SystemChrome.setEnabledSystemUIMode(
-          on ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge);
+        on ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
+      );
     } catch (_) {}
   }
 
@@ -120,8 +133,9 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   Future<void> _open() async {
     try {
       final loaded = await _repo.loadChapter(widget.chapter);
-      final series =
-          await ref.read(seriesDaoProvider).byId(loaded.chapter.seriesId);
+      final series = await ref
+          .read(seriesDaoProvider)
+          .byId(loaded.chapter.seriesId);
       final progress = await ref
           .read(chaptersDaoProvider)
           .progress(loaded.chapter.id!);
@@ -153,8 +167,12 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   Future<void> _saveProgress(int page, {required bool completed}) async {
     final loaded = _loaded;
     if (loaded == null) return;
-    await persistReaderProgress(ref, loaded.chapter,
-        pageIndex: page, completed: completed);
+    await persistReaderProgress(
+      ref,
+      loaded.chapter,
+      pageIndex: page,
+      completed: completed,
+    );
   }
 
   /// One page via the shared resolver, memoized per index (see
@@ -164,11 +182,15 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
     final existing = _inflight[idx];
     if (existing != null) return existing;
     final loaded = _loaded!;
-    final future = _repo.resolvePage(loaded, idx).then<PageFile>((pf) => pf,
-        onError: (Object e) {
-      _inflight.remove(idx);
-      throw e;
-    });
+    final future = _repo
+        .resolvePage(loaded, idx)
+        .then<PageFile>(
+          (pf) => pf,
+          onError: (Object e) {
+            _inflight.remove(idx);
+            throw e;
+          },
+        );
     _inflight[idx] = future;
     return future;
   }
@@ -245,18 +267,22 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   Future<void> _goNext() async {
     final loaded = _loaded;
     if (loaded == null || _switching) return;
-    final next = _nextKnown ? _next : await _repo.adjacentChapter(loaded.chapter, forward: true);
+    final next = _nextKnown
+        ? _next
+        : await _repo.adjacentChapter(loaded.chapter, forward: true);
     if (next != null && mounted) {
       _switching = true;
       await _saveProgress(loaded.pages.length - 1, completed: true);
       if (mounted) {
-        Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
-          builder: (_) => PagedReaderScreen(chapter: next),
-        ));
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (_) => PagedReaderScreen(chapter: next),
+          ),
+        );
       }
     } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t(context, 'reader.end'))));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(t(context, 'reader.end'))));
     }
   }
 
@@ -269,9 +295,11 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
       // Same rule as _goNext: land the progress write before the swap.
       await _saveProgress(_page, completed: _page == loaded.pages.length - 1);
       if (mounted) {
-        Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
-          builder: (_) => PagedReaderScreen(chapter: prev),
-        ));
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (_) => PagedReaderScreen(chapter: prev),
+          ),
+        );
       }
     }
   }
@@ -293,16 +321,18 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
     if (goForward) {
       if (_page < loaded.pages.length - 1) {
         controller.nextPage(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut);
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+        );
       } else {
         _goNext();
       }
     } else {
       if (_page > 0) {
         controller.previousPage(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut);
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+        );
       } else {
         _goPrev();
       }
@@ -330,6 +360,19 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
     }
   }
 
+  /// Sync [PageView.physics] with pointer/zoom state (see the fields
+  /// above). Called from raw pointer edges only — cheap.
+  void _syncPageFreeze() {
+    var zoomed = false;
+    final state = _slotKeys[_page]?.currentState;
+    if (state is ExtendedImageGestureState) {
+      zoomed = (state.gestureDetails?.totalScale ?? 1.0) > 1.01;
+    }
+    _pageZoomed = zoomed;
+    _pinchHold = _activePointers >= 2;
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
     _pageController?.dispose();
@@ -349,129 +392,157 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
       backgroundColor: Colors.black,
       endDrawerEnableOpenDragGesture: false,
       endDrawer: loaded == null ? null : _buildDrawer(loaded),
-      body: Stack(
-        children: [
-          if (loaded == null)
-            // Same fail-path contract as the webtoon reader: error title +
-            // retry once _open() exhausted every candidate source.
-            Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (!_failed) const CircularProgressIndicator(),
-                  if (!_failed) const SizedBox(height: 12),
-                  Text(
+      // Raw pointer edges drive the slide freeze (see the fields above).
+      body: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (e) {
+          _activePointers++;
+          _syncPageFreeze();
+        },
+        onPointerUp: (e) {
+          _activePointers = (_activePointers - 1).clamp(0, 9);
+          _syncPageFreeze();
+        },
+        onPointerCancel: (e) {
+          _activePointers = (_activePointers - 1).clamp(0, 9);
+          _syncPageFreeze();
+        },
+        child: Stack(
+          children: [
+            if (loaded == null)
+              // Same fail-path contract as the webtoon reader: error title +
+              // retry once _open() exhausted every candidate source.
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!_failed) const CircularProgressIndicator(),
+                    if (!_failed) const SizedBox(height: 12),
+                    Text(
                       _failed
                           ? t(context, 'common.error.title')
                           : t(context, 'common.loading'),
-                      style: const TextStyle(color: Colors.white70)),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.refresh, size: 16),
-                    label: Text(t(context, 'common.retry')),
-                    onPressed: () {
-                      setState(() {
-                        _loaded = null;
-                        _failed = false;
-                      });
-                      _open();
-                    },
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.refresh, size: 16),
+                      label: Text(t(context, 'common.retry')),
+                      onPressed: () {
+                        setState(() {
+                          _loaded = null;
+                          _failed = false;
+                        });
+                        _open();
+                      },
+                    ),
+                  ],
+                ),
+              )
+            else ...[
+              NotificationListener<ScrollNotification>(
+                onNotification: (n) {
+                  if (n is OverscrollNotification) _onOverscroll(n.overscroll);
+                  if (n is ScrollEndNotification) _onScrollEnd();
+                  return false;
+                },
+                child: PageView.builder(
+                  controller: _pageController!,
+                  reverse: _rtl,
+                  // While a pinch holds (two fingers) or the page image is
+                  // zoomed in, the page must NOT slide — one finger then
+                  // pans the zoomed image, and a pinch never flips the page
+                  // (user report 2026-10-21).
+                  physics: _pinchHold || _pageZoomed
+                      ? const NeverScrollableScrollPhysics()
+                      : null,
+                  // Keep the neighboring page BUILT (viewport cacheExtent):
+                  // the target page of a turn is already constructed and
+                  // decoded while it slides in — no black flash frame
+                  // between pages (user QA 2026-10-19).
+                  allowImplicitScrolling: true,
+                  itemCount: loaded.pages.length,
+                  onPageChanged: _onPageChanged,
+                  itemBuilder: (context, i) => _PageSlotPaged(
+                    page: loaded.pages[i],
+                    index: i,
+                    resolve: () => _resolvePage(i),
+                    register: (i, key) => _slotKeys[i] = key,
                   ),
-                ],
-              ),
-            )
-          else ...[
-            NotificationListener<ScrollNotification>(
-              onNotification: (n) {
-                if (n is OverscrollNotification) _onOverscroll(n.overscroll);
-                if (n is ScrollEndNotification) _onScrollEnd();
-                return false;
-              },
-              child: PageView.builder(
-                controller: _pageController!,
-                reverse: _rtl,
-                // Keep the neighboring page BUILT (viewport cacheExtent):
-                // the target page of a turn is already constructed and
-                // decoded while it slides in — no black flash frame
-                // between pages (user QA 2026-10-19).
-                allowImplicitScrolling: true,
-                itemCount: loaded.pages.length,
-                onPageChanged: _onPageChanged,
-                itemBuilder: (context, i) => _PageSlotPaged(
-                  page: loaded.pages[i],
-                  index: i,
-                  resolve: () => _resolvePage(i),
-                  register: (i, key) => _slotKeys[i] = key,
                 ),
               ),
-            ),
-            // Tap zones: left 30% prev, right 30% next, middle 40% chrome
-            // (swapped under RTL) — only when not zoomed.
-            Positioned.fill(
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: GestureDetector(
+              // Tap zones: left 30% prev, right 30% next, middle 40% chrome
+              // (swapped under RTL) — only when not zoomed.
+              Positioned.fill(
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: GestureDetector(
                         behavior: HitTestBehavior.translucent,
                         onTap: () => _tapZone(false),
-                        child: const SizedBox.expand()),
-                  ),
-                  Expanded(
-                    flex: 4,
-                    child: GestureDetector(
+                        child: const SizedBox.expand(),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 4,
+                      child: GestureDetector(
                         behavior: HitTestBehavior.translucent,
-                        onTap: () => setState(
-                            () => _chromeVisible = !_chromeVisible),
-                        child: const SizedBox.expand()),
-                  ),
-                  Expanded(
-                    flex: 3,
-                    child: GestureDetector(
+                        onTap: () =>
+                            setState(() => _chromeVisible = !_chromeVisible),
+                        child: const SizedBox.expand(),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 3,
+                      child: GestureDetector(
                         behavior: HitTestBehavior.translucent,
                         onTap: () => _tapZone(true),
-                        child: const SizedBox.expand()),
-                  ),
-                ],
-              ),
-            ),
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: ReaderChrome(
-                visible: _chromeVisible,
-                title: _seriesTitle ?? widget.chapter.title ?? '',
-                sourceName: loaded.chapter.sourceId,
-                onBack: () => Navigator.of(context).pop(),
-                onTitle: () {
-                  Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) =>
-                        DetailScreen(seriesId: loaded.chapter.seriesId),
-                  ));
-                },
-                onChapters: () => _openChapterPicker(loaded),
-                onMenu: () =>
-                    _scaffoldKey.currentState?.openEndDrawer(),
-              ),
-            ),
-            if (_pull.dragging)
-              Positioned(
-                bottom: 90,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: PullNextIndicator(
-                    progress: _pull.progress,
-                    armed: _pull.armed,
-                    horizontal: true,
-                    rtl: _rtl,
-                    hasNext: !_nextKnown || _next != null,
-                  ),
+                        child: const SizedBox.expand(),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: ReaderChrome(
+                  visible: _chromeVisible,
+                  title: _seriesTitle ?? widget.chapter.title ?? '',
+                  sourceName: loaded.chapter.sourceId,
+                  onBack: () => Navigator.of(context).pop(),
+                  onTitle: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            DetailScreen(seriesId: loaded.chapter.seriesId),
+                      ),
+                    );
+                  },
+                  onChapters: () => _openChapterPicker(loaded),
+                  onMenu: () => _scaffoldKey.currentState?.openEndDrawer(),
+                ),
+              ),
+              if (_pull.dragging)
+                Positioned(
+                  bottom: 90,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: PullNextIndicator(
+                      progress: _pull.progress,
+                      armed: _pull.armed,
+                      horizontal: true,
+                      rtl: _rtl,
+                      hasNext: !_nextKnown || _next != null,
+                    ),
+                  ),
+                ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -496,9 +567,11 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
       onSeek: (v) {
         final total = loaded.pages.length;
         final target = (v * (total - 1)).round();
-        _pageController?.animateToPage(target,
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOut);
+        _pageController?.animateToPage(
+          target,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
       },
       settings: ReaderSettingsBody(
         prefetchAhead: settings.getInt('reader_prefetch_ahead', 6),
@@ -526,22 +599,27 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   /// [chosen] is the mode JUST picked — SettingsController.set only
   /// publishes after its DB write, so re-reading the provider here can
   /// still see the old value and the swap would silently no-op.
-  Future<void> _applyModeChange(LoadedChapter loaded,
-      {required String chosen}) async {
+  Future<void> _applyModeChange(
+    LoadedChapter loaded, {
+    required String chosen,
+  }) async {
     await _saveProgress(_page, completed: _page == loaded.pages.length - 1);
     if (!mounted) return;
     final settings = ref.read(settingsProvider);
-    await replaceWithResolvedReader(context,
-        chapter: loaded.chapter,
-        current: ReaderMode.paged,
-        seriesDao: ref.read(seriesDaoProvider),
-        modeOverride: effectiveModeOverride(
-            chosen, settings.get('reader_mode_default', 'auto')));
+    await replaceWithResolvedReader(
+      context,
+      chapter: loaded.chapter,
+      current: ReaderMode.paged,
+      seriesDao: ref.read(seriesDaoProvider),
+      modeOverride: effectiveModeOverride(
+        chosen,
+        settings.get('reader_mode_default', 'auto'),
+      ),
+    );
   }
 
   Future<void> _openChapterPicker(LoadedChapter loaded) async {
-    final vm =
-        await ref.read(seriesRepoProvider).load(loaded.chapter.seriesId);
+    final vm = await ref.read(seriesRepoProvider).load(loaded.chapter.seriesId);
     if (!mounted) return;
     await showChapterPicker(
       context,
@@ -549,9 +627,11 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
       vm: vm,
       current: loaded.chapter,
       onPick: (chapter, sourceId) {
-        Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
-          builder: (_) => PagedReaderScreen(chapter: chapter),
-        ));
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (_) => PagedReaderScreen(chapter: chapter),
+          ),
+        );
       },
     );
   }
@@ -572,7 +652,7 @@ class _PageSlotPaged extends ConsumerStatefulWidget {
   final int index;
   final Future<PageFile> Function() resolve;
   final void Function(int index, GlobalKey<ExtendedImageGestureState> key)
-      register;
+  register;
 
   @override
   ConsumerState<_PageSlotPaged> createState() => _PageSlotPagedState();
@@ -590,10 +670,11 @@ class _PageSlotPagedState extends ConsumerState<_PageSlotPaged> {
   /// the source's own width. Full-res decodes while PageView keeps ±1
   /// neighbors built were the swipe lag (user report 2026-10-21).
   int _cacheWidthFor(int? sourceWidth, BuildContext context) {
-    final cap = (MediaQuery.sizeOf(context).width *
-            MediaQuery.devicePixelRatioOf(context) *
-            2)
-        .round();
+    final cap =
+        (MediaQuery.sizeOf(context).width *
+                MediaQuery.devicePixelRatioOf(context) *
+                2)
+            .round();
     if (sourceWidth != null && sourceWidth > 0) {
       return sourceWidth < cap ? sourceWidth : cap;
     }
@@ -685,16 +766,16 @@ class _PageSlotPagedState extends ConsumerState<_PageSlotPaged> {
           extendedImageGestureKey: _gestureKey,
           loadStateChanged: (state) =>
               state.extendedImageLoadState == LoadState.loading
-                  ? Container(
-                      color: Colors.white10,
-                      alignment: Alignment.center,
-                      child: const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    )
-                  : null,
+              ? Container(
+                  color: Colors.white10,
+                  alignment: Alignment.center,
+                  child: const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              : null,
         );
       },
     );

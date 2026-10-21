@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' show Offset, Size;
 import 'dart:ui' as ui;
 
 /// Per-chapter screen crop for letterboxed webtoon strips (rare case:
@@ -40,7 +41,8 @@ class ReaderCrop {
   }
 
   @override
-  String toString() => 'ReaderCrop(${zoom.toStringAsFixed(2)}x, '
+  String toString() =>
+      'ReaderCrop(${zoom.toStringAsFixed(2)}x, '
       'cropX=${cropX.toStringAsFixed(2)})';
 
   @override
@@ -60,8 +62,10 @@ class ReaderCrop {
 /// while ignoring the watermark text baked onto the bars (~2-4% bright
 /// rows per bar column) and dark artwork hugging the column's inner
 /// edges (each column is averaged over the FULL page height).
-({double left, double width})? detectArtworkWindow(List<double> colMeans,
-    {double threshold = 40}) {
+({double left, double width})? detectArtworkWindow(
+  List<double> colMeans, {
+  double threshold = 40,
+}) {
   final w = colMeans.length;
   if (w < 8) return null;
   var first = 0;
@@ -90,11 +94,61 @@ ReaderCrop? cropForWindow(double left, double width, {double maxZoom = 3.0}) {
   return ReaderCrop(zoom: zoom, cropX: cropX);
 }
 
+/// Transient website-style view zoom for the webtoon reader (user
+/// feedback 2026-10-21: the OLD pinch re-laid-out the whole strip at a
+/// bigger width — vertical shaking, anchor at the top-left). This zoom
+/// is a PAINT transform over the list: no relayout, no persistence,
+/// exits by pinching back to 1×, exactly like หน้าต่อหน้า's image zoom.
+/// While active it is clamped so the scaled content always covers the
+/// viewport (no black edges), and the CONTENT POINT under the pinch
+/// start focal stays under the moving focal.
+class ViewZoom {
+  const ViewZoom({this.scale = 1.0, this.dx = 0.0, this.dy = 0.0});
+
+  /// Paint scale (1 = off).
+  final double scale;
+
+  /// Translate applied before scaling (≤ 0 once scaled).
+  final double dx;
+  final double dy;
+
+  bool get active => scale > 1.01;
+
+  static Offset _clamp(Offset o, double s, Size viewport) => Offset(
+    o.dx.clamp(viewport.width * (1 - s), 0.0),
+    o.dy.clamp(viewport.height * (1 - s), 0.0),
+  );
+
+  /// Pinch move: scale multiplies around the focal — the content point
+  /// under [focal0] (at [base]) stays under [focal].
+  static ViewZoom zoomAround({
+    required ViewZoom base,
+    required double nextScale,
+    required Offset focal0,
+    required Offset focal,
+    required Size viewport,
+  }) {
+    final s = nextScale.clamp(1.0, 4.0);
+    if (s <= 1.001) return const ViewZoom();
+    final content = (focal0 - Offset(base.dx, base.dy)) / base.scale;
+    final off = _clamp(focal - content * s, s, viewport);
+    return ViewZoom(scale: s, dx: off.dx, dy: off.dy);
+  }
+
+  /// One-finger pan while zoomed: the content follows the finger.
+  ViewZoom panBy(Offset delta, Size viewport) {
+    final off = _clamp(Offset(dx, dy) + delta, scale, viewport);
+    return ViewZoom(scale: scale, dx: off.dx, dy: off.dy);
+  }
+}
+
 /// Column mean luminance of a stored page file, decoded downscaled
 /// (default 64px wide ≈ tens of k pixels — one-shot per chapter for
 /// auto-detect). Returns null on any IO/decode failure.
-Future<List<double>?> columnLuminanceMeans(String absolutePath,
-    {int targetWidth = 64}) async {
+Future<List<double>?> columnLuminanceMeans(
+  String absolutePath, {
+  int targetWidth = 64,
+}) async {
   try {
     final Uint8List bytes;
     try {
@@ -102,13 +156,16 @@ Future<List<double>?> columnLuminanceMeans(String absolutePath,
     } catch (_) {
       return null;
     }
-    final codec =
-        await ui.instantiateImageCodec(bytes, targetWidth: targetWidth);
+    final codec = await ui.instantiateImageCodec(
+      bytes,
+      targetWidth: targetWidth,
+    );
     final frame = await codec.getNextFrame();
     final w = frame.image.width;
     final h = frame.image.height;
-    final data =
-        await frame.image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final data = await frame.image.toByteData(
+      format: ui.ImageByteFormat.rawRgba,
+    );
     frame.image.dispose();
     codec.dispose();
     if (data == null || w <= 0 || h <= 0) return null;
@@ -117,9 +174,8 @@ Future<List<double>?> columnLuminanceMeans(String absolutePath,
     for (var y = 0; y < h; y++) {
       var row = y * w * 4;
       for (var x = 0; x < w; x++) {
-        means[x] += (px[row] * 0.299 + px[row + 1] * 0.587 +
-                px[row + 2] * 0.114) /
-            h;
+        means[x] +=
+            (px[row] * 0.299 + px[row + 1] * 0.587 + px[row + 2] * 0.114) / h;
         row += 4;
       }
     }
