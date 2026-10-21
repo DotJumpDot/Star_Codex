@@ -1061,3 +1061,19 @@ referer pairing, novel estimate. 165 tests green.
   instantiateImageCodec(targetWidth:) — one-shot per chapter.
 - Crop persists per chapter (reader_crop_ch<id>, empty = off) — NEVER
   global: normal chapters must stay full-width (user requirement).
+
+## 2026-10-21 — OverflowBox in slivers MUST use deferToChild
+
+- The crop window's OverflowBox went all-black on device. Two stacked
+  causes: (1) its own height derives from the minHeight override — `0`
+  under the ListView's unbounded main axis sized the item to zero
+  (fixed by passing the slot's real height into minHeight/maxHeight);
+  (2) the DEFAULT `OverflowBoxFit.max` sizes the box to
+  `constraints.biggest`, which under that same unbounded main axis is
+  INFINITE — a non-finite render-object size paints NOTHING, silently
+  (no exception surfaced under Impeller). Fix: `fit:
+  OverflowBoxFit.deferToChild` → size = child clamped by parent
+  (viewport width × slot height) — exactly the crop window. Verified
+  on the emulator (ch.96 letterbox → full-bleed artwork, scroll
+  intact). Rule: OverflowBox inside a sliver (unbounded main axis)
+  MUST set deferToChild or carry a bounded parent.

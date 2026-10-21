@@ -40,6 +40,10 @@ class ReaderCrop {
   }
 
   @override
+  String toString() => 'ReaderCrop(${zoom.toStringAsFixed(2)}x, '
+      'cropX=${cropX.toStringAsFixed(2)})';
+
+  @override
   bool operator ==(Object other) =>
       other is ReaderCrop &&
       other.zoom.toStringAsFixed(2) == zoom.toStringAsFixed(2) &&

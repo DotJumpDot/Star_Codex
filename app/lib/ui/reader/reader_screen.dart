@@ -2,10 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart'
-    show ScrollCacheExtent;
-import 'package:flutter/services.dart'
-    show SystemChrome, SystemUiMode;
+import 'package:flutter/rendering.dart' show OverflowBoxFit, ScrollCacheExtent;
+import 'package:flutter/services.dart' show SystemChrome, SystemUiMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -140,7 +138,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     _barsHidden = on;
     try {
       await SystemChrome.setEnabledSystemUIMode(
-          on ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge);
+        on ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
+      );
     } catch (_) {}
   }
 
@@ -158,7 +157,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   void initState() {
     super.initState();
     _crop = ReaderCrop.decode(
-        ref.read(settingsProvider).get('reader_crop_ch${widget.chapter.id}', ''));
+      ref.read(settingsProvider).get('reader_crop_ch${widget.chapter.id}', ''),
+    );
     _setImmersive(true);
     if (_keepAwake) _setAwake(true);
     WidgetsBinding.instance.addPostFrameCallback((_) => _open());
@@ -172,16 +172,15 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           .byId(loaded.chapter.seriesId);
       // Doc 10 DoD: reopen resumes at the saved page (±1). Completed
       // chapters restart from the top.
-      final progress =
-          await ref.read(chaptersDaoProvider).progress(loaded.chapter.id!);
+      final progress = await ref
+          .read(chaptersDaoProvider)
+          .progress(loaded.chapter.id!);
       if (!mounted) return;
       setState(() {
         _failed = false;
         _loaded = loaded;
         _seriesTitle = series?.title;
-        _heights = [
-          for (final p in loaded.pages) _estimatedHeight(p),
-        ];
+        _heights = [for (final p in loaded.pages) _estimatedHeight(p)];
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || !_scroll.hasClients) return;
@@ -189,7 +188,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           final offsets = slotOffsets(_heights);
           final idx = progress.pageIndex.clamp(0, offsets.length - 1);
           _scroll.jumpTo(
-              offsets[idx].clamp(0.0, _scroll.position.maxScrollExtent));
+            offsets[idx].clamp(0.0, _scroll.position.maxScrollExtent),
+          );
           _currentPage = idx;
         }
       });
@@ -204,13 +204,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     }
   }
 
-  double _estimatedHeight(ReaderPageRef p) =>
-      p.hasDims
-          ? _slotWidth * p.height! / p.width!
-          : _slotWidth *
-              (_observedAspectCount >= 3
-                  ? _observedAspectSum / _observedAspectCount
-                  : PageSlot.estimatedAspect);
+  double _estimatedHeight(ReaderPageRef p) => p.hasDims
+      ? _slotWidth * p.height! / p.width!
+      : _slotWidth *
+            (_observedAspectCount >= 3
+                ? _observedAspectSum / _observedAspectCount
+                : PageSlot.estimatedAspect);
 
   double get _screenWidth => MediaQuery.sizeOf(context).width;
 
@@ -224,9 +223,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   void _seedPrefetch() {
     final loaded = _loaded;
     if (loaded == null) return;
-    for (var i = 0;
-        i < loaded.pages.length && i <= 5;
-        i++) {
+    for (var i = 0; i < loaded.pages.length && i <= 5; i++) {
       _resolvePage(i);
     }
     _prefetchFrom(0);
@@ -248,20 +245,32 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final existing = _inflight[idx];
     if (existing != null) return existing;
     final loaded = _loaded!;
-    final future = _repo.resolvePage(loaded, idx, onFallback: (sourceId) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(tFmt(
-            context, 'reader.fallback_source', {'source': sourceId})),
-        duration: const Duration(seconds: 2),
-      ));
-    }).then<PageFile>((pf) {
-      _pageFiles[idx] = pf;
-      return pf;
-    }, onError: (Object e) {
-      _inflight.remove(idx);
-      throw e;
-    });
+    final future = _repo
+        .resolvePage(
+          loaded,
+          idx,
+          onFallback: (sourceId) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  tFmt(context, 'reader.fallback_source', {'source': sourceId}),
+                ),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          },
+        )
+        .then<PageFile>(
+          (pf) {
+            _pageFiles[idx] = pf;
+            return pf;
+          },
+          onError: (Object e) {
+            _inflight.remove(idx);
+            throw e;
+          },
+        );
     _inflight[idx] = future;
     return future;
   }
@@ -298,7 +307,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         final delta = exact - _heights[idx];
         if (delta.abs() < 1) return true;
         totalAdjust += heightAnchorDelta(
-            offsets, _heights, idx, delta, _scroll.offset);
+          offsets,
+          _heights,
+          idx,
+          delta,
+          _scroll.offset,
+        );
         return false;
       });
       if (_pendingDims.isEmpty) return;
@@ -328,8 +342,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         // old post-frame clamp, against the relayouted extent.
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted || !_scroll.hasClients) return;
-          final target = (_scroll.offset + totalAdjust)
-              .clamp(0.0, _scroll.position.maxScrollExtent);
+          final target = (_scroll.offset + totalAdjust).clamp(
+            0.0,
+            _scroll.position.maxScrollExtent,
+          );
           if ((target - _scroll.offset).abs() >= 1) _scroll.jumpTo(target);
         });
       }
@@ -338,8 +354,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   bool get _atEnd {
     if (!_scroll.hasClients) return false;
-    return reachedEnd(_scroll.offset, _scroll.position.maxScrollExtent,
-        _scroll.position.viewportDimension);
+    return reachedEnd(
+      _scroll.offset,
+      _scroll.position.maxScrollExtent,
+      _scroll.position.viewportDimension,
+    );
   }
 
   void _onScroll() {
@@ -348,8 +367,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final viewport = _scroll.position.viewportDimension;
     final offsets = slotOffsets(_heights);
 
-    final page = currentPageIndex(
-        offsets, _heights, _scroll.offset, viewport);
+    final page = currentPageIndex(offsets, _heights, _scroll.offset, viewport);
     if (page != _currentPage) {
       setState(() => _currentPage = page);
       _prefetchFrom(page);
@@ -359,7 +377,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     // DB write at 500 ms (partial positions save continuously).
     final now = DateTime.now();
     final completed = reachedEnd(
-        _scroll.offset, _scroll.position.maxScrollExtent, viewport);
+      _scroll.offset,
+      _scroll.position.maxScrollExtent,
+      viewport,
+    );
     if (now.difference(_lastSave) >= const Duration(milliseconds: 500)) {
       _lastSave = now;
       _saveProgress(page, completed: completed);
@@ -391,8 +412,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   Future<void> _onScrollEnd() async {
     final loaded = _loaded;
     if (loaded == null || !_scroll.hasClients) return;
-    if (reachedEnd(_scroll.offset, _scroll.position.maxScrollExtent,
-        _scroll.position.viewportDimension)) {
+    if (reachedEnd(
+      _scroll.offset,
+      _scroll.position.maxScrollExtent,
+      _scroll.position.viewportDimension,
+    )) {
       _saveProgress(_currentPage, completed: true);
     }
     if (!_pull.dragging) return;
@@ -420,9 +444,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   Future<void> _saveProgress(int page, {required bool completed}) async {
     final loaded = _loaded;
     if (loaded == null) return;
-    await persistReaderProgress(ref, loaded.chapter,
-        pageIndex: completed ? loaded.pages.length - 1 : page,
-        completed: completed);
+    await persistReaderProgress(
+      ref,
+      loaded.chapter,
+      pageIndex: completed ? loaded.pages.length - 1 : page,
+      completed: completed,
+    );
   }
 
   /// Chapter switch = replace this route with the same reader, scroll
@@ -448,8 +475,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     if (rescale && anchor != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || !_scroll.hasClients) return;
-        final target =
-            (anchor * ratio).clamp(0.0, _scroll.position.maxScrollExtent);
+        final target = (anchor * ratio).clamp(
+          0.0,
+          _scroll.position.maxScrollExtent,
+        );
         if ((target - _scroll.offset).abs() > 0.5) _scroll.jumpTo(target);
       });
     }
@@ -478,7 +507,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       final crop = win == null ? null : cropForWindow(win.left, win.width);
       if (crop == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(t(context, 'reader.crop.not_found'))));
+          SnackBar(content: Text(t(context, 'reader.crop.not_found'))),
+        );
       } else {
         _applyCrop(crop);
       }
@@ -486,7 +516,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       // Page resolve/decode failure — same contract as a miss.
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(t(context, 'reader.crop.not_found'))));
+          SnackBar(content: Text(t(context, 'reader.crop.not_found'))),
+        );
       }
     } finally {
       if (mounted) setState(() => _cropAutoBusy = false);
@@ -546,8 +577,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         }
         _pinchHiddenPx = newHidden;
         _applyCrop(
-            ReaderCrop(zoom: zoom, cropX: overflow <= 1 ? 0.5 : newHidden / overflow),
-            persist: false);
+          ReaderCrop(
+            zoom: zoom,
+            cropX: overflow <= 1 ? 0.5 : newHidden / overflow,
+          ),
+          persist: false,
+        );
       }
       _pinchLastDist = dist;
       _pinchLastFocal = focal;
@@ -571,11 +606,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         _hDragLast = e.localPosition;
         final overflow = _screenWidth * _crop.zoom - _screenWidth;
         if (overflow > 1) {
-          final newHidden =
-              (_crop.offsetPx(_screenWidth) - d.dx).clamp(0.0, overflow);
+          final newHidden = (_crop.offsetPx(_screenWidth) - d.dx).clamp(
+            0.0,
+            overflow,
+          );
           _applyCrop(
-              ReaderCrop(zoom: _crop.zoom, cropX: newHidden / overflow),
-              persist: false);
+            ReaderCrop(zoom: _crop.zoom, cropX: newHidden / overflow),
+            persist: false,
+          );
         }
       }
     }
@@ -608,14 +646,25 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   /// the cross-axis extent (constraints clamp them), so an OverflowBox
   /// lays the oversized slot out at the zoomed width and the viewport's
   /// own clip crops it — horizontally FIXED (the lock), vertically it
-  /// scrolls with the list.
-  Widget _cropBox(Widget slot) {
+  /// scrolls with the list. The OverflowBox MUST carry the slot's real
+  /// height in minHeight/maxHeight: its own size derives from the min
+  /// overrides, and `0` under the ListView's unbounded height collapsed
+  /// every slot to zero → an all-black screen (user report 2026-10-21).
+  Widget _cropBox(Widget slot, double slotHeight) {
     if (!_crop.active) return slot;
     return OverflowBox(
+      // fit: deferToChild is REQUIRED here — the default
+      // OverflowBoxFit.max sizes the box to constraints.biggest, and
+      // under the ListView's unbounded main axis that is INFINITE → a
+      // non-finite render-object size → the whole slot silently paints
+      // NOTHING (the user's "all black when crop" report, verified on
+      // the emulator 2026-10-21). deferToChild sizes to the child
+      // clamped by the viewport width = the crop window itself.
+      fit: OverflowBoxFit.deferToChild,
       minWidth: _slotWidth,
       maxWidth: _slotWidth,
-      minHeight: 0,
-      maxHeight: double.infinity,
+      minHeight: slotHeight,
+      maxHeight: slotHeight,
       alignment: Alignment(2 * _crop.cropX - 1, -1),
       child: slot,
     );
@@ -624,17 +673,22 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   Future<void> _goTo(Chapter next) async {
     await _saveProgress(_currentPage, completed: _atEnd);
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
-      builder: (_) => ReaderScreen(chapter: next),
-    ));
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(builder: (_) => ReaderScreen(chapter: next)),
+    );
   }
 
   Future<void> _jumpTo(int idx) async {
     final offsets = slotOffsets(_heights);
-    final target = (idx < offsets.length ? offsets[idx] : 0.0)
-        .clamp(0.0, _scroll.position.maxScrollExtent);
-    await _scroll.animateTo(target,
-        duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+    final target = (idx < offsets.length ? offsets[idx] : 0.0).clamp(
+      0.0,
+      _scroll.position.maxScrollExtent,
+    );
+    await _scroll.animateTo(
+      target,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
   }
 
   @override
@@ -688,120 +742,128 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         onPointerUp: (e) => _onPointerUp(e.pointer),
         onPointerCancel: (e) => _onPointerUp(e.pointer),
         child: Stack(
-        children: [
-          if (loaded == null)
-            Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (!_failed) const CircularProgressIndicator(),
-                  if (!_failed) const SizedBox(height: 12),
-                  Text(
+          children: [
+            if (loaded == null)
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!_failed) const CircularProgressIndicator(),
+                    if (!_failed) const SizedBox(height: 12),
+                    Text(
                       _failed
                           ? t(context, 'common.error.title')
                           : t(context, 'common.loading'),
-                      style: const TextStyle(color: Colors.white70)),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.refresh, size: 16),
-                    label: Text(t(context, 'common.retry')),
-                    onPressed: () {
-                      setState(() {
-                        _loaded = null;
-                        _failed = false;
-                      });
-                      _open();
-                    },
-                  ),
-                ],
-              ),
-            )
-          else ...[
-            NotificationListener<ScrollNotification>(
-              onNotification: (n) {
-                if (n is ScrollUpdateNotification) _onScroll();
-                if (n is OverscrollNotification) {
-                  _onOverscroll(n.overscroll);
-                }
-                if (n is ScrollEndNotification) {
-                  // Keep the end-state handling off the notification path
-                  // (it awaits chapter lookups).
-                  _onScrollEnd();
-                }
-                return false;
-              },
-              child: ListView.builder(
-                controller: _scroll,
-                // Frozen while a pinch is active (see _onPointerDown).
-                physics: _pinching
-                    ? const NeverScrollableScrollPhysics()
-                    : null,
-                // ~5 viewports: slots (and their height fix-ups) resolve
-                // well before entering the viewport, so first-read
-                // corrections shift content the user can't see yet.
-                scrollCacheExtent: ScrollCacheExtent.pixels(4500),
-                itemCount: loaded.pages.length,
-                itemBuilder: (context, i) => _cropBox(PageSlot(
-                  ref: loaded.pages[i],
-                  screenWidth: _slotWidth,
-                  resolve: () => _resolvePage(i),
-                  onDimensions: _onDimensions,
-                  // Session memo: a slot rebuilt on the way back up
-                  // renders its image on the FIRST frame — no spinner.
-                  initial: _pageFiles[i],
-                  observedAspect: _observedAspectCount >= 3
-                      ? _observedAspectSum / _observedAspectCount
-                      : null,
-                )),
-              ),
-            ),
-            // Middle-60% tap toggles chrome (doc 10 §6).
-            Positioned.fill(
-              child: Row(
-                children: [
-                  const Expanded(flex: 2, child: SizedBox.expand()),
-                  Expanded(flex: 6, child: _tapZone(() {
-                    setState(() => _chromeVisible = !_chromeVisible);
-                  })),
-                  const Expanded(flex: 2, child: SizedBox.expand()),
-                ],
-              ),
-            ),
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: ReaderChrome(
-                visible: _chromeVisible,
-                title: _seriesTitle ?? widget.chapter.title ?? '',
-                sourceName: loaded.chapter.sourceId,
-                onBack: () => Navigator.of(context).pop(),
-                onTitle: () {
-                  Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) =>
-                        DetailScreen(seriesId: loaded.chapter.seriesId),
-                  ));
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.refresh, size: 16),
+                      label: Text(t(context, 'common.retry')),
+                      onPressed: () {
+                        setState(() {
+                          _loaded = null;
+                          _failed = false;
+                        });
+                        _open();
+                      },
+                    ),
+                  ],
+                ),
+              )
+            else ...[
+              NotificationListener<ScrollNotification>(
+                onNotification: (n) {
+                  if (n is ScrollUpdateNotification) _onScroll();
+                  if (n is OverscrollNotification) {
+                    _onOverscroll(n.overscroll);
+                  }
+                  if (n is ScrollEndNotification) {
+                    // Keep the end-state handling off the notification path
+                    // (it awaits chapter lookups).
+                    _onScrollEnd();
+                  }
+                  return false;
                 },
-                onChapters: () => _openChapterPicker(loaded),
-                onMenu: () =>
-                    _scaffoldKey.currentState?.openEndDrawer(),
-              ),
-            ),
-            if (_pull.dragging)
-              Positioned(
-                bottom: 90,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: PullNextIndicator(
-                    progress: _pull.progress,
-                    armed: _pull.armed,
-                    hasNext: !_nextKnown || _next != null,
+                child: ListView.builder(
+                  controller: _scroll,
+                  // Frozen while a pinch is active (see _onPointerDown).
+                  physics: _pinching
+                      ? const NeverScrollableScrollPhysics()
+                      : null,
+                  // ~5 viewports: slots (and their height fix-ups) resolve
+                  // well before entering the viewport, so first-read
+                  // corrections shift content the user can't see yet.
+                  scrollCacheExtent: ScrollCacheExtent.pixels(4500),
+                  itemCount: loaded.pages.length,
+                  itemBuilder: (context, i) => _cropBox(
+                    PageSlot(
+                      ref: loaded.pages[i],
+                      screenWidth: _slotWidth,
+                      resolve: () => _resolvePage(i),
+                      onDimensions: _onDimensions,
+                      // Session memo: a slot rebuilt on the way back up
+                      // renders its image on the FIRST frame — no spinner.
+                      initial: _pageFiles[i],
+                      observedAspect: _observedAspectCount >= 3
+                          ? _observedAspectSum / _observedAspectCount
+                          : null,
+                    ),
+                    i < _heights.length ? _heights[i] : _screenWidth * 1.9,
                   ),
                 ),
               ),
+              // Middle-60% tap toggles chrome (doc 10 §6).
+              Positioned.fill(
+                child: Row(
+                  children: [
+                    const Expanded(flex: 2, child: SizedBox.expand()),
+                    Expanded(
+                      flex: 6,
+                      child: _tapZone(() {
+                        setState(() => _chromeVisible = !_chromeVisible);
+                      }),
+                    ),
+                    const Expanded(flex: 2, child: SizedBox.expand()),
+                  ],
+                ),
+              ),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: ReaderChrome(
+                  visible: _chromeVisible,
+                  title: _seriesTitle ?? widget.chapter.title ?? '',
+                  sourceName: loaded.chapter.sourceId,
+                  onBack: () => Navigator.of(context).pop(),
+                  onTitle: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            DetailScreen(seriesId: loaded.chapter.seriesId),
+                      ),
+                    );
+                  },
+                  onChapters: () => _openChapterPicker(loaded),
+                  onMenu: () => _scaffoldKey.currentState?.openEndDrawer(),
+                ),
+              ),
+              if (_pull.dragging)
+                Positioned(
+                  bottom: 90,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: PullNextIndicator(
+                      progress: _pull.progress,
+                      armed: _pull.armed,
+                      hasNext: !_nextKnown || _next != null,
+                    ),
+                  ),
+                ),
+            ],
           ],
-        ],
         ),
       ),
     );
@@ -822,14 +884,15 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       canPrev: true,
       canNext: true,
       onPrev: () async {
-        final prev =
-            await _repo.adjacentChapter(loaded.chapter, forward: false);
+        final prev = await _repo.adjacentChapter(
+          loaded.chapter,
+          forward: false,
+        );
         if (!mounted) return;
         if (prev != null) _goTo(prev);
       },
       onNext: () async {
-        final next =
-            await _repo.adjacentChapter(loaded.chapter, forward: true);
+        final next = await _repo.adjacentChapter(loaded.chapter, forward: true);
         if (!mounted) return;
         if (next != null) {
           _goTo(next);
@@ -869,33 +932,37 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   }
 
   Widget _tapZone(VoidCallback onTap) => GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: onTap,
-        child: const SizedBox.expand(),
-      );
+    behavior: HitTestBehavior.translucent,
+    onTap: onTap,
+    child: const SizedBox.expand(),
+  );
 
   /// Persist where we are, then swap this route for the freshly resolved
   /// reader when the mode actually changes screens (no-op otherwise).
   /// [chosen] is the mode JUST picked — SettingsController.set only
   /// publishes after its DB write, so re-reading the provider here can
   /// still see the old value and the swap would silently no-op.
-  Future<void> _applyModeChange(LoadedChapter loaded,
-      {required String chosen}) async {
+  Future<void> _applyModeChange(
+    LoadedChapter loaded, {
+    required String chosen,
+  }) async {
     await _saveProgress(_currentPage, completed: _atEnd);
     if (!mounted) return;
     final settings = ref.read(settingsProvider);
-    await replaceWithResolvedReader(context,
-        chapter: loaded.chapter,
-        current: ReaderMode.webtoon,
-        seriesDao: ref.read(seriesDaoProvider),
-        modeOverride: effectiveModeOverride(
-            chosen, settings.get('reader_mode_default', 'auto')));
+    await replaceWithResolvedReader(
+      context,
+      chapter: loaded.chapter,
+      current: ReaderMode.webtoon,
+      seriesDao: ref.read(seriesDaoProvider),
+      modeOverride: effectiveModeOverride(
+        chosen,
+        settings.get('reader_mode_default', 'auto'),
+      ),
+    );
   }
 
   Future<void> _openChapterPicker(LoadedChapter loaded) async {
-    final vm = await ref
-        .read(seriesRepoProvider)
-        .load(loaded.chapter.seriesId);
+    final vm = await ref.read(seriesRepoProvider).load(loaded.chapter.seriesId);
     if (!mounted) return;
     await showChapterPicker(
       context,
