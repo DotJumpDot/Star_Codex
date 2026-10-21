@@ -161,6 +161,12 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   skeleton loading state, and the first-read scroll-freeze fixes (page
   hashing off the UI isolate, band slicing off Android's main thread).
   223 tests green.
+- 2026-10-21 — Release: v1.2.10 — version 1.2.10+14. Ships the gesture
+  rework: the webtoon crop is a real lock (no drag — sliders/auto-detect
+  only), webtoon pinch is a website-style transient view zoom anchored
+  to your fingers (no shaking, one-finger pan while zoomed, pinch back
+  to reset), and the paged reader never slides while zoomed or during a
+  two-finger pinch. 233 tests green.
 - 2026-10-21 — Crop lock + website-style pinch zoom (user feedback
   round on v1.2.9): (1) the crop is now a REAL lock — the horizontal
   drag/pan gestures were removed (they let the window wander into the
