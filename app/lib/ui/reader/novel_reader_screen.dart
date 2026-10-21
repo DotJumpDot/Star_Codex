@@ -56,8 +56,7 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
 
   ReaderRepo get _repo => ref.read(readerRepoProvider);
 
-  int get _fontSize =>
-      ref.read(settingsProvider).getInt('novel_font_size', 18);
+  int get _fontSize => ref.read(settingsProvider).getInt('novel_font_size', 18);
   double get _lineHeight =>
       ref.read(settingsProvider).getDouble('novel_line_height', 1.7);
   String get _theme => ref.read(settingsProvider).get('novel_theme', 'dark');
@@ -81,11 +80,13 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
   Future<void> _open() async {
     try {
       final text = await _repo.loadNovelText(widget.chapter);
-      final series =
-          await ref.read(seriesDaoProvider).byId(widget.chapter.seriesId);
+      final series = await ref
+          .read(seriesDaoProvider)
+          .byId(widget.chapter.seriesId);
       // page_index stores the scroll PERCENT for novels (doc 11 B).
-      final progress =
-          await ref.read(chaptersDaoProvider).progress(widget.chapter.id!);
+      final progress = await ref
+          .read(chaptersDaoProvider)
+          .progress(widget.chapter.id!);
       if (!mounted) return;
       setState(() {
         _text = text;
@@ -102,8 +103,7 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
           return;
         }
         if (progress != null && !progress.completed && progress.pageIndex > 0) {
-          _scroll
-              .jumpTo((max * progress.pageIndex / 100).clamp(0.0, max));
+          _scroll.jumpTo((max * progress.pageIndex / 100).clamp(0.0, max));
         }
       });
     } catch (e) {
@@ -169,25 +169,32 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
   }
 
   Future<void> _saveProgress(int percent, {required bool completed}) async {
-    await persistReaderProgress(ref, widget.chapter,
-        pageIndex: percent, completed: completed);
+    await persistReaderProgress(
+      ref,
+      widget.chapter,
+      pageIndex: percent,
+      completed: completed,
+    );
   }
 
   Future<void> _goNext() async {
     if (_switching) return;
-    final next =
-        _nextKnown ? _next : await _repo.adjacentChapter(widget.chapter, forward: true);
+    final next = _nextKnown
+        ? _next
+        : await _repo.adjacentChapter(widget.chapter, forward: true);
     if (next != null && mounted) {
       _switching = true;
       await _saveProgress(100, completed: true);
       if (mounted) {
-        Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
-          builder: (_) => NovelReaderScreen(chapter: next),
-        ));
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (_) => NovelReaderScreen(chapter: next),
+          ),
+        );
       }
     } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t(context, 'reader.end'))));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(t(context, 'reader.end'))));
     }
   }
 
@@ -199,9 +206,11 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
       // Same rule as _goNext: land the progress write before the swap.
       await _saveProgress(_percent, completed: _percent >= 97);
       if (mounted) {
-        Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
-          builder: (_) => NovelReaderScreen(chapter: prev),
-        ));
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (_) => NovelReaderScreen(chapter: prev),
+          ),
+        );
       }
     }
   }
@@ -233,13 +242,17 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
                   if (_error == null)
                     const CircularProgressIndicator()
                   else
-                    Icon(Icons.cloud_off, color: colors.fg.withValues(alpha: 0.5)),
+                    Icon(
+                      Icons.cloud_off,
+                      color: colors.fg.withValues(alpha: 0.5),
+                    ),
                   const SizedBox(height: 12),
                   Text(
-                      _error == null
-                          ? t(context, 'common.loading')
-                          : t(context, 'common.error.title'),
-                      style: TextStyle(color: colors.fg.withValues(alpha: 0.7))),
+                    _error == null
+                        ? t(context, 'common.loading')
+                        : t(context, 'common.error.title'),
+                    style: TextStyle(color: colors.fg.withValues(alpha: 0.7)),
+                  ),
                   const SizedBox(height: 12),
                   OutlinedButton.icon(
                     icon: const Icon(Icons.refresh, size: 16),
@@ -291,12 +304,10 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
                         if (_endVisible)
                           Center(
                             child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 24),
+                              padding: const EdgeInsets.symmetric(vertical: 24),
                               child: FilledButton.icon(
                                 icon: const Icon(Icons.skip_next),
-                                label: Text(
-                                    t(context, 'reader.next_chapter')),
+                                label: Text(t(context, 'reader.next_chapter')),
                                 onPressed: _goNext,
                               ),
                             ),
@@ -319,12 +330,15 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
             visible: _chromeVisible,
             fg: colors.fg,
             title: _seriesTitle ?? widget.chapter.title ?? '',
-            subtitle: tFmt(context, 'detail.chapter_number',
-                {'n': formatChapterNumber(widget.chapter.number)}),
+            subtitle: tFmt(context, 'detail.chapter_number', {
+              'n': formatChapterNumber(widget.chapter.number),
+            }),
             onBack: () => Navigator.of(context).pop(),
-            onTitle: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => DetailScreen(seriesId: widget.chapter.seriesId),
-            )),
+            onTitle: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => DetailScreen(seriesId: widget.chapter.seriesId),
+              ),
+            ),
             onChapters: () => _openChapterPicker(),
             onMenu: () => _scaffoldKey.currentState?.openEndDrawer(),
           ),
@@ -359,12 +373,12 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
       onNext: _goNext,
       onChapters: () => _openChapterPicker(),
       onSeek: (v) {
-        final max = _scroll.hasClients
-            ? _scroll.position.maxScrollExtent
-            : 0.0;
-        _scroll.animateTo(max * v,
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOut);
+        final max = _scroll.hasClients ? _scroll.position.maxScrollExtent : 0.0;
+        _scroll.animateTo(
+          max * v,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
       },
       settings: ReaderSettingsBody(
         prefetchAhead: settings.getInt('reader_prefetch_ahead', 6),
@@ -407,17 +421,20 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
     await _saveProgress(_percent, completed: _percent >= 97);
     if (!mounted) return;
     final settings = ref.read(settingsProvider);
-    await replaceWithResolvedReader(context,
-        chapter: widget.chapter,
-        current: ReaderMode.novel,
-        seriesDao: ref.read(seriesDaoProvider),
-        modeOverride: effectiveModeOverride(
-            chosen, settings.get('reader_mode_default', 'auto')));
+    await replaceWithResolvedReader(
+      context,
+      chapter: widget.chapter,
+      current: ReaderMode.novel,
+      seriesDao: ref.read(seriesDaoProvider),
+      modeOverride: effectiveModeOverride(
+        chosen,
+        settings.get('reader_mode_default', 'auto'),
+      ),
+    );
   }
 
   Future<void> _openChapterPicker() async {
-    final vm =
-        await ref.read(seriesRepoProvider).load(widget.chapter.seriesId);
+    final vm = await ref.read(seriesRepoProvider).load(widget.chapter.seriesId);
     if (!mounted) return;
     final current = widget.chapter;
     await showChapterPicker(
@@ -426,9 +443,11 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
       vm: vm,
       current: current,
       onPick: (chapter, sourceId) {
-        Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
-          builder: (_) => NovelReaderScreen(chapter: chapter),
-        ));
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (_) => NovelReaderScreen(chapter: chapter),
+          ),
+        );
       },
     );
   }
@@ -480,15 +499,22 @@ class _NovelTopBar extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                  color: fg, fontWeight: FontWeight.w600)),
-                          Text(subtitle,
-                              style: TextStyle(
-                                  color: fg.withValues(alpha: 0.7),
-                                  fontSize: 11)),
+                          Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: fg,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            subtitle,
+                            style: TextStyle(
+                              color: fg.withValues(alpha: 0.7),
+                              fontSize: 11,
+                            ),
+                          ),
                         ],
                       ),
                     ),

@@ -53,17 +53,22 @@ class ReaderChrome extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                  color: foreground,
-                                  fontWeight: FontWeight.w600)),
                           Text(
-                              '${t(context, 'reader.from_source')} $sourceName',
-                              style: TextStyle(
-                                  color: foreground.withValues(alpha: 0.7),
-                                  fontSize: 11)),
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: foreground,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            '${t(context, 'reader.from_source')} $sourceName',
+                            style: TextStyle(
+                              color: foreground.withValues(alpha: 0.7),
+                              fontSize: 11,
+                            ),
+                          ),
                         ],
                       ),
                     ),

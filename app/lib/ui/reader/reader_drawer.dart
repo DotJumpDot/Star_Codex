@@ -48,22 +48,24 @@ class ReaderControlDrawer extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-              child: Text(t(context, 'reader.controls'),
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w700)),
+              child: Text(
+                t(context, 'reader.controls'),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(pageText,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    fontFeatures: [FontFeature.tabularFigures()],
-                    color: theme.colorScheme.onSurfaceVariant,
-                  )),
+              child: Text(
+                pageText,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontFeatures: [FontFeature.tabularFigures()],
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
             ),
-            Slider(
-              value: progress.clamp(0.0, 1.0),
-              onChanged: onSeek,
-            ),
+            Slider(value: progress.clamp(0.0, 1.0), onChanged: onSeek),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(

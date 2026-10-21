@@ -43,7 +43,7 @@ class ReaderSettingsBody extends StatefulWidget {
   final bool autoNext;
   final bool rtl;
   final void Function(int prefetch, bool awake, bool autoNext, bool rtl)
-      onChanged;
+  onChanged;
 
   /// Current override: auto|webtoon|paged|novel (null hides the section).
   final String? mode;
@@ -55,7 +55,7 @@ class ReaderSettingsBody extends StatefulWidget {
   final String novelTheme;
   final double bgOpacity;
   final void Function(int font, double line, String theme, double opacity)?
-      onNovelChanged;
+  onNovelChanged;
 
   /// Webtoon-only screen-crop controls (letterboxed chapters). Non-null
   /// [crop] shows the section.
@@ -94,8 +94,10 @@ class _ReaderSettingsBodyState extends State<ReaderSettingsBody> {
         if (widget.onMode != null) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Text(t(context, 'reader.mode'),
-                style: Theme.of(context).textTheme.labelLarge),
+            child: Text(
+              t(context, 'reader.mode'),
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
           ),
           RadioGroup<String>(
             groupValue: mode,
@@ -128,8 +130,10 @@ class _ReaderSettingsBodyState extends State<ReaderSettingsBody> {
         SwitchListTile(
           dense: true,
           title: Text(t(context, 'reader.auto_next')),
-          subtitle: Text(t(context, 'reader.auto_next_hint'),
-              style: Theme.of(context).textTheme.labelSmall),
+          subtitle: Text(
+            t(context, 'reader.auto_next_hint'),
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
           value: next,
           onChanged: (v) {
             setState(() => next = v);
@@ -165,14 +169,19 @@ class _ReaderSettingsBodyState extends State<ReaderSettingsBody> {
           const Divider(),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Text(t(context, 'reader.crop.title'),
-                style: Theme.of(context).textTheme.labelLarge),
+            child: Text(
+              t(context, 'reader.crop.title'),
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-            child: Text(t(context, 'reader.crop.position_hint'),
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            child: Text(
+              t(context, 'reader.crop.position_hint'),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
           ),
           ListTile(
             dense: true,
@@ -184,7 +193,8 @@ class _ReaderSettingsBodyState extends State<ReaderSettingsBody> {
               label: '${widget.crop!.zoom.toStringAsFixed(1)}×',
               value: widget.crop!.zoom.clamp(1.0, 3.0),
               onChanged: (v) => widget.onCrop!(
-                  ReaderCrop(zoom: v, cropX: widget.crop!.cropX)),
+                ReaderCrop(zoom: v, cropX: widget.crop!.cropX),
+              ),
             ),
             trailing: Text('${widget.crop!.zoom.toStringAsFixed(1)}×'),
           ),
@@ -199,11 +209,12 @@ class _ReaderSettingsBodyState extends State<ReaderSettingsBody> {
               label: widget.crop!.cropX < 0.33
                   ? t(context, 'reader.crop.position_left')
                   : widget.crop!.cropX > 0.67
-                      ? t(context, 'reader.crop.position_right')
-                      : t(context, 'reader.crop.position_center'),
+                  ? t(context, 'reader.crop.position_right')
+                  : t(context, 'reader.crop.position_center'),
               onChanged: widget.crop!.zoom > 1.01
                   ? (v) => widget.onCrop!(
-                      ReaderCrop(zoom: widget.crop!.zoom, cropX: v))
+                      ReaderCrop(zoom: widget.crop!.zoom, cropX: v),
+                    )
                   : null,
             ),
             trailing: const Icon(Icons.swap_horiz, size: 18),
@@ -222,16 +233,14 @@ class _ReaderSettingsBodyState extends State<ReaderSettingsBody> {
                           )
                         : const Icon(Icons.crop_free, size: 18),
                     label: Text(t(context, 'reader.crop.auto')),
-                    onPressed:
-                        widget.cropAutoBusy ? null : widget.onCropAuto,
+                    onPressed: widget.cropAutoBusy ? null : widget.onCropAuto,
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextButton(
                     onPressed: widget.crop!.active
-                        ? () =>
-                            widget.onCrop!(const ReaderCrop())
+                        ? () => widget.onCrop!(const ReaderCrop())
                         : null,
                     child: Text(t(context, 'reader.crop.reset')),
                   ),
@@ -294,15 +303,18 @@ class _ReaderSettingsBodyState extends State<ReaderSettingsBody> {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             child: Row(
               children: [
-                Text(t(context, 'reader.novel.theme'),
-                    style: Theme.of(context).textTheme.labelLarge),
+                Text(
+                  t(context, 'reader.novel.theme'),
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
                 const Spacer(),
                 SegmentedButton<String>(
                   segments: [
                     for (final tKey in const ['light', 'sepia', 'dark'])
                       ButtonSegment(
-                          value: tKey,
-                          label: Text(t(context, 'reader.novel.$tKey'))),
+                        value: tKey,
+                        label: Text(t(context, 'reader.novel.$tKey')),
+                      ),
                   ],
                   selected: {theme},
                   onSelectionChanged: (v) {

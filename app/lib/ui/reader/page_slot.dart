@@ -125,22 +125,23 @@ class _PageSlotState extends ConsumerState<PageSlot> {
                     ExtendedImage.file(
                       File('${dir.path}/${b.path}'),
                       width: widget.screenWidth,
-                      height: (b.width != null &&
-                              b.height != null &&
-                              b.width! > 0)
+                      height:
+                          (b.width != null && b.height != null && b.width! > 0)
                           ? widget.screenWidth * b.height! / b.width!
                           : widget.screenWidth * 2,
                       fit: BoxFit.fitWidth,
                       clearMemoryCacheWhenDispose: false,
                       cacheWidth: _cacheWidthFor(b.width, context),
-                      loadStateChanged: (state) => state
-                                  .extendedImageLoadState ==
-                              LoadState.loading
+                      loadStateChanged: (state) =>
+                          state.extendedImageLoadState == LoadState.loading
                           ? _placeholderBox(
                               context,
-                              (b.width != null && b.height != null && b.width! > 0)
+                              (b.width != null &&
+                                      b.height != null &&
+                                      b.width! > 0)
                                   ? widget.screenWidth * b.height! / b.width!
-                                  : widget.screenWidth * 2)
+                                  : widget.screenWidth * 2,
+                            )
                           : null,
                     ),
                 ],
@@ -179,17 +180,19 @@ class _PageSlotState extends ConsumerState<PageSlot> {
                 right: 8,
                 top: 8,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black54,
                     borderRadius: BorderRadius.circular(999),
                   ),
-                  child: Text(widget.errorBadge!,
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelSmall
-                          ?.copyWith(color: Colors.white)),
+                  child: Text(
+                    widget.errorBadge!,
+                    style: Theme.of(context).textTheme.labelSmall
+                        ?.copyWith(color: Colors.white),
+                  ),
                 ),
               ),
           ],
@@ -203,8 +206,7 @@ class _PageSlotState extends ConsumerState<PageSlot> {
   /// decode ~1.7× the pixels for zero sharpness and showed up as fling
   /// jank on manhwa chapters (user report 2026-10-21).
   int _cacheWidthFor(int? sourceWidth, BuildContext context) {
-    final screen = (widget.screenWidth *
-            MediaQuery.devicePixelRatioOf(context))
+    final screen = (widget.screenWidth * MediaQuery.devicePixelRatioOf(context))
         .round();
     if (sourceWidth != null && sourceWidth > 0) {
       return sourceWidth < screen ? sourceWidth : screen;
@@ -212,46 +214,46 @@ class _PageSlotState extends ConsumerState<PageSlot> {
     return screen;
   }
 
-  Widget _placeholder(BuildContext context) => _placeholderBox(      context,
-      widget.ref.hasDims
-          ? _reservedHeight
-          : widget.screenWidth * widget._aspect);
+  Widget _placeholder(BuildContext context) => _placeholderBox(
+    context,
+    widget.ref.hasDims ? _reservedHeight : widget.screenWidth * widget._aspect,
+  );
 
   Widget _placeholderBox(BuildContext context, double height) => Container(
-        width: widget.screenWidth,
-        height: height,
-        color: Colors.white10,
-        alignment: Alignment.center,
-        child: const SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      );
+    width: widget.screenWidth,
+    height: height,
+    color: Colors.white10,
+    alignment: Alignment.center,
+    child: const SizedBox(
+      width: 22,
+      height: 22,
+      child: CircularProgressIndicator(strokeWidth: 2),
+    ),
+  );
 
   Widget _errorSlot(BuildContext context) => Container(
-        width: widget.screenWidth,
-        height: _reservedHeight,
-        color: Colors.white10,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.cloud_off, color: Colors.white54, size: 28),
-            const SizedBox(height: 8),
-            Text(t(context, 'reader.error_page'),
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: Colors.white70)),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.refresh, size: 16),
-              label: Text(t(context, 'common.retry')),
-              onPressed: () => setState(() {
-                _future = _load();
-              }),
-            ),
-          ],
+    width: widget.screenWidth,
+    height: _reservedHeight,
+    color: Colors.white10,
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.cloud_off, color: Colors.white54, size: 28),
+        const SizedBox(height: 8),
+        Text(
+          t(context, 'reader.error_page'),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: Colors.white70),
         ),
-      );
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.refresh, size: 16),
+          label: Text(t(context, 'common.retry')),
+          onPressed: () => setState(() {
+            _future = _load();
+          }),
+        ),
+      ],
+    ),
+  );
 }

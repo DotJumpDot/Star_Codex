@@ -40,12 +40,14 @@ Future<void> showChapterPicker(
           final filtered = q.isEmpty
               ? numbers
               : numbers
-                  .where((n) =>
-                      formatChapterNumber(n).contains(q) ||
-                      (vm.chaptersByNumber[n]!.first.title ?? '')
-                          .toLowerCase()
-                          .contains(q.toLowerCase()))
-                  .toList(growable: false);
+                    .where(
+                      (n) =>
+                          formatChapterNumber(n).contains(q) ||
+                          (vm.chaptersByNumber[n]!.first.title ?? '')
+                              .toLowerCase()
+                              .contains(q.toLowerCase()),
+                    )
+                    .toList(growable: false);
           return SizedBox(
             height: MediaQuery.of(sheetContext).size.height * 0.75,
             child: Column(
@@ -60,7 +62,8 @@ Future<void> showChapterPicker(
                       prefixIcon: const Icon(Icons.search, size: 20),
                       hintText: t(sheetContext, 'detail.search_chapters'),
                       border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20)),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
                     ),
                   ),
                 ),
@@ -70,29 +73,40 @@ Future<void> showChapterPicker(
                     itemBuilder: (context, i) {
                       final number = filtered[i];
                       final copies = vm.chaptersByNumber[number]!;
-                      final isCurrent = copies
-                          .any((c) => c.sourceId == current.sourceId && (c.id == current.id));
+                      final isCurrent = copies.any(
+                        (c) =>
+                            c.sourceId == current.sourceId &&
+                            (c.id == current.id),
+                      );
                       return ListTile(
                         dense: true,
                         selected: isCurrent,
                         leading: isCurrent
-                            ? Icon(Icons.play_arrow,
+                            ? Icon(
+                                Icons.play_arrow,
                                 size: 18,
-                                color: Theme.of(context).colorScheme.primary)
+                                color: Theme.of(context).colorScheme.primary,
+                              )
                             : null,
-                        title: Text(tFmt(sheetContext, 'detail.chapter_number',
-                            {'n': formatChapterNumber(number)})),
+                        title: Text(
+                          tFmt(sheetContext, 'detail.chapter_number', {
+                            'n': formatChapterNumber(number),
+                          }),
+                        ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             for (final link in vm.links)
-                              if (copies
-                                  .any((c) => c.sourceId == link.sourceId))
+                              if (copies.any(
+                                (c) => c.sourceId == link.sourceId,
+                              ))
                                 Padding(
                                   padding: const EdgeInsets.only(left: 3),
                                   child: SourceDot(
-                                      color: sourceDotColor(
-                                          registryIndex(link.sourceId))),
+                                    color: sourceDotColor(
+                                      registryIndex(link.sourceId),
+                                    ),
+                                  ),
                                 ),
                           ],
                         ),

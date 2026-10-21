@@ -24,10 +24,10 @@ ReaderMode resolveReaderMode(String? type, String? override) {
 }
 
 ReaderMode readerModeForType(String? type) => switch (type) {
-      'manga' => ReaderMode.paged,
-      'novel' => ReaderMode.novel,
-      _ => ReaderMode.webtoon,
-    };
+  'manga' => ReaderMode.paged,
+  'novel' => ReaderMode.novel,
+  _ => ReaderMode.webtoon,
+};
 
 /// Doc 14 default-mode setting: the per-series override wins; 'auto' falls
 /// through to the global default (`reader_mode_default`) and then the
@@ -49,13 +49,15 @@ Future<void> openReader(
   final series = await seriesDao.byId(chapter.seriesId);
   final mode = resolveReaderMode(series?.type, modeOverride);
   if (!context.mounted) return;
-  await Navigator.of(context).push(MaterialPageRoute<void>(
-    builder: (_) => switch (mode) {
-      ReaderMode.webtoon => ReaderScreen(chapter: chapter),
-      ReaderMode.paged => PagedReaderScreen(chapter: chapter),
-      ReaderMode.novel => NovelReaderScreen(chapter: chapter),
-    },
-  ));
+  await Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => switch (mode) {
+        ReaderMode.webtoon => ReaderScreen(chapter: chapter),
+        ReaderMode.paged => PagedReaderScreen(chapter: chapter),
+        ReaderMode.novel => NovelReaderScreen(chapter: chapter),
+      },
+    ),
+  );
 }
 
 /// Mode flips apply to the OPEN reader, not just the next chapter (user
@@ -73,11 +75,13 @@ Future<void> replaceWithResolvedReader(
   final series = await seriesDao.byId(chapter.seriesId);
   final mode = resolveReaderMode(series?.type, modeOverride);
   if (mode == current || !context.mounted) return;
-  await Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
-    builder: (_) => switch (mode) {
-      ReaderMode.webtoon => ReaderScreen(chapter: chapter),
-      ReaderMode.paged => PagedReaderScreen(chapter: chapter),
-      ReaderMode.novel => NovelReaderScreen(chapter: chapter),
-    },
-  ));
+  await Navigator.of(context).pushReplacement(
+    MaterialPageRoute<void>(
+      builder: (_) => switch (mode) {
+        ReaderMode.webtoon => ReaderScreen(chapter: chapter),
+        ReaderMode.paged => PagedReaderScreen(chapter: chapter),
+        ReaderMode.novel => NovelReaderScreen(chapter: chapter),
+      },
+    ),
+  );
 }

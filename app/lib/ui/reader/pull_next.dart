@@ -69,13 +69,13 @@ class PullNextIndicator extends StatelessWidget {
     final IconData arrow = !hasNext
         ? Icons.done_all
         : horizontal
-            ? (rtl ? Icons.arrow_back : Icons.arrow_forward)
-            : Icons.arrow_downward;
+        ? (rtl ? Icons.arrow_back : Icons.arrow_forward)
+        : Icons.arrow_downward;
     final label = !hasNext
         ? t(context, 'reader.end')
         : armed
-            ? t(context, 'reader.pull_release')
-            : t(context, 'reader.pull_more');
+        ? t(context, 'reader.pull_release')
+        : t(context, 'reader.pull_more');
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -95,16 +95,20 @@ class PullNextIndicator extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(arrow,
-                  size: 20,
-                  color: armed && hasNext ? scheme.primary : Colors.white70),
+              Icon(
+                arrow,
+                size: 20,
+                color: armed && hasNext ? scheme.primary : Colors.white70,
+              ),
               const SizedBox(width: 8),
-              Text(label,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: armed && hasNext ? FontWeight.w700 : null,
-                  )),
+              Text(
+                label,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: armed && hasNext ? FontWeight.w700 : null,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -118,7 +122,8 @@ class PullNextIndicator extends StatelessWidget {
                   value: hasNext ? progress.clamp(0.0, 1.0) : 1,
                   backgroundColor: Colors.white24,
                   valueColor: AlwaysStoppedAnimation(
-                      armed && hasNext ? scheme.primary : Colors.white60),
+                    armed && hasNext ? scheme.primary : Colors.white60,
+                  ),
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
@@ -132,9 +137,7 @@ class PullNextIndicator extends StatelessWidget {
                   '${(progress.clamp(0.0, 1.0) * 100).round()}%',
                   textAlign: TextAlign.right,
                   style: TextStyle(
-                    color: armed && hasNext
-                        ? scheme.primary
-                        : Colors.white60,
+                    color: armed && hasNext ? scheme.primary : Colors.white60,
                     fontSize: 12,
                     fontWeight: armed && hasNext ? FontWeight.w700 : null,
                   ),

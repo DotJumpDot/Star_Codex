@@ -53,8 +53,7 @@ double heightAnchorDelta(
 
 /// Completed when the scroll is within one viewport of the max extent
 /// (doc 10 §5 "completed" rule).
-bool reachedEnd(
-    double scrollOffset, double maxExtent, double viewportHeight) {
+bool reachedEnd(double scrollOffset, double maxExtent, double viewportHeight) {
   if (maxExtent <= 0) return false;
   return scrollOffset >= maxExtent - viewportHeight;
 }
