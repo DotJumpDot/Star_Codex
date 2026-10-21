@@ -161,6 +161,13 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   skeleton loading state, and the first-read scroll-freeze fixes (page
   hashing off the UI isolate, band slicing off Android's main thread).
   223 tests green.
+- 2026-10-21 — Release: v1.2.9 — version 1.2.9+13. Fixes v1.2.8's
+  broken screen crop (all-black screen whenever the crop applied):
+  the crop window's OverflowBox sized itself infinite under the
+  scroll list's unbounded constraints and painted nothing — now uses
+  OverflowBoxFit.deferToChild. Emulator-verified: crop, pinch zoom,
+  drawer zoom, and drag-to-select all render correctly on the
+  letterboxed dark-manga ch.96. 228 tests green.
 - 2026-10-21 — Release: v1.2.8 — version 1.2.8+12. Ships the webtoon
   per-chapter screen crop: pinch to zoom, drag horizontally (one or two
   fingers) to select where to crop, locked to vertical scrolling while
