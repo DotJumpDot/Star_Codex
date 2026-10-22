@@ -719,3 +719,12 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   source** (user request: all sites open by default — the ladder made
   the two seed-disabled doujin sites reachable). 265 tests green (11
   new ladder tests), analyze clean.
+- 2026-10-23 — Fix: hentaithai feed paging. The homepage is only a
+  landing page — the real feed is the /page-<N> chain its "see all"
+  button points at (descending page numbers, 24 threads each, probed
+  live: /page-1814 = t51966..t51943). latest() now learns N once per
+  session and walks down for page 2, 3, … (live-verified: four
+  contiguous pages t51966→t51871); feed cards are a different markup
+  family (a.col-6.col-md-3 + style-block cover) parsed alongside the
+  old landing grid. The user-seen /prev-/next- links are per-thread JS
+  navigation, not pagination. 266 tests green.

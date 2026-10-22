@@ -133,13 +133,20 @@ carry stamps, so `recentStamps()` is a no-op here.
 
 A forum-style community site, not WordPress:
 
-- listing: the homepage grid only (`a.number-even` / `a.number-odd` cards;
-  the full title rides in the `title` attribute, the thread link is
-  `/t<id>`). `/page/N` 404s, so `latest()` is a single page and paging
-  honestly returns empty.
+- listing: the homepage is a LANDING page (30 `a.number-even`/`odd`
+  cards + a "see all" button). The real feed is the `/page-<N>` chain
+  that button points at (2026-10-23): `/page-1814` = newest 24 threads,
+  `/page-1813` the next-older 24 — descending page numbers. `latest()`
+  learns N from the homepage link once per session and walks down;
+  feed cards are `a.col-6.col-md-3` (title attr, style-block cover) —
+  a different family from the landing grid. The `/prev-<id>` /
+  `/next-<id>` links are per-thread JS navigation that 404 on direct
+  GET, not pagination.
 - search: not supported (the site uses a Google CSE form).
 - the thread page IS detail + reader in one: every page image is inline
   (`img[src*="hentaithai.net/"]` on the s1 CDN). One-shot → one chapter.
+- tag browse (`/tag-<id>`) shares the col-6 card family but exposes no
+  server-side pagination — page 1 only.
 
 ### miku-doujin.com — `app/lib/data/sources/miku/`
 

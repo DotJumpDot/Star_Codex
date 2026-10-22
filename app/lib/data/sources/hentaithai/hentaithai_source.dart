@@ -9,10 +9,17 @@ import '../source_api.dart';
 /// Adapter for hentaithai.net (added 2026-10-19, adult scope). A
 /// forum-style community site — NOT WordPress. Probed structure:
 ///
-/// - listing: homepage grid only (`a.number-even` / `a.number-odd` cards;
-///   the full title rides in the `title` attribute, thread link is
-///   `/t<id>`). `/page/N` 404s → latest() is a single page; paging
-///   returns empty (feed stays honest).
+/// - listing: the homepage is a LANDING page (30 `a.number-even` /
+///   `a.number-odd` cards + a "see all" button). The real feed is the
+///   `/page-<N>` chain the button points at (2026-10-23 probe:
+///   `/page-1814` = newest 24 threads, `/page-1813` the next-older 24,
+///   descending page numbers, ascending thread ids t51943–t51966).
+///   latest(page) walks that chain: page 1 learns N from the homepage
+///   link, page k fetches `/page-(N-k+1)`; past the end returns empty.
+///   Feed cards are `a.col-6.col-md-3` (title in the attr, cover in a
+///   sibling `<style>` background) — a DIFFERENT family from the
+///   landing grid. The user-seen `/prev-<id>`//`/next-<id>` links are
+///   per-thread JS navigation that 404 on direct GET — not pagination.
 /// - search: NOT supported (the site's own search is a Google CSE form).
 /// - thread page = detail + reader in one: every page image is inline
 ///   (`img[src*="hentaithai.net/"]` on the s1 CDN). TWO page-image
@@ -24,6 +31,13 @@ class HentaiThaiSource implements Source {
   HentaiThaiSource(this.http);
 
   final SafeHttp http;
+
+  /// Newest `/page-N` listing number, learned once from the homepage
+  /// "see all" link and reused for the whole session (newest only ever
+  /// grows, so a cached N stays a valid walk start; a mid-session new
+  /// thread just makes page 1 one thread stale — same drift as every
+  /// other source's TTL).
+  int? _newestListingPage;
 
   @override
   String get id => 'hentaithai';
@@ -50,10 +64,45 @@ class HentaiThaiSource implements Source {
     int page = 1,
     bool popular = false,
   }) async {
-    if (page > 1) return const []; // single-page homepage feed (probed)
-    final body = await _fetch(Uri.parse('$baseUrl/'));
-    if (_looksLikeCloudflare(body)) throw SourceException.cloudflare(id);
-    return parseHentaiThaiListing(body);
+    final newest = _newestListingPage ?? await _learnNewestPage();
+    if (newest == null) {
+      // Redesign fallback: no /page-N link on the homepage — keep the
+      // old landing-grid behavior (30 cards, single page).
+      if (page > 1) return const [];
+      final body = await _fetch(Uri.parse('$baseUrl/'));
+      if (_looksLikeCloudflare(body)) throw SourceException.cloudflare(id);
+      return parseHentaiThaiListing(body);
+    }
+    final target = newest - (page - 1);
+    if (target < 1) return const []; // walked past the oldest page
+    try {
+      final body = await _fetch(Uri.parse('$baseUrl/page-$target'));
+      if (_looksLikeCloudflare(body)) throw SourceException.cloudflare(id);
+      return parseHentaiThaiFeedListing(body);
+    } on SourceException catch (e) {
+      // A cached N can outlive the site's own history window: pages
+      // beyond the end are a clean empty, not an error (page 1 failing
+      // is still a real error).
+      if (e.kind == SourceErrorKind.notFound && page > 1) return const [];
+      rethrow;
+    }
+  }
+
+  /// The homepage's "see all" button links the current newest
+  /// `/page-N` listing page. Returns null when the link is gone.
+  Future<int?> _learnNewestPage() async {
+    final home = await _fetch(Uri.parse('$baseUrl/'));
+    if (_looksLikeCloudflare(home)) throw SourceException.cloudflare(id);
+    final doc = html_parser.parse(home);
+    for (final a in doc.querySelectorAll('a[href*="/page-"]')) {
+      final m =
+          RegExp(r'/page-(\d+)').firstMatch(a.attributes['href'] ?? '');
+      if (m != null) {
+        _newestListingPage = int.parse(m.group(1)!);
+        return _newestListingPage;
+      }
+    }
+    return null;
   }
 
   @override
@@ -137,9 +186,26 @@ class HentaiThaiSource implements Source {
 
 @visibleForTesting
 List<SourceSeries> parseHentaiThaiListing(String body) {
+  return _parseCards(body, 'a.number-even, a.number-odd');
+}
+
+/// The /page-N feed listing (2026-10-23 probe): 24 cards per page, a
+/// DIFFERENT family from the landing grid — `a.col-6.col-md-3`, title in
+/// the attribute, cover + upload date in the sibling `<style>` block.
+@visibleForTesting
+List<SourceSeries> parseHentaiThaiFeedListing(String body) {
+  return _parseCards(body, 'a.col-6.col-md-3');
+}
+
+/// Shared card walk: both hentaithai listing families carry the thread
+/// URL in href (`//hentaithai.net/t<id>`, mixed host case), the title in
+/// the `title` attribute, and NO <img>/date — the cover is the CDN
+/// background-image in the card's preceding <style> block, whose path
+/// embeds the upload date (/thai/2026/2026-10-10/…, /image/2026/…).
+List<SourceSeries> _parseCards(String body, String selector) {
   final doc = html_parser.parse(body);
   final out = <SourceSeries>[];
-  for (final a in doc.querySelectorAll('a.number-even, a.number-odd')) {
+  for (final a in doc.querySelectorAll(selector)) {
     final href = a.attributes['href'] ?? '';
     final title = (a.attributes['title'] ?? '').trim();
     if (href.isEmpty || title.isEmpty) continue;

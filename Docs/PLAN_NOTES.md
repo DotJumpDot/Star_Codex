@@ -1351,3 +1351,33 @@ non-CF-server 403 without body markers stays a real 403.
 - `tool/waf_probe.dart` answers "which sites block us right now" through
   the app's own stack (on desktop the cronet/webview tiers are
   unavailable — ladder-escalated hosts report FAIL there).
+
+## 2026-10-23 — Hentaithai /page-N feed chain (paging fix)
+
+User report: "hentaithai loads only the home page, can't scroll more."
+Root cause: the homepage is a LANDING page (30 `a.number-even/odd`
+cards + a "→ คลิ๊ก...เพื่อดูทั้งหมด ←" button); the v1-era note
+"(/page/N 404s → single page)" had confused the slash form with the real
+scheme. The actual feed is the `/page-<N>` chain the button points at:
+`/page-1814` = newest 24 threads (t51943–t51966), `/page-1813` the
+next-older 24 — DESCENDING page numbers, discovered live 2026-10-23.
+
+- `latest(page)` learns N once per adapter instance from the homepage
+  see-all link, then page k fetches `/page-(N-k+1)`; past the end →
+  empty. Live walk verified pages 1–4 (t51966 → t51871, contiguous).
+- Feed cards are a SECOND markup family: `a.col-6.col-md-3` (vs the
+  landing grid's number-even/odd) — same payload shape (title attr,
+  href `//hentaithai.net/t<id>` with mixed host case, cover + upload
+  date in the sibling `<style>` background). One `_parseCards(body,
+  selector)` serves both parsers.
+- The `/prev-<id>`/`/next-<id>` URLs the user saw routed through are
+  per-thread JS navigation that 404 on direct GET — NOT pagination.
+- `browseGenre` (tag pages) shares the col-6 family but has no
+  server-side pagination — stays page-1-only.
+- STALENESS: a cached N survives the session; a thread posted
+  mid-session shifts page 1 by one — same drift as every other
+  source's TTL refresh.
+- TOOLING: since the WAF ladder, `core/net` pulls in Flutter
+  (`webview_gate`), so bare `dart run tool/*.dart` probes NO LONGER
+  COMPILE — run live probes through the Flutter test harness
+  (plain `test()` + real awaits) or on-device.

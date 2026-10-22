@@ -100,6 +100,30 @@ Future<void> main() async {
       expect(items.first.title, isNotEmpty);
     });
 
+    test('/page-N feed listing (2026-10-23 probe): col-6 card family, '
+        '24 per page, newest-first, cover + date from the style block',
+        () async {
+      final items =
+          parseHentaiThaiFeedListing(await fixture('ht_feed_page.html'));
+      expect(items, hasLength(24),
+          reason: 'the /page-N listing renders exactly 24 cards');
+      expect(items.first.url, 'https://hentaithai.net/t51966',
+          reason: 'the feed page is newest-first');
+      for (var i = 1; i < items.length; i++) {
+        final prev = int.parse(
+            items[i - 1].url.split('/t').last.split(RegExp(r'[^0-9]')).first);
+        final cur = int.parse(
+            items[i].url.split('/t').last.split(RegExp(r'[^0-9]')).first);
+        expect(prev, greaterThan(cur),
+            reason: 'thread ids descend down the page');
+      }
+      expect(items.first.coverUrl, isNotNull,
+          reason: 'cover = the sibling <style> background');
+      expect(items.first.coverUrl, contains('s1.hentaithai.net'));
+      expect(items.first.lastUpdatedMs, isNotNull,
+          reason: 'the CDN path carries the upload date');
+    });
+
     test('listing cards carry the CDN-path upload date (2026-10-21 probe: '
         'no <time> stamps anywhere — the date lives only in the image path)',
         () async {
