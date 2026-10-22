@@ -140,7 +140,7 @@ Requires Android 7.0+ (API 24).
 > **Upgrading from a debug/test build?** Uninstall it first — release
 > builds are signed with a different key.
 
-See [what changed in v1.3.0](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.3.0).
+See [what changed in v1.3.1](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.3.1).
 
 ## 🛠️ Tech stack
 
@@ -153,7 +153,7 @@ See [what changed in v1.3.0](https://github.com/DotJumpDot/Star_Codex/releases/t
   loading never stutters scrolling
 - **Scraping** — `html` parser for the Madara/ts/classic themes and the
   custom engines; JSON POST API for nekopost
-- **243 tests**, `flutter analyze` clean
+- **253 tests**, `flutter analyze` clean
 
 ## 🔨 Build from source
 
@@ -196,15 +196,17 @@ Star_Codex/
 
 ## 📜 Status
 
-**v1.3.0 (2026-10-22)** — all 11 build phases complete, and the browse
-feed now matches the websites: page 1 of the feed is built from each
-site's own recent-updates grid (the site's order + its live "x minutes
-ago" labels), stale card dates are re-checked every 6 h instead of
-freezing at the first read, and cards fill their leftover space with
-the series intro. Plus the reader gesture work (real per-chapter crop
-lock, website-style pinch zoom) from v1.2.10. On-device QA verified;
-every batch landed as a commit with a `- [x] item complete` checklist
-(see [CHANGELOG.md](./CHANGELOG.md) for the full history).
+**v1.3.1 (2026-10-22)** — bug-fix release on top of the v1.3.0 feed work.
+The chapter list now shows each chapter's read state in front of the
+title (hollow = never opened, solid = on reading, solid with a check =
+finished — both colors follow the active theme, and opening a chapter
+for a couple of seconds counts as "on reading"). The reader header
+stays hidden when you pull to the next chapter instead of popping back.
+hentaithai.com threads whose pages are served under the `/image/…` CDN
+layout now open instead of failing with "can't load the detail page".
+All 11 build phases are complete; every batch landed as a commit with a
+`- [x] item complete` checklist (see [CHANGELOG.md](./CHANGELOG.md) for
+the full history).
 
 ## ⚠️ Disclaimer
 

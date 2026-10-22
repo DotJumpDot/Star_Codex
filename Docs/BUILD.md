@@ -84,7 +84,7 @@ pubspec value:
 
 ```dart
 // app/lib/ui/settings/settings_storage_sources.dart
-static const appVersion = '1.3.0';
+static const appVersion = '1.3.1';
 ```
 
 Bump both, or the app keeps advertising the old version.

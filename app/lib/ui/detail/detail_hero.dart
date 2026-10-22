@@ -237,9 +237,9 @@ class DetailActionRow extends ConsumerWidget {
               ),
               onPressed: target == null
                   ? null
-                  : () {
+                  : () async {
                       final settings = ref.read(settingsProvider);
-                      openReader(
+                      await openReader(
                         context,
                         chapter: target.chapter,
                         sourceId: target.sourceId,
@@ -252,6 +252,11 @@ class DetailActionRow extends ConsumerWidget {
                           settings.get('reader_mode_default', 'auto'),
                         ),
                       );
+                      // Show the chapter's new state on return.
+                      if (!context.mounted) return;
+                      await ref
+                          .read(detailControllerProvider(controllerKey).notifier)
+                          .refreshProgress();
                     },
             ),
           ),

@@ -71,6 +71,7 @@ Future<void> replaceWithResolvedReader(
   required ReaderMode current,
   required SeriesDao seriesDao,
   String? modeOverride,
+  bool chromeVisible = true,
 }) async {
   final series = await seriesDao.byId(chapter.seriesId);
   final mode = resolveReaderMode(series?.type, modeOverride);
@@ -78,9 +79,12 @@ Future<void> replaceWithResolvedReader(
   await Navigator.of(context).pushReplacement(
     MaterialPageRoute<void>(
       builder: (_) => switch (mode) {
-        ReaderMode.webtoon => ReaderScreen(chapter: chapter),
-        ReaderMode.paged => PagedReaderScreen(chapter: chapter),
-        ReaderMode.novel => NovelReaderScreen(chapter: chapter),
+        ReaderMode.webtoon =>
+          ReaderScreen(chapter: chapter, chromeVisible: chromeVisible),
+        ReaderMode.paged =>
+          PagedReaderScreen(chapter: chapter, chromeVisible: chromeVisible),
+        ReaderMode.novel =>
+          NovelReaderScreen(chapter: chapter, chromeVisible: chromeVisible),
       },
     ),
   );

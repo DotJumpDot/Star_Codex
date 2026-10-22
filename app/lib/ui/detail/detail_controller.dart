@@ -77,6 +77,23 @@ class DetailController extends StateNotifier<AsyncValue<SeriesDetailVm>> {
 
   Future<void> retry() => load();
 
+  /// Re-read ONLY the per-chapter progress rows and patch them into the
+  /// current VM. Called when the reader closes (user request
+  /// 2026-10-22: the chapter list must show "on reading" / "read" as
+  /// soon as you come back from reading).
+  ///
+  /// Deliberately NOT a full [load]: that would re-fetch the detail
+  /// from every site and flash the skeleton over a screen the user
+  /// was just reading.
+  Future<void> refreshProgress() async {
+    final cur = state.valueOrNull;
+    final id = _resolvedId;
+    if (cur == null || id == null) return;
+    final progress = await chaptersDao.progressForSeries(id);
+    if (!mounted) return;
+    state = AsyncValue.data(cur.copyWith(progress: progress));
+  }
+
   Future<SeriesDetailVm> _emit(Future<SeriesDetailVm> future) async {
     final id = _resolvedId;
     final vm = await future;

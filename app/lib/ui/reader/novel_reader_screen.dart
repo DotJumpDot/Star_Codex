@@ -25,9 +25,18 @@ import 'reader_settings_body.dart';
 /// "pull to continue" + explicit next-chapter button (the 1.5 s dwell
 /// auto-next is gone), controls in the right-hand drawer.
 class NovelReaderScreen extends ConsumerStatefulWidget {
-  const NovelReaderScreen({super.key, required this.chapter});
+  const NovelReaderScreen({
+    super.key,
+    required this.chapter,
+    this.chromeVisible = true,
+  });
 
   final Chapter chapter;
+
+  /// Whether the chrome starts VISIBLE. Carried across a chapter switch
+  /// so hiding it in one chapter keeps it hidden in the next (user
+  /// request 2026-10-22).
+  final bool chromeVisible;
 
   @override
   ConsumerState<NovelReaderScreen> createState() => _NovelReaderScreenState();
@@ -37,10 +46,14 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
   String? _text;
   String? _seriesTitle;
   Object? _error;
-  bool _chromeVisible = true;
+  late bool _chromeVisible = widget.chromeVisible;
   bool _switching = false;
   int _percent = 0;
   bool _endVisible = false;
+
+  /// Pending "on reading" marker (armed on load, fired after
+  /// [kStartedMarkerDelay]); cancelled when the chapter finishes.
+  Timer? _startedTimer;
 
   /// See the webtoon reader: the drawer opens via the KEY (the chrome's
   /// callback context sits above this Scaffold).
@@ -106,6 +119,14 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
           _scroll.jumpTo((max * progress.pageIndex / 100).clamp(0.0, max));
         }
       });
+      // "On reading" marker — a chapter left open for a couple of
+      // seconds counts as started (user request 2026-10-22).
+      _startedTimer?.cancel();
+      _startedTimer = armStartedMarker(
+        ref,
+        widget.chapter,
+        isAlive: () => mounted,
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = e);
@@ -169,6 +190,11 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
   }
 
   Future<void> _saveProgress(int percent, {required bool completed}) async {
+    if (completed) {
+      // Finished: drop the pending "on reading" marker.
+      _startedTimer?.cancel();
+      _startedTimer = null;
+    }
     await persistReaderProgress(
       ref,
       widget.chapter,
@@ -188,7 +214,10 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute<void>(
-            builder: (_) => NovelReaderScreen(chapter: next),
+            builder: (_) => NovelReaderScreen(
+              chapter: next,
+              chromeVisible: _chromeVisible,
+            ),
           ),
         );
       }
@@ -208,7 +237,10 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute<void>(
-            builder: (_) => NovelReaderScreen(chapter: prev),
+            builder: (_) => NovelReaderScreen(
+              chapter: prev,
+              chromeVisible: _chromeVisible,
+            ),
           ),
         );
       }
@@ -218,6 +250,7 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
   @override
   void dispose() {
     _scroll.dispose();
+    _startedTimer?.cancel();
     super.dispose();
   }
 
@@ -430,6 +463,9 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
         chosen,
         settings.get('reader_mode_default', 'auto'),
       ),
+      // The mode swap is a reader swap, not a chapter swap — keep the
+      // chrome where the user left it.
+      chromeVisible: _chromeVisible,
     );
   }
 
@@ -445,7 +481,10 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
       onPick: (chapter, sourceId) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute<void>(
-            builder: (_) => NovelReaderScreen(chapter: chapter),
+            builder: (_) => NovelReaderScreen(
+              chapter: chapter,
+              chromeVisible: _chromeVisible,
+            ),
           ),
         );
       },

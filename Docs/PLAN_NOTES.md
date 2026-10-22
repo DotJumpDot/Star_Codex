@@ -1198,3 +1198,51 @@ referer pairing, novel estimate. 165 tests green.
   replacing only the standalone 0x97 bytes -- 0x97 is also a UTF-8
   continuation byte inside Thai text, so a blind global replace
   CORRUPTS the Thai sections. Replacements must be sequence-aware.
+- READER CHROME CARRIES OVER (2026-10-22, v1.3.1): the reader hides its
+  header on a tap. A chapter switch (pull-to-next / next-chapter
+  button / picker) REPLACES the route with a FRESH reader screen, so
+  the new screen must be told the chrome state explicitly --
+  `chromeVisible` is a constructor parameter on ReaderScreen,
+  PagedReaderScreen and NovelReaderScreen, and
+  `replaceWithResolvedReader` forwards it. A new reader defaults to
+  visible; anything that swaps chapters must pass the current value.
+  Rule: any new reader entry point takes the state, it never reads it
+  from a global.
+- THREE-STATE CHAPTER DOT (2026-10-22, v1.3.1): the chapter row's
+  read-state circle sits in `leading` (in front of "ตอนที่ N"), not in
+  `trailing`. Three states, all the SAME size (10 px -- the first pass
+  at 14 px read as a blob next to the title; the websites' own
+  indicator is smaller): unread = hollow ring, reading = solid dot in
+  `colorScheme.tertiary`, read = solid dot in `colorScheme.primary`
+  with a check inside it (icon size = dot size - 4, so the check never
+  outgrows the ring). BOTH colors are theme-derived (the user asked
+  for that explicitly) but reading and read must never be confusable:
+  `tertiary` was probed against all 25 themes and is always distinct
+  from `primary` (min RGB distance 48, contrast >= 5.59 vs background).
+  `secondary` was REJECTED for this (nord distance is only 35).
+  The ListTile needs `minLeadingWidth: 0` + a small
+  `horizontalTitleGap`, otherwise the default 40 px leading slot
+  leaves a wide gap and the dot looks detached.
+- PROGRESS ROW STATES (2026-10-22, v1.3.1): `read_progress` rows are
+  (a) absent = never opened, (b) present with completed=0 = opened and
+  read for a moment ("on reading"), (c) present with completed=1 =
+  finished. `ChaptersDao.saveProgress` is STICKY: a finished chapter
+  stays finished and keeps its ORIGINAL `read_at` -- re-opening a read
+  chapter and scrolling (which saves completed=0) used to silently
+  un-read it. `ChaptersDao.markStarted` inserts the "on reading" row
+  with ConflictAlgorithm.ignore so it can never regress a finished
+  chapter. The "started" marker is armed by a 2 s Timer in each reader
+  (`kStartedMarkerDelay`, `armStartedMarker` in reader_actions.dart) --
+  a chapter counts as started only if it is still open when the timer
+  fires. `DetailController.refreshProgress()` re-reads ONLY the
+  progress rows (not a full reload) when the reader closes, so the
+  detail page shows the new state immediately.
+- HENTAITHAI CDN LAYOUTS (2026-10-22, v1.3.1): hentaithai.com serves
+  its page images under TWO path layouts, both live: `/thai/<year>/
+  <yyyy-mm-dd>/...` and `/image/<year>/<yyyy-mm-dd>/<slug>-NNN.jpg`.
+  The parser used to accept only the first, so a thread served under
+  `/image/` produced ZERO content images -> the detail page failed
+  with "can't load" (probed: t51989 uses `/image/`, t51996 uses
+  `/thai/`). The image filter is now "the path carries a DATE segment
+  under /thai/ or /image/", which also excludes the site's non-content
+  images (`/image/other/`, `/image/sticker/`, `/image/credit/`).

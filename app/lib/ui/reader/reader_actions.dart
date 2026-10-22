@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
@@ -34,3 +36,43 @@ Future<void> persistReaderProgress(
         .markRead(chapter.seriesId, chapter.id!, now);
   }
 }
+
+/// Mark a chapter as STARTED — opened and actually read for a moment,
+/// but not finished. The detail screen shows this as the yellow
+/// "on reading" state (user request 2026-10-22: opening a chapter and
+/// reading it for 2-3 s should already count).
+///
+/// Deliberately NOT the same path as [persistReaderProgress]: no
+/// history row and no library bump — the chapter is only OPENED, not
+/// completed. The write cannot regress a finished chapter (the DAO
+/// inserts only when no row exists), so a chapter that was read to the
+/// end stays read.
+Future<void> markChapterStarted(WidgetRef ref, Chapter chapter) async {
+  final id = chapter.id;
+  if (id == null) return;
+  await ref.read(chaptersDaoProvider).markStarted(id);
+}
+
+/// How long a chapter must be OPEN before it counts as "on reading".
+/// The user asked for ~2-3 s of reading to register (2026-10-22) — a
+/// chapter opened and instantly left again stays unread.
+const kStartedMarkerDelay = Duration(seconds: 2);
+
+/// Arm the "started" marker for a chapter the reader just opened.
+///
+/// Returns the timer so the caller can cancel it (on dispose, or when
+/// the chapter is finished first — a finished chapter must never be
+/// dragged back to "on reading"). [isAlive] lets the caller skip the
+/// write when its screen is already gone.
+Timer armStartedMarker(
+  WidgetRef ref,
+  Chapter chapter, {
+  Duration delay = kStartedMarkerDelay,
+  bool Function()? isAlive,
+}) {
+  return Timer(delay, () {
+    if (isAlive != null && !isAlive()) return;
+    markChapterStarted(ref, chapter);
+  });
+}
+

@@ -29,9 +29,19 @@ import 'reader_settings_body.dart';
 /// resistance (replaced the 3 s countdown), per-page source fallback
 /// (07 §5), controls in the right-hand drawer.
 class ReaderScreen extends ConsumerStatefulWidget {
-  const ReaderScreen({super.key, required this.chapter});
+  const ReaderScreen({
+    super.key,
+    required this.chapter,
+    this.chromeVisible = true,
+  });
 
   final Chapter chapter;
+
+  /// Whether the chrome starts VISIBLE. Carried across a chapter switch
+  /// so hiding the chrome in one chapter and pulling to the next keeps
+  /// it hidden there too (user report 2026-10-22: the header came back
+  /// visible on the next chapter).
+  final bool chromeVisible;
 
   @override
   ConsumerState<ReaderScreen> createState() => _ReaderScreenState();
@@ -43,7 +53,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   List<double> _heights = const [];
   String? _seriesTitle;
   int _currentPage = 0;
-  bool _chromeVisible = true;
+  late bool _chromeVisible = widget.chromeVisible;
 
   /// True while this screen left the system bars hidden. dispose()
   /// restores only when set — pops restore EARLIER (see [_onRouteStatus])
@@ -64,6 +74,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   bool _nextLookup = false;
   final _pull = PullNextTracker();
   DateTime _lastSave = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// Pending "on reading" marker for this chapter (armed on open, fired
+  /// after [kStartedMarkerDelay]). Cancelled once the chapter is
+  /// finished or the screen is disposed.
+  Timer? _startedTimer;
 
   final _scroll = ScrollController();
 
@@ -191,6 +206,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         }
       });
       _seedPrefetch();
+      // "On reading" marker: a chapter left open for a couple of seconds
+      // counts as started (user request 2026-10-22). The write cannot
+      // regress a finished chapter, and the timer is cancelled when the
+      // chapter completes or the screen goes away.
+      _startedTimer?.cancel();
+      _startedTimer = armStartedMarker(
+        ref,
+        loaded.chapter,
+        isAlive: () => mounted,
+      );
     } catch (e) {
       if (kDebugMode) debugPrint('READER open FAIL $e');
       if (!mounted) return;
@@ -441,6 +466,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   Future<void> _saveProgress(int page, {required bool completed}) async {
     final loaded = _loaded;
     if (loaded == null) return;
+    if (completed) {
+      // Finished: drop the pending "on reading" marker — the chapter is
+      // read, not in progress.
+      _startedTimer?.cancel();
+      _startedTimer = null;
+    }
     await persistReaderProgress(
       ref,
       loaded.chapter,
@@ -620,7 +651,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     await _saveProgress(_currentPage, completed: _atEnd);
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => ReaderScreen(chapter: next)),
+      MaterialPageRoute<void>(
+        builder: (_) => ReaderScreen(
+          chapter: next,
+          // Carry the chrome state: hidden stays hidden (user request
+          // 2026-10-22), visible stays visible.
+          chromeVisible: _chromeVisible,
+        ),
+      ),
     );
   }
 
@@ -662,6 +700,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   @override
   void dispose() {
     _scroll.dispose();
+    _startedTimer?.cancel();
     _routeAnimation?.removeStatusListener(_onRouteStatus);
     // Replacement exits (chapter/mode switch) never run reverse — those
     // still restore here; pop exits already restored at reverse-start.
@@ -915,6 +954,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         chosen,
         settings.get('reader_mode_default', 'auto'),
       ),
+      // The mode swap is a reader swap, not a chapter swap — keep the
+      // chrome where the user left it.
+      chromeVisible: _chromeVisible,
     );
   }
 

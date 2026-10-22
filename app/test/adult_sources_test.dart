@@ -125,6 +125,29 @@ Future<void> main() async {
       expect(pages.every((p) => p.contains('hentaithai.net/thai/')), isTrue);
     });
 
+    test('thread with /image/<year>/ pages parses (2026-10-22 bug: t51989 '
+        'served its pages under /image/…, not /thai/… — the detail page '
+        'failed with "can\'t load")', () async {
+      const url = 'https://hentaithai.net/t51989';
+      final detail = parseHentaiThaiDetail(
+        await fixture('ht_thread_image_variant.html'),
+        url,
+      );
+      expect(detail, isNotNull,
+          reason: 'the /image/ layout must yield pages, not a parse error');
+      expect(detail!.chapters, hasLength(1));
+      expect(detail.chapters.first.uploadedAt, isNotNull,
+          reason: 'the date lives in the /image/<year>/<yyyy-mm-dd>/ path too');
+      final pages = parseHentaiThaiPages(
+        await fixture('ht_thread_image_variant.html'),
+      );
+      expect(pages, isNotEmpty);
+      expect(pages.every((p) => p.contains('hentaithai.net/image/')), isTrue);
+      expect(pages.every((p) => !p.contains('/image/other/')), isTrue,
+          reason: 'favicon/sticker/credit are not page images');
+      expect(pages.every((p) => !p.contains('/image/sticker/')), isTrue);
+    });
+
     test('benign Cloudflare JSD snippet is NOT a challenge (2026-10-19 '
         'on-device report: every fetch threw cloudflare)', () async {
       // The REAL homepage embeds Cloudflare's JS-detect script; the old

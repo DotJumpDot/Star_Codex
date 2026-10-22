@@ -74,7 +74,9 @@ Future<void> main() async {
     await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 200)));
     await tester.pump();
-    expect(find.byIcon(Icons.check_circle), findsWidgets);
+    // The "read" state is a filled dot with a check INSIDE it (the old
+    // standalone check_circle icon was bigger than the unread ring).
+    expect(find.byIcon(Icons.check), findsWidgets);
 
     // Tap the chapter row → the REAL webtoon reader opens (Phase 7).
     // openReader awaits seriesDao.byId through the ffi isolate → drain.

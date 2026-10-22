@@ -661,3 +661,23 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   follow-up). Repaired 3 stray cp1252 bytes that made PLAN_NOTES.md
   invalid UTF-8 (sequence-aware replacement — a blind byte replace
   corrupts the Thai sections). 243 tests green, analyze clean.
+- 2026-10-22 — Fix: three user-reported bugs (chapter state, reader chrome,
+  hentaithai detail). (1) The chapter-state circle now sits in FRONT of
+  "ตอนที่ N" and shows three states — unread (hollow ring), on reading
+  (solid dot), read (solid dot + check). Opening a chapter and reading it
+  for 2–3 s marks it "on reading"; finishing it (or pulling to the next
+  chapter, which also marks the previous one read) marks it "read". Both
+  colors are theme-derived, and the "on reading" color is always distinct
+  from the "read" color (probed against all 25 themes). The dot is 10 px —
+  the size of the websites' own indicator — and the check sits inside it.
+  (2) The reader header now STAYS hidden when you pull to the next
+  chapter: a chapter switch builds a fresh reader screen, so the hidden
+  state is passed along instead of resetting. (3) hentaithai.com serves
+  its pages under two CDN layouts (/thai/… and /image/…); the parser
+  only accepted the first, so threads served under /image/ failed with
+  "can't load the detail page". Both layouts are parsed now, and the
+  non-content images are still filtered out. 253 tests green.
+- 2026-10-22 — Release: v1.3.1 — version 1.3.1+16. Ships the three bug
+  fixes above (chapter read-state indicator, reader chrome carry-over,
+  hentaithai /image/ detail pages) plus the smaller indicator size the
+  user asked for. 253 tests green.

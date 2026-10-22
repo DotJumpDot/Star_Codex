@@ -1,7 +1,7 @@
 # Manga Reader — Plan (build instructions for the coding model)
 
 > **Historical reference — all 11 phases are complete and shipped**
-> (v1.0.0 → v1.3.0 are on GitHub Releases). The app was renamed
+> (v1.0.0 → v1.3.1 are on GitHub Releases). The app was renamed
 > **Manga Reader → Star Codex** on 2026-10-17, which is why the old name
 > still appears throughout this folder. Nothing here needs executing again;
 > read it for the *why* behind a decision. For the current state see

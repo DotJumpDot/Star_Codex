@@ -10,6 +10,7 @@ import '../../data/dao/chapters_dao.dart';
 import '../../data/repo/series_repo.dart';
 import '../browse/source_palette.dart';
 import '../reader/reader_router.dart';
+import 'chapter_indicator.dart';
 import 'chapter_sheet.dart';
 import 'detail_controller.dart';
 
@@ -118,7 +119,7 @@ class _ChapterRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final progress = vm.progress[chapter.id];
-    final completed = progress?.completed ?? false;
+    final readState = _readState(progress);
     final downloaded = vm.downloadedChapterIds.contains(chapter.id);
     final carrying = _carrying;
     final extra = _stripNumberPrefix(chapter.title);
@@ -135,6 +136,22 @@ class _ChapterRow extends ConsumerWidget {
 
     return ListTile(
       dense: true,
+      // The read-state circle sits in FRONT of the chapter title (user
+      // request 2026-10-22) — it used to be on the right, next to the
+      // source dots.
+      //
+      // `minLeadingWidth: 0` + a small `horizontalTitleGap` pull the
+      // title right up against the dot: the default 40 px leading slot
+      // left a wide gap and the dot looked detached (user feedback
+      // 2026-10-22). The extra left padding keeps the dot off the
+      // screen edge.
+      minLeadingWidth: 0,
+      horizontalTitleGap: 12,
+      contentPadding: const EdgeInsets.only(left: 16, right: 16),
+      leading: Padding(
+        padding: const EdgeInsets.only(right: 2),
+        child: ChapterStateDot(state: readState),
+      ),
       title: Text.rich(
         TextSpan(
           children: [
@@ -173,30 +190,11 @@ class _ChapterRow extends ConsumerWidget {
               color: Theme.of(context).colorScheme.primary,
             ),
           ],
-          const SizedBox(width: 6),
-          if (completed)
-            Icon(
-              Icons.check_circle,
-              size: 18,
-              color: Theme.of(context).colorScheme.primary,
-            )
-          else
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.primary,
-                  width: 1.5,
-                ),
-              ),
-            ),
         ],
       ),
-      onTap: () {
+      onTap: () async {
         final settings = ref.read(settingsProvider);
-        openReader(
+        await openReader(
           context,
           chapter: chapter,
           sourceId: sourceId,
@@ -206,6 +204,12 @@ class _ChapterRow extends ConsumerWidget {
             settings.get('reader_mode_default', 'auto'),
           ),
         );
+        // The reader wrote the chapter's state — show it (user request
+        // 2026-10-22: "on reading" / "read" must update on return).
+        if (!context.mounted) return;
+        await ref
+            .read(detailControllerProvider(controllerKey).notifier)
+            .refreshProgress();
       },
       onLongPress: () => showChapterActions(
         context,
@@ -216,6 +220,17 @@ class _ChapterRow extends ConsumerWidget {
         controllerKey: controllerKey,
       ),
     );
+  }
+
+  /// Three states (user request 2026-10-22):
+  ///
+  /// - no progress row → never opened → empty ring.
+  /// - a row with completed=0 → opened and read for a while → solid
+  ///   "on reading" dot.
+  /// - completed=1 → finished → solid dot with a check.
+  static ChapterReadState _readState(ChapterProgress? progress) {
+    if (progress == null) return ChapterReadState.unread;
+    return progress.completed ? ChapterReadState.read : ChapterReadState.reading;
   }
 
   /// Chapter titles repeat the number (`ตอนที่ 155`) — strip it so the row

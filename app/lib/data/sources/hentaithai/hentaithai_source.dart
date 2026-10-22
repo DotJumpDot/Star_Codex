@@ -15,8 +15,11 @@ import '../source_api.dart';
 ///   returns empty (feed stays honest).
 /// - search: NOT supported (the site's own search is a Google CSE form).
 /// - thread page = detail + reader in one: every page image is inline
-///   (`img[src*="hentaithai.net/"]` on the s1 CDN, e.g.
-///   `s1.hentaithai.net/thai/2026/.../N.webp`). One-shot → one chapter.
+///   (`img[src*="hentaithai.net/"]` on the s1 CDN). TWO page-image
+///   layouts exist and both are live: `s1.hentaithai.net/thai/2026/
+///   2026-10-10/05484/1.webp` and `s1.hentaithai.net/image/2026/
+///   2026-10-16/{slug}-001.jpg` (the newer one, probed 2026-10-22 on
+///   t51989). One-shot → one chapter.
 class HentaiThaiSource implements Source {
   HentaiThaiSource(this.http);
 
@@ -185,16 +188,26 @@ String? _cardBackgroundUrl(html_dom.Element a) {
   return null;
 }
 
-/// Upload date embedded in the CDN path (`/thai/2026/2026-10-10/…`) as
-/// epoch ms (UTC midnight) — the site's only reliable stamp.
+/// Upload date embedded in the CDN path (`/thai/2026/2026-10-10/…` or
+/// `/image/2026/2026-10-16/…`) as epoch ms (UTC midnight) — the site's
+/// only reliable stamp.
 @visibleForTesting
 int? hentaiThaiUploadDate(String? url) {
   if (url == null) return null;
-  final m = RegExp(r'/thai/\d{4}/(\d{4})-(\d{2})-(\d{2})/').firstMatch(url);
+  final m = _hentaiThaiDateRe.firstMatch(url);
   if (m == null) return null;
   final dt = DateTime.tryParse('${m.group(1)}-${m.group(2)}-${m.group(3)}');
   return dt?.millisecondsSinceEpoch;
 }
+
+/// The CDN carries the upload date in the path for BOTH content layouts:
+/// `/thai/<year>/<yyyy-mm-dd>/…` and `/image/<year>/<yyyy-mm-dd>/…`.
+/// A blind `/thai/` match silently dropped every `/image/` thread — the
+/// detail page then had no pages and showed "can't load" (probed
+/// 2026-10-22: t51989 uses `/image/`, t51996 uses `/thai/`).
+final _hentaiThaiDateRe = RegExp(
+  r'/(?:thai|image)/\d{4}/(\d{4})-(\d{2})-(\d{2})/',
+);
 
 @visibleForTesting
 SourceSeriesDetail? parseHentaiThaiDetail(String body, String sourceUrl) {
@@ -246,8 +259,14 @@ List<String> parseHentaiThaiImages(html_dom.Document doc) {
   return out;
 }
 
-/// Content images only: the s1 CDN carries the manga pages
-/// (`s1.hentaithai.net/thai/...`); avatars/banners/icons live elsewhere.
+/// Content images only: the s1 CDN carries the manga pages. TWO layouts
+/// exist (probed 2026-10-22):
+///   - `/thai/<year>/<yyyy-mm-dd>/<id>/<n>.webp`   (t51996 and older)
+///   - `/image/<year>/<yyyy-mm-dd>/<slug>-<nnn>.jpg` (t51989 and newer)
+/// The date-bearing path segment is what marks a page image; avatars,
+/// banners, stickers and credits live under `/image/other/`,
+/// `/image/sticker/`, `/image/credit/` — no date segment, so they are
+/// excluded by the same rule.
 String? _imgUrl(html_dom.Element? img) {
   if (img == null) return null;
   final raw =
@@ -260,7 +279,7 @@ String? _imgUrl(html_dom.Element? img) {
   final uri = Uri.tryParse(raw);
   if (uri == null || !uri.hasScheme || uri.host.isEmpty) return null;
   if (!uri.host.endsWith('hentaithai.net')) return null;
-  if (!uri.path.startsWith('/thai/')) return null;
+  if (!_hentaiThaiDateRe.hasMatch(uri.path)) return null;
   return raw.startsWith('//') ? 'https:$raw' : raw;
 }
 

@@ -27,9 +27,18 @@ import 'reader_settings_body.dart';
 /// scale 1, drag past the last page (with resistance + indicator) → next
 /// chapter. Controls live in the right-hand drawer.
 class PagedReaderScreen extends ConsumerStatefulWidget {
-  const PagedReaderScreen({super.key, required this.chapter});
+  const PagedReaderScreen({
+    super.key,
+    required this.chapter,
+    this.chromeVisible = true,
+  });
 
   final Chapter chapter;
+
+  /// Whether the chrome starts VISIBLE. Carried across a chapter switch
+  /// so hiding it in one chapter keeps it hidden in the next (user
+  /// request 2026-10-22).
+  final bool chromeVisible;
 
   @override
   ConsumerState<PagedReaderScreen> createState() => _PagedReaderScreenState();
@@ -40,8 +49,12 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   bool _failed = false;
   String? _seriesTitle;
   int _page = 0;
-  bool _chromeVisible = true;
+  late bool _chromeVisible = widget.chromeVisible;
   bool _switching = false;
+
+  /// Pending "on reading" marker (armed on open, fired after
+  /// [kStartedMarkerDelay]); cancelled when the chapter finishes.
+  Timer? _startedTimer;
 
   /// See the webtoon reader: pops restore the system bars at
   /// reverse-start (not dispose) so the revealed page doesn't shift.
@@ -151,6 +164,14 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
         _pageController = PageController(initialPage: initial);
       });
       _prefetchFrom(initial);
+      // "On reading" marker — a chapter left open for a couple of
+      // seconds counts as started (user request 2026-10-22).
+      _startedTimer?.cancel();
+      _startedTimer = armStartedMarker(
+        ref,
+        loaded.chapter,
+        isAlive: () => mounted,
+      );
     } catch (e) {
       // QA on-device 2026-10-18 (Bug #7): this catch used to swallow the
       // error into an eternal spinner — manga-type chapters route HERE,
@@ -167,6 +188,11 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   Future<void> _saveProgress(int page, {required bool completed}) async {
     final loaded = _loaded;
     if (loaded == null) return;
+    if (completed) {
+      // Finished: drop the pending "on reading" marker.
+      _startedTimer?.cancel();
+      _startedTimer = null;
+    }
     await persistReaderProgress(
       ref,
       loaded.chapter,
@@ -276,7 +302,11 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute<void>(
-            builder: (_) => PagedReaderScreen(chapter: next),
+            builder: (_) => PagedReaderScreen(
+              chapter: next,
+              // Carry the chrome state across the chapter switch.
+              chromeVisible: _chromeVisible,
+            ),
           ),
         );
       }
@@ -297,7 +327,10 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute<void>(
-            builder: (_) => PagedReaderScreen(chapter: prev),
+            builder: (_) => PagedReaderScreen(
+              chapter: prev,
+              chromeVisible: _chromeVisible,
+            ),
           ),
         );
       }
@@ -376,6 +409,7 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   @override
   void dispose() {
     _pageController?.dispose();
+    _startedTimer?.cancel();
     _routeAnimation?.removeStatusListener(_onRouteStatus);
     // Replacement exits (chapter/mode switch) never run reverse — those
     // still restore here; pop exits already restored at reverse-start.
@@ -615,6 +649,9 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
         chosen,
         settings.get('reader_mode_default', 'auto'),
       ),
+      // The mode swap is a reader swap, not a chapter swap — keep the
+      // chrome where the user left it.
+      chromeVisible: _chromeVisible,
     );
   }
 
@@ -629,7 +666,10 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
       onPick: (chapter, sourceId) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute<void>(
-            builder: (_) => PagedReaderScreen(chapter: chapter),
+            builder: (_) => PagedReaderScreen(
+              chapter: chapter,
+              chromeVisible: _chromeVisible,
+            ),
           ),
         );
       },

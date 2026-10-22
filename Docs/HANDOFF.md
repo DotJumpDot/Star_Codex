@@ -1,13 +1,13 @@
 # HANDOFF — read this first in a new conversation
 
-> Last updated 2026-10-22 (v1.3.0 release). Written originally 2026-10-17
+> Last updated 2026-10-22 (v1.3.1 release). Written originally 2026-10-17
 > when the folder was renamed `C:\Code\Manga_Reader` → `C:\Code\StarCodex`.
 
 ## Where things stand
 
 - **The app is built, QA'd, and released.** All 11 plan phases completed
   (2026-10-17), four user-driven UX rounds + the Doujin (18+) page
-  landed (2026-10-18/19), and **v1.0.0 → v1.3.0 are live on GitHub
+  landed (2026-10-18/19), and **v1.0.0 → v1.3.1 are live on GitHub
   Releases** (release-signed `StarCodex-<version>.apk`).
 - 11 sources seeded, 9 live: main feed = go-manga, slow-manga, up-manga,
   dark-manga, fin-manga (Madara/ts), bully-manga (custom engine),
@@ -15,7 +15,7 @@
   (one-shot engine) — plus doujin-lc and miku-doujin, which seed
   DISABLED because their Cloudflare WAF blocks non-browser TLS stacks
   (see PLAN_NOTES 2026-10-19: not fixable in-app; adapters correct).
-  SQLite is at schema v8. 243 tests green, analyze clean.
+  SQLite is at schema v8. 253 tests green, analyze clean.
 - **v1.2.x focus was reading smoothness** (decode caps, fling-safe
   height anchors, GPU band slicing for oversized strips, pipeline work
   moved off the UI threads) plus offline browse fallback, the popular
@@ -28,10 +28,16 @@
   card intros in the leftover space, compact site chips. Invariants:
   PLAN_NOTES 2026-10-22 (three sections). Reader gestures shipped in
   v1.2.10 (real crop lock, website-style pinch, paged freeze).
+- **v1.3.1 focus was the three user-reported bugs** (2026-10-22): the
+  chapter read-state indicator (now in FRONT of the title, three states,
+  both colors theme-derived), the reader header staying hidden across a
+  pull-to-next chapter switch, and hentaithai threads whose pages are
+  served under the /image/ CDN layout (they used to fail with "can't
+  load"). Invariants: PLAN_NOTES 2026-10-22 (four new sections).
 - **Open technical item: bully-manga's feed order** still differs from
   its site — its engine is custom markup, so the grid-head treatment
   needs its own port there (the ts sites are all done). Would ride a
-  v1.3.1.
+  v1.3.2.
 - **Remaining work = whatever the user asks for in chat.** There is no
   open phase. The user drives batches; land them with the checklist
   commit + push discipline (AGENTS.md → Git discipline), one CHANGELOG

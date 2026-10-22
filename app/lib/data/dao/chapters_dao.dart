@@ -287,17 +287,39 @@ class ChaptersDao {
 
   // --- read_progress ---
 
+  /// Persist reader progress.
+  ///
+  /// The `completed` flag is STICKY: once a chapter is finished it stays
+  /// finished. Without that, re-opening a read chapter and scrolling
+  /// (which saves completed=0) silently un-read it — and the detail
+  /// page's green "read" dot would flip back to yellow (user report
+  /// 2026-10-22). `read_at` keeps the ORIGINAL finish time for the
+  /// same reason.
   Future<void> saveProgress(int chapterId,
       {required int pageIndex, required bool completed, int? readAt}) async {
-    await db.insert(
-        'read_progress',
-        {
-          'chapter_id': chapterId,
-          'page_index': pageIndex,
-          'completed': completed ? 1 : 0,
-          'read_at': readAt,
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.transaction((txn) async {
+      final rows = await txn.query('read_progress',
+          columns: ['completed', 'read_at'],
+          where: 'chapter_id = ?',
+          whereArgs: [chapterId],
+          limit: 1);
+      final wasCompleted =
+          rows.isNotEmpty && (rows.first['completed'] as int) == 1;
+      final stayCompleted = completed || wasCompleted;
+      final int? finishedAt = rows.isEmpty
+          ? null
+          : rows.first['read_at'] as int?;
+      await txn.insert(
+          'read_progress',
+          {
+            'chapter_id': chapterId,
+            'page_index': pageIndex,
+            'completed': stayCompleted ? 1 : 0,
+            // A finished chapter keeps its ORIGINAL finish time.
+            'read_at': stayCompleted ? (readAt ?? finishedAt) : null,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace);
+    });
   }
 
   Future<({int pageIndex, bool completed, int? readAt})?> progress(
@@ -336,4 +358,31 @@ class ChaptersDao {
   /// "ทำเครื่องหมายว่ายังไม่อ่าน" — an unread chapter has NO row.
   Future<void> clearProgress(int chapterId) =>
       db.delete('read_progress', where: 'chapter_id = ?', whereArgs: [chapterId]);
+
+  /// Mark a chapter as STARTED (opened and read for a moment, not
+  /// finished). Written as "insert if absent" on purpose:
+  ///
+  /// - A row that already tracks a page keeps it (the reader's own
+  ///   throttled save owns page_index).
+  /// - A FINISHED chapter stays finished — this write can never
+  ///   regress completed=1 back to 0, so the "next chapter" jump
+  ///   (which marks the previous chapter read) is never undone by a
+  ///   late "started" marker.
+  ///
+  /// `read_at` stays NULL: a started chapter is not a completion.
+  Future<void> markStarted(int chapterId) async {
+    await db.insert(
+      'read_progress',
+      {
+        'chapter_id': chapterId,
+        'page_index': 0,
+        'completed': 0,
+        'read_at': null,
+      },
+      // IGNORE: an existing row (any state) is left untouched. The
+      // return value is deliberately ignored — Android answers -1 on
+      // an ignored insert while the ffi shim answers 0 (see AGENTS.md).
+      conflictAlgorithm: ConflictAlgorithm.ignore,
+    );
+  }
 }
