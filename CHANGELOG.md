@@ -622,3 +622,14 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   (and the offline catalog), carried across group rebuilds like the other
   DB-enriched fields. Listing-only series have no description yet — it
   appears once the row is materialized (detail fetch). 242 tests green.
+- 2026-10-22 — Browse card polish (user feedback on the intro cards):
+  (1) COMPACT site chips — the generic "Manga" word is dropped from the
+  chip label ("Slow Manga" → "Slow", "Go-Manga" → "Go", "Bully Manga" →
+  "Bully"; brands without it keep their name) and the chip padding
+  tightened, so 3 merged sites fit on ONE chip line and 5 on two, instead
+  of three chip lines pushing the intro out of the card; the full site
+  name still shows in the site sheet and on the detail screen. (2) The
+  intro now takes AS MANY LINES AS FIT beside the 128 px cover — the
+  budget is measured (title's real line count via TextPainter + the rows
+  the chip labels wrap into), never fewer than 2 and never more than 4,
+  then truncated with an ellipsis. 243 tests green.

@@ -87,9 +87,11 @@ Future<void> main() async {
     expect(find.text('nano machine (แปลไทย)'), findsOneWidget);
     expect(find.text('Other Series'), findsNothing);
     // …with BOTH sources badged on the card (FakeSource.name returns its
-    // id; the old chip row is gone — one badge each).
-    expect(find.text('slow-manga'), findsOneWidget);
-    expect(find.text('go-manga'), findsOneWidget);
+    // id; the old chip row is gone — one badge each). The badge label is
+    // the COMPACT site name (user request 2026-10-22: 3+ merged sites
+    // wrapped the chip row to three lines) — "go-manga" → "go".
+    expect(find.text('slow'), findsOneWidget);
+    expect(find.text('go'), findsOneWidget);
 
     // Drain the fire-and-forget history write (ffi DB isolate round-trip
     // needs REAL async; a leftover in-flight call would trip the

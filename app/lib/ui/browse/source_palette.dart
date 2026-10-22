@@ -15,6 +15,23 @@ const _palette = <Color>[
 
 Color sourceDotColor(int index) => _palette[index % _palette.length];
 
+/// Compact site label for the browse card's chips (user request
+/// 2026-10-22: with 3+ merged sites the chip row wrapped to three lines
+/// and pushed the series intro out of the card). "Manga" is the genre
+/// word, not the brand — the brands are Slow / Go / Up / Dark / Bully /
+/// Fin — so the trailing word goes: "Slow Manga" → "Slow",
+/// "Go-Manga" → "Go", "Nekopost" stays.
+String shortSourceName(String name) {
+  final trimmed = name.trim();
+  final match = RegExp(
+    r'\s*[-–]?\s*Manga$',
+    caseSensitive: false,
+  ).firstMatch(trimmed);
+  if (match == null) return trimmed;
+  final short = trimmed.substring(0, match.start).trim();
+  return short.isEmpty ? trimmed : short;
+}
+
 /// What each site MOSTLY carries — display-only badges for the site
 /// sheet's right-hand side (user QA 2026-10-19), not a filter; sources can
 /// carry more than listed. Grounded 2026-10-19 by counting the sites' own
@@ -45,8 +62,8 @@ class SourceDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      );
+    width: size,
+    height: size,
+    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+  );
 }

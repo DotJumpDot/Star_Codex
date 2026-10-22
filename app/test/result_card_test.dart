@@ -68,7 +68,9 @@ Future<void> main() async {
     // The intro shows on the card that has one — and only there.
     expect(find.textContaining('A lone mechanic'), findsOneWidget);
     final text = tester.widget<Text>(find.textContaining('A lone mechanic'));
-    expect(text.maxLines, 2);
+    // The intro takes as many lines as fit beside the cover (measured) —
+    // never fewer than 2, never more than 4 — and is ellipsized.
+    expect(text.maxLines, inInclusiveRange(2, 4));
     expect(text.overflow, TextOverflow.ellipsis);
 
     // The second card has no description → no empty paragraph block.
