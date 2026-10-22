@@ -66,12 +66,14 @@ class SearchGroup {
     return hints.isEmpty ? null : hints.reduce(_max);
   }
 
-  /// Card update stamp (user QA 2026-10-18): DB-enriched value wins (it
-  /// spans every chapter), else the freshest listing-carried stamp
-  /// (nekopost rows carry one; Madara/bully tiles don't).
+  /// Card update stamp: the FRESHEST of the DB-enriched value and the
+  /// listing-carried stamps. The DB used to win unconditionally, which
+  /// shadowed a fresh nekopost listing stamp with a stale persisted date
+  /// (user report 2026-10-22: site tiles said "16 ชั่วโมงที่แล้ว" while
+  /// the card said 3–6 days). Madara/bully tiles carry no stamp at all,
+  /// so for them this is still just the DB date.
   int? get lastUpdatedMs {
-    if (dbLastUpdatedMs != null) return dbLastUpdatedMs;
-    int? best;
+    int? best = dbLastUpdatedMs;
     for (final m in members) {
       final v = m.lastUpdatedMs;
       if (v != null && (best == null || v > best)) best = v;
@@ -153,14 +155,17 @@ void _carryEnrichment(SearchGroup dst, SearchGroup src) {
 /// member; else a new group. Used both within one page and across latest-
 /// feed pages. Similar-band pairs are annotated afterwards.
 List<SearchGroup> mergeIntoGroups(
-    List<SearchGroup> existing, Iterable<BrowseCandidate> incoming) {
+  List<SearchGroup> existing,
+  Iterable<BrowseCandidate> incoming,
+) {
   final groups = [for (final g in existing) SearchGroup(g.members)];
   for (var i = 0; i < existing.length; i++) {
     _carryEnrichment(groups[i], existing[i]);
   }
   for (final c in incoming) {
-    if (groups.any((g) => g.members
-        .any((m) => m.sourceId == c.sourceId && m.url == c.url))) {
+    if (groups.any(
+      (g) => g.members.any((m) => m.sourceId == c.sourceId && m.url == c.url),
+    )) {
       continue;
     }
     SearchGroup? target;
@@ -188,7 +193,10 @@ void annotateSimilar(List<SearchGroup> groups) {
   }
   for (var i = 0; i < groups.length; i++) {
     for (var j = i + 1; j < groups.length; j++) {
-      if (matchTitles(groups[i].primary.candidate, groups[j].primary.candidate) ==
+      if (matchTitles(
+            groups[i].primary.candidate,
+            groups[j].primary.candidate,
+          ) ==
           TitleMatchKind.similar) {
         groups[i].similarTo.add(j);
         groups[j].similarTo.add(i);
@@ -200,13 +208,16 @@ void annotateSimilar(List<SearchGroup> groups) {
 /// Merge whole group lists (latest-feed pagination: page N+1's groups can
 /// be the same series as page N's from another source).
 List<SearchGroup> mergeGroupLists(
-    List<SearchGroup> existing, List<SearchGroup> incoming) {
+  List<SearchGroup> existing,
+  List<SearchGroup> incoming,
+) {
   final groups = [for (final g in existing) SearchGroup(g.members)];
   for (var i = 0; i < existing.length; i++) {
     _carryEnrichment(groups[i], existing[i]);
   }
-  bool anyMatch(SearchGroup a, SearchGroup b) => a.members
-      .any((m) => b.members.any((n) => merges(matchTitles(m.candidate, n.candidate))));
+  bool anyMatch(SearchGroup a, SearchGroup b) => a.members.any(
+    (m) => b.members.any((n) => merges(matchTitles(m.candidate, n.candidate))),
+  );
   for (final ig in incoming) {
     SearchGroup? target;
     for (final g in groups) {
@@ -219,8 +230,9 @@ List<SearchGroup> mergeGroupLists(
       groups.add(SearchGroup(ig.members));
     } else {
       for (final m in ig.members) {
-        if (!target.members
-            .any((x) => x.sourceId == m.sourceId && x.url == m.url)) {
+        if (!target.members.any(
+          (x) => x.sourceId == m.sourceId && x.url == m.url,
+        )) {
           target.members.add(m);
         }
       }
@@ -283,15 +295,14 @@ class BrowseFilters {
     bool? hideOneshot,
     Set<String>? tags,
     BrowseSortOrder? sort,
-  }) =>
-      BrowseFilters(
-        type: clearType ? null : (type ?? this.type),
-        status: clearStatus ? null : (status ?? this.status),
-        minChapters: minChapters ?? this.minChapters,
-        hideOneshot: hideOneshot ?? this.hideOneshot,
-        tags: tags ?? this.tags,
-        sort: sort ?? this.sort,
-      );
+  }) => BrowseFilters(
+    type: clearType ? null : (type ?? this.type),
+    status: clearStatus ? null : (status ?? this.status),
+    minChapters: minChapters ?? this.minChapters,
+    hideOneshot: hideOneshot ?? this.hideOneshot,
+    tags: tags ?? this.tags,
+    sort: sort ?? this.sort,
+  );
 }
 
 /// Apply filters to grouped results. Status/tags (and type when a listing
@@ -299,19 +310,20 @@ class BrowseFilters {
 /// series row exists (visited detail / added to library), and stay honest
 /// no-ops otherwise (Plan/08 §3).
 List<SearchGroup> filterGroups(List<SearchGroup> groups, BrowseFilters f) {
-  return groups.where((g) {
-    final chapters = g.chapterCount ?? 0;
-    if (f.hideOneshot && chapters <= 1) return false;
-    if (f.minChapters > 0 && chapters < f.minChapters) return false;
-    final type = g.type ?? g.dbType;
-    if (f.type != null && type != f.type) return false;
-    if (f.status != null && g.dbStatus != f.status) return false;
-    if (f.tags.isNotEmpty &&
-        !f.tags.any((tag) => g.dbTags.contains(tag))) {
-      return false;
-    }
-    return true;
-  }).toList(growable: false);
+  return groups
+      .where((g) {
+        final chapters = g.chapterCount ?? 0;
+        if (f.hideOneshot && chapters <= 1) return false;
+        if (f.minChapters > 0 && chapters < f.minChapters) return false;
+        final type = g.type ?? g.dbType;
+        if (f.type != null && type != f.type) return false;
+        if (f.status != null && g.dbStatus != f.status) return false;
+        if (f.tags.isNotEmpty && !f.tags.any((tag) => g.dbTags.contains(tag))) {
+          return false;
+        }
+        return true;
+      })
+      .toList(growable: false);
 }
 
 /// Sort the filtered view (user request 2026-10-20). STABLE by original
@@ -332,7 +344,8 @@ List<SearchGroup> sortGroups(List<SearchGroup> groups, BrowseSortOrder order) {
     if (ka == null && kb == null) return a.compareTo(b);
     if (ka == null) return 1;
     if (kb == null) return -1;
-    final descending = order == BrowseSortOrder.latestUpdate ||
+    final descending =
+        order == BrowseSortOrder.latestUpdate ||
         order == BrowseSortOrder.chaptersDesc;
     final byValue = descending ? kb.compareTo(ka) : ka.compareTo(kb);
     return byValue != 0 ? byValue : a.compareTo(b);

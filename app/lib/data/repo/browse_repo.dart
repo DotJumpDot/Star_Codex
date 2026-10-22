@@ -1,7 +1,8 @@
 import 'dart:async';
 
 import '../../core/utils/title_match.dart';
-import '../../core/utils/title_norm.dart';import '../dao/chapters_dao.dart';
+import '../../core/utils/title_norm.dart';
+import '../dao/chapters_dao.dart';
 import '../dao/library_dao.dart';
 import '../dao/search_history_dao.dart';
 import '../dao/series_dao.dart';
@@ -60,34 +61,49 @@ class BrowseRepo {
     return sources.where((s) => onlySourceIds.contains(s.id)).toList();
   }
 
-  Future<BrowsePage> search(String query,
-      {Set<String> onlySourceIds = const {}, int page = 1}) async {
+  Future<BrowsePage> search(
+    String query, {
+    Set<String> onlySourceIds = const {},
+    int page = 1,
+  }) async {
     final q = query.trim();
     if (q.isEmpty) return const BrowsePage(groups: []);
     final results = await _gather(
-        _active(onlySourceIds), (s) => s.search(q, page: page));
+      _active(onlySourceIds),
+      (s) => s.search(q, page: page),
+    );
     // Fire-and-forget: history must never delay results (and a DB write
     // can't complete inside a widget-test FakeAsync zone anyway).
-    unawaited(historyDao
-        .record(q, atMs: DateTime.now().millisecondsSinceEpoch)
-        .catchError((Object _) {}));
+    unawaited(
+      historyDao
+          .record(q, atMs: DateTime.now().millisecondsSinceEpoch)
+          .catchError((Object _) {}),
+    );
     final groups = mergeIntoGroups(const [], _candidates(results));
     // Search results: biggest series first (nulls last).
-    groups.sort((a, b) => (b.chapterCount ?? -1).compareTo(a.chapterCount ?? -1));
+    groups.sort(
+      (a, b) => (b.chapterCount ?? -1).compareTo(a.chapterCount ?? -1),
+    );
     return BrowsePage(groups: groups, failures: _failures(results));
   }
 
-  Future<BrowsePage> latest(
-      {Set<String> onlySourceIds = const {}, int page = 1, bool popular = false}) async {
+  Future<BrowsePage> latest({
+    Set<String> onlySourceIds = const {},
+    int page = 1,
+    bool popular = false,
+  }) async {
     final results = await _gather(
-        _active(onlySourceIds), (s) => s.latest(page: page, popular: popular));
+      _active(onlySourceIds),
+      (s) => s.latest(page: page, popular: popular),
+    );
     // Latest feed keeps append order: each site's listing is already
     // newest-first (or popularity-ordered when [popular] — server-side,
     // probed 2026-10-20); sources are interleaved (Plan/05 drift
     // addendum — listings carry no timestamps to sort by).
     return BrowsePage(
-        groups: mergeIntoGroups(const [], _candidates(results)),
-        failures: _failures(results));
+      groups: mergeIntoGroups(const [], _candidates(results)),
+      failures: _failures(results),
+    );
   }
 
   /// Offline catalog (user request 2026-10-21): the series rows the user
@@ -129,11 +145,13 @@ class BrowseRepo {
   }
 
   Future<BrowsePage> genre(Source source, String term, {int page = 1}) async {
-    final results =
-        await _gather([source], (s) => s.browseGenre(term, page: page));
+    final results = await _gather([
+      source,
+    ], (s) => s.browseGenre(term, page: page));
     return BrowsePage(
-        groups: mergeIntoGroups(const [], _candidates(results)),
-        failures: _failures(results));
+      groups: mergeIntoGroups(const [], _candidates(results)),
+      failures: _failures(results),
+    );
   }
 
   /// Fill each group's [SearchGroup.dbStatus]/[dbType]/[dbTags]/
@@ -152,7 +170,8 @@ class BrowseRepo {
       // variant — a solo bully card ("English title + Thai subtitle")
       // materializes under the Latin norm, and the suffixed tile alone
       // would never find the row again.
-      final row = await _seriesByTileNorm(normalizeTitle(g.primary.title)) ??
+      final row =
+          await _seriesByTileNorm(normalizeTitle(g.primary.title)) ??
           await _seriesByTileNorm(latinOnlyNorm(g.primary.title));
       if (row == null) continue;
       try {
@@ -194,55 +213,72 @@ class BrowseRepo {
     }
   }
 
-  /// Background pass over cards missing a date or cover
-  /// ([SearchGroup.needsMaterialization]): run the same path as opening
-  /// the card — primary detail → series row (chapters carry the dates) →
-  /// cross-probe other sources (a sibling site's cover can render where
-  /// the primary's tile is dead/AVIF) — without adding anything to the
-  /// library. Results persist, so each card pays this once; [onCardDone]
-  /// receives the finished group so the caller can re-enrich JUST it
-  /// (progressive re-render). Session-memoized so pagination re-runs
-  /// skip done cards.
+  /// Background pass over two classes of card:
   ///
-  /// The DETAIL fetch is unbudgeted and covers every incomplete card:
-  /// ts search tiles carry no dates, so a card's newest-chapter date can
-  /// only come from this pass — capping it left most search results
-  /// permanently dateless while their detail pages showed every chapter
-  /// stamp (user report 2026-10-20: Overgeared on up/go-manga). One
-  /// fetch per series, persisted → once ever. Workers run CONCURRENTLY
-  /// (a strictly sequential pass dated ~1 card/second — a big search
-  /// filled only its first 30–40 cards in the time a user waits,
-  /// 2026-10-20 report) — safe_http's per-host limiter is the real
-  /// politeness gate and paces each host independently. [budget] caps
-  /// only the expensive cross-probe (one search query per unlinked
-  /// source per card).
+  /// 1. INCOMPLETE — missing a date or cover ([SearchGroup
+  ///    .needsMaterialization]): run the same path as opening the card —
+  ///    primary detail → series row (chapters carry the dates) →
+  ///    cross-probe other sources (a sibling site's cover can render where
+  ///    the primary's tile is dead/AVIF) — without adding anything to the
+  ///    library.
+  /// 2. STALE — dated, but the date is older than [dateStaleAfter]: one
+  ///    detail re-check refreshes the persisted stamp. The date used to
+  ///    freeze at the first materialization FOREVER, so a chapter that
+  ///    dropped 16 hours ago still showed "3 days ago" on the card while
+  ///    the site's own tile said "16 ชั่วโมงที่แล้ว" (user report
+  ///    2026-10-22: ts/madara listing tiles carry no timestamps, so the
+  ///    detail chapters are the only fresh date signal).
+  ///
+  /// [onCardDone] receives each finished group so the caller can
+  /// re-enrich JUST it (progressive re-render). A card is attempted at
+  /// most once per [dateStaleAfter] (memoized per primary URL with the
+  /// attempt time — pagination and filter toggles re-present the same
+  /// cards constantly). Cross-probe stays an incomplete-card-only extra,
+  /// capped by [budget]; the DETAIL fetch itself is unbudgeted — capping
+  /// it left most search results permanently dateless (user report
+  /// 2026-10-20: Overgeared on up/go-manga) — safe_http's per-host
+  /// limiter is the real politeness gate. Workers run CONCURRENTLY (a
+  /// strictly sequential pass dated ~1 card/second, 2026-10-20 report).
   Future<void> materializeIncompleteGroups(
     List<SearchGroup> groups, {
     int budget = 12,
+    Duration staleAfter = dateStaleAfter,
     Future<void> Function(SearchGroup done)? onCardDone,
   }) async {
-    final pending = <SearchGroup>[];
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final staleMs = staleAfter.inMilliseconds;
+    final pending = <({SearchGroup group, bool crossProbe})>[];
     for (final g in groups) {
-      if (!g.needsMaterialization) continue;
-      if (!_materialized.add(g.primary.url)) continue;
-      pending.add(g);
+      final url = g.primary.url;
+      final at = _materializedAt[url];
+      if (at != null && nowMs - at < staleMs) continue;
+      _materializedAt[url] = nowMs;
+      final crossProbe = g.needsMaterialization;
+      if (!crossProbe) {
+        final date = g.lastUpdatedMs;
+        if (date == null || nowMs - date < staleMs) continue;
+      }
+      pending.add((group: g, crossProbe: crossProbe));
     }
     var next = 0;
     Future<void> worker() async {
       while (true) {
         if (next >= pending.length) return;
-        final g = pending[next++];
+        final rec = pending[next++];
+        final g = rec.group;
         try {
           final primary = g.primary;
           final source = sourceById(primary.sourceId);
           if (source == null) continue;
-          final seriesId = await seriesRepo.ensureSeries(g);
+          final seriesId = rec.crossProbe
+              ? await seriesRepo.ensureSeries(g)
+              : await seriesRepo.refreshDetail(g);
           final row = await seriesDao.byId(seriesId);
           if (row != null) {
             // EXACT row → card (no title-norm guessing): this is what puts
             // the newest-chapter date on a tile that carries none.
             await _applyRowToGroup(g, row);
-            if (budget > 0) {
+            if (rec.crossProbe && budget > 0) {
               budget--;
               await seriesRepo.probeOtherSources(
                 seriesId,
@@ -274,42 +310,53 @@ class BrowseRepo {
     await Future.wait([for (var i = 0; i < 6; i++) worker()]);
   }
 
-  /// Primary URLs already sent to materialization this session — filter
-  /// toggles and pagination re-present the same cards constantly.
-  final _materialized = <String>{};
+  /// How old a card's date may get before the background pass re-checks
+  /// the site for a newer chapter (class 2 above). 6 h: site updates land
+  /// in bursts; a refresh after this window corrects every lagging stamp.
+  static const dateStaleAfter = Duration(hours: 6);
+
+  /// Primary URL → last materialize attempt (ms epoch) this session.
+  /// Filter toggles and pagination re-present the same cards constantly;
+  /// the timestamp (not a set) lets a card re-attempt after
+  /// [dateStaleAfter].
+  final _materializedAt = <String, int>{};
 
   Future<List<SourceGenre>> genres(Source source) => source.genres();
 
-  Future<List<_SourceResult>> _gather(List<Source> active,
-      Future<List<SourceSeries>> Function(Source) call) {
-    return Future.wait(active.map((s) async {
-      try {
-        return _SourceResult(s, await call(s), null);
-      } catch (e) {
-        return _SourceResult(s, const [], e);
-      }
-    }));
+  Future<List<_SourceResult>> _gather(
+    List<Source> active,
+    Future<List<SourceSeries>> Function(Source) call,
+  ) {
+    return Future.wait(
+      active.map((s) async {
+        try {
+          return _SourceResult(s, await call(s), null);
+        } catch (e) {
+          return _SourceResult(s, const [], e);
+        }
+      }),
+    );
   }
 
   List<BrowseCandidate> _candidates(List<_SourceResult> results) => [
-        for (final r in results)
-          for (final item in r.items)
-            BrowseCandidate(
-              sourceId: r.source.id,
-              referer: r.source.referer,
-              url: item.url,
-              title: item.title,
-              coverUrl: item.coverUrl,
-              chapterCountHint: item.chapterCountHint,
-              type: item.type,
-              lastUpdatedMs: item.lastUpdatedMs,
-            ),
-      ];
+    for (final r in results)
+      for (final item in r.items)
+        BrowseCandidate(
+          sourceId: r.source.id,
+          referer: r.source.referer,
+          url: item.url,
+          title: item.title,
+          coverUrl: item.coverUrl,
+          chapterCountHint: item.chapterCountHint,
+          type: item.type,
+          lastUpdatedMs: item.lastUpdatedMs,
+        ),
+  ];
 
   List<SourceFailure> _failures(List<_SourceResult> results) => [
-        for (final r in results)
-          if (r.error != null) SourceFailure(r.source.id, r.error!),
-      ];
+    for (final r in results)
+      if (r.error != null) SourceFailure(r.source.id, r.error!),
+  ];
 
   /// Long-press quick action (Plan/08): fetch the primary source's detail,
   /// create/merge the series row (Plan/07 §4 — shared [SeriesRepo] logic),

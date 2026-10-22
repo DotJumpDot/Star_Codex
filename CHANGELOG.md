@@ -569,3 +569,17 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   update stamps (SourceSeries.lastUpdatedMs); detail hero tag chips moved
   into the intro expansion, which always opens with the full title; font
   label "Prompt (Maki)" → "Prompt". 186 tests green.
+- 2026-10-22 — Browse card date freshness (user report: site tiles said
+  "16 ชั่วโมงที่แล้ว" while app cards showed 3–6 days, slow-manga feed).
+  Two root causes fixed: (1) the card stamp let the DB-enriched date win
+  unconditionally, shadowing a fresh nekopost listing stamp — now the
+  FRESHEST of DB + listing stamps wins; (2) the persisted date froze at
+  the first materialization forever, and nothing ever re-checked the site
+  (ensureSeries skips the detail fetch once the (source,url) link
+  exists). The background materialize pass now also re-checks cards whose
+  date is older than 6 h (attempt memoized per URL with a timestamp, so
+  pagination re-presents stay free) via a new SeriesRepo.refreshDetail
+  that always fetches and re-stamps chapters/link/metadata through the
+  existing identity rules; cross-probe stays an incomplete-card-only
+  extra. Also: scripts/boot-emu.bat (windowed emulator starter). 235
+  tests green.

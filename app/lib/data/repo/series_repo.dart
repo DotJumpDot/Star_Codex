@@ -77,7 +77,8 @@ class SeriesDetailVm {
       final lNum = l.lastChapterNumber ?? -1;
       final bNum = best.lastChapterNumber ?? -1;
       if (lNum > bNum ||
-          (lNum == bNum && (l.lastUpdatedAt ?? -1) > (best.lastUpdatedAt ?? -1))) {
+          (lNum == bNum &&
+              (l.lastUpdatedAt ?? -1) > (best.lastUpdatedAt ?? -1))) {
         best = l;
       }
     }
@@ -95,24 +96,25 @@ class SeriesDetailVm {
     Map<String, List<Chapter>>? chaptersBySource,
     Map<double, List<Chapter>>? chaptersByNumber,
     List<String>? altTitles,
-  }) =>
-      SeriesDetailVm(
-        series: series,
-        links: links ?? this.links,
-        sourceNames: sourceNames,
-        chaptersBySource: chaptersBySource ?? this.chaptersBySource,
-        chaptersByNumber: chaptersByNumber ?? this.chaptersByNumber,
-        progress: progress ?? this.progress,
-        downloadedChapterIds: downloadedChapterIds ?? this.downloadedChapterIds,
-        inLibrary: inLibrary ?? this.inLibrary,
-        lastReadChapterId: clearLastRead ? null : (lastReadChapterId ?? this.lastReadChapterId),
-        altTitles: altTitles ?? this.altTitles,
-        sortOldestFirst: sortOldestFirst ?? this.sortOldestFirst,
-        coverUrl: coverUrl,
-        coverReferer: coverReferer,
-        tags: tags,
-        descriptionSourceId: descriptionSourceId,
-      );
+  }) => SeriesDetailVm(
+    series: series,
+    links: links ?? this.links,
+    sourceNames: sourceNames,
+    chaptersBySource: chaptersBySource ?? this.chaptersBySource,
+    chaptersByNumber: chaptersByNumber ?? this.chaptersByNumber,
+    progress: progress ?? this.progress,
+    downloadedChapterIds: downloadedChapterIds ?? this.downloadedChapterIds,
+    inLibrary: inLibrary ?? this.inLibrary,
+    lastReadChapterId: clearLastRead
+        ? null
+        : (lastReadChapterId ?? this.lastReadChapterId),
+    altTitles: altTitles ?? this.altTitles,
+    sortOldestFirst: sortOldestFirst ?? this.sortOldestFirst,
+    coverUrl: coverUrl,
+    coverReferer: coverReferer,
+    tags: tags,
+    descriptionSourceId: descriptionSourceId,
+  );
 }
 
 /// Doc 09: continue = the last-read chapter, else the first unread number
@@ -126,8 +128,7 @@ class SeriesDetailVm {
         if (c.id == vm.lastReadChapterId) lastRead = c;
       }
     }
-    if (lastRead != null &&
-        !(vm.progress[lastRead.id]?.completed ?? false)) {
+    if (lastRead != null && !(vm.progress[lastRead.id]?.completed ?? false)) {
       return (chapter: lastRead, sourceId: lastRead.sourceId);
     }
     // Finished it → Continue means the NEXT unread chapter, not a replay
@@ -167,7 +168,6 @@ String? pickOriginalTitle(String titleNorm, Iterable<String> altTitles) {
   }
   return null;
 }
-
 
 /// Alt titles across mirrors repeat heavily — dedupe (trimmed, order kept).
 List<String> dedupeAltTitles(Iterable<String> raw) {
@@ -222,10 +222,13 @@ class SeriesRepo {
     // open latency by the number of sources.
     final staleLinks = <SeriesSource>[];
     for (final link in links) {
-      final hasChapters =
-          await chaptersDao.hasForSource(seriesId, link.sourceId);
+      final hasChapters = await chaptersDao.hasForSource(
+        seriesId,
+        link.sourceId,
+      );
       final stale =
-          !hasChapters || now - link.fetchedAt > chapterRefreshAfter.inMilliseconds;
+          !hasChapters ||
+          now - link.fetchedAt > chapterRefreshAfter.inMilliseconds;
       if (stale && sourceById(link.sourceId) != null) {
         staleLinks.add(link);
       }
@@ -236,8 +239,8 @@ class SeriesRepo {
         for (final link in staleLinks)
           () async {
             try {
-              final detail =
-                  await sourceById(link.sourceId)!.detail(link.sourceUrl);
+              final detail = await sourceById(link.sourceId)!
+                  .detail(link.sourceUrl);
               return await _applyDetail(seriesId, link, detail, now);
             } catch (_) {
               return null; // unreachable source: keep what's in the DB
@@ -250,17 +253,17 @@ class SeriesRepo {
     }
 
     final fresh = await seriesDao.sourcesOf(seriesId);
-    return _buildVm(seriesId, fresh,
-        descriptionSourceId: descriptionSourceId);
+    return _buildVm(seriesId, fresh, descriptionSourceId: descriptionSourceId);
   }
 
-  Future<SeriesDetailVm> _buildVm(int seriesId, List<SeriesSource> links,
-      {String? descriptionSourceId}) async {
+  Future<SeriesDetailVm> _buildVm(
+    int seriesId,
+    List<SeriesSource> links, {
+    String? descriptionSourceId,
+  }) async {
     final series = (await seriesDao.byId(seriesId))!;
     final chapters = await chaptersDao.listForSeries(seriesId);
-    final bySource = {
-      for (final l in links) l.sourceId: <Chapter>[],
-    };
+    final bySource = {for (final l in links) l.sourceId: <Chapter>[]};
     final byNumber = <double, List<Chapter>>{};
     for (final c in chapters) {
       bySource[c.sourceId]?.add(c);
@@ -273,7 +276,9 @@ class SeriesRepo {
     // above so this load's own fetched chapters never count as new.
     if (entry != null) {
       await libraryDao.stampSeen(
-          seriesId, DateTime.now().millisecondsSinceEpoch);
+        seriesId,
+        DateTime.now().millisecondsSinceEpoch,
+      );
     }
     String? coverUrl;
     String? coverReferer;
@@ -298,23 +303,25 @@ class SeriesRepo {
       downloadedChapterIds: await downloadsDao.downloadedForSeries(seriesId),
       inLibrary: entry != null,
       lastReadChapterId: entry?.lastReadChapterId,
-      altTitles: dedupeAltTitles([
-        for (final l in links) ...l.altTitles,
-      ]),
-        sortOldestFirst:
-            (await settingsDao.get('chapter_sort_$seriesId')) == 'asc',
-        coverUrl: coverUrl,
-        coverReferer: coverReferer,
-        tags: await tagsDao.tagsOf(seriesId),
-        descriptionSourceId: descriptionSourceId,
-      );
+      altTitles: dedupeAltTitles([for (final l in links) ...l.altTitles]),
+      sortOldestFirst:
+          (await settingsDao.get('chapter_sort_$seriesId')) == 'asc',
+      coverUrl: coverUrl,
+      coverReferer: coverReferer,
+      tags: await tagsDao.tagsOf(seriesId),
+      descriptionSourceId: descriptionSourceId,
+    );
   }
 
   /// Store one source's detail into the series: chapters, link row, and the
   /// incremental L7 metadata union. Returns this source's id when IT
   /// supplied the (longer) description.
-  Future<String?> _applyDetail(int seriesId, SeriesSource link,
-      SourceSeriesDetail detail, int nowMs) async {
+  Future<String?> _applyDetail(
+    int seriesId,
+    SeriesSource link,
+    SourceSeriesDetail detail,
+    int nowMs,
+  ) async {
     await chaptersDao.upsertAll([
       for (final ch in detail.chapters)
         Chapter(
@@ -327,21 +334,23 @@ class SeriesRepo {
           fetchedAt: nowMs,
         ),
     ]);
-    await seriesDao.upsertSource(SeriesSource(
-      seriesId: seriesId,
-      sourceId: link.sourceId,
-      sourceUrl: link.sourceUrl,
-      sourceTitle: detail.title,
-      altTitles: detail.altTitles,
-      coverUrl: detail.coverUrl ?? link.coverUrl,
-      lastChapterNumber: detail.chapters.isEmpty
-          ? link.lastChapterNumber
-          : detail.chapters.last.number,
-      lastUpdatedAt: detail.chapters.isEmpty
-          ? link.lastUpdatedAt
-          : detail.chapters.last.uploadedAt,
-      fetchedAt: nowMs,
-    ));
+    await seriesDao.upsertSource(
+      SeriesSource(
+        seriesId: seriesId,
+        sourceId: link.sourceId,
+        sourceUrl: link.sourceUrl,
+        sourceTitle: detail.title,
+        altTitles: detail.altTitles,
+        coverUrl: detail.coverUrl ?? link.coverUrl,
+        lastChapterNumber: detail.chapters.isEmpty
+            ? link.lastChapterNumber
+            : detail.chapters.last.number,
+        lastUpdatedAt: detail.chapters.isEmpty
+            ? link.lastUpdatedAt
+            : detail.chapters.last.uploadedAt,
+        fetchedAt: nowMs,
+      ),
+    );
 
     return _mergeMetadata(seriesId, link.sourceId, detail);
   }
@@ -351,7 +360,10 @@ class SeriesRepo {
   /// UNION (mirrors report different subsets). Returns the source id when
   /// THIS call supplied the new description, for the UI caption.
   Future<String?> _mergeMetadata(
-      int seriesId, String sourceId, SourceSeriesDetail detail) async {
+    int seriesId,
+    String sourceId,
+    SourceSeriesDetail detail,
+  ) async {
     final stored = await seriesDao.byId(seriesId);
     if (stored == null) return null;
     var series = stored;
@@ -362,8 +374,10 @@ class SeriesRepo {
     String? origin = series.origin;
     String? originalTitle = series.originalTitle;
 
-    final description =
-        pickLongestDescription([series.description, detail.description]);
+    final description = pickLongestDescription([
+      series.description,
+      detail.description,
+    ]);
     if (description != null && description != series.description) {
       series = series.copyWith(description: description);
       descriptionSourceId = sourceId;
@@ -373,12 +387,14 @@ class SeriesRepo {
     if (origin == null && type != null) origin = originForType(type);
     originalTitle ??= pickOriginalTitle(series.titleNorm, detail.altTitles);
 
-    await seriesDao.update(series.copyWith(
-      type: type,
-      status: status,
-      origin: origin,
-      originalTitle: originalTitle,
-    ));
+    await seriesDao.update(
+      series.copyWith(
+        type: type,
+        status: status,
+        origin: origin,
+        originalTitle: originalTitle,
+      ),
+    );
 
     if (detail.tags.isNotEmpty) {
       final existing = await tagsDao.tagsOf(seriesId);
@@ -412,21 +428,25 @@ class SeriesRepo {
             if (!_probeMatches(candidate, item.title)) {
               continue;
             }
-            final owner =
-                await seriesDao.findSeriesIdBySourceLink(other.id, item.url);
+            final owner = await seriesDao.findSeriesIdBySourceLink(
+              other.id,
+              item.url,
+            );
             if (owner != null && owner != seriesId) {
               linked = true; // belongs to another series — leave it there
               break;
             }
-            await seriesDao.upsertSource(SeriesSource(
-              seriesId: seriesId,
-              sourceId: other.id,
-              sourceUrl: item.url,
-              sourceTitle: item.title,
-              coverUrl: item.coverUrl,
-              lastChapterNumber: item.chapterCountHint?.toDouble(),
-              fetchedAt: DateTime.now().millisecondsSinceEpoch,
-            ));
+            await seriesDao.upsertSource(
+              SeriesSource(
+                seriesId: seriesId,
+                sourceId: other.id,
+                sourceUrl: item.url,
+                sourceTitle: item.title,
+                coverUrl: item.coverUrl,
+                lastChapterNumber: item.chapterCountHint?.toDouble(),
+                fetchedAt: DateTime.now().millisecondsSinceEpoch,
+              ),
+            );
             linked = true;
             added = true;
             break;
@@ -472,8 +492,10 @@ class SeriesRepo {
     String? fallbackType,
   }) async {
     final now = DateTime.now().millisecondsSinceEpoch;
-    final existingId =
-        await seriesDao.findSeriesIdBySourceLink(source.id, sourceUrl);
+    final existingId = await seriesDao.findSeriesIdBySourceLink(
+      source.id,
+      sourceUrl,
+    );
 
     var title = fallbackTitle;
     var norm = normalizeTitle(title);
@@ -499,9 +521,10 @@ class SeriesRepo {
     final pipe = pipeline;
     if (coverUrl != null && pipe != null) {
       try {
-        coverHash = (await pipe.fetchAndStoreIndexed(coverUrl,
-                referer: source.referer))
-            .hash;
+        coverHash = (await pipe.fetchAndStoreIndexed(
+          coverUrl,
+          referer: source.referer,
+        )).hash;
       } catch (_) {
         // Cover is optional; the series row is still created.
       }
@@ -522,18 +545,20 @@ class SeriesRepo {
           await seriesDao.update(byNorm.copyWith(coverHash: coverHash));
         }
       } else {
-        seriesId = await seriesDao.insert(Series(
-          title: title,
-          titleNorm: norm,
-          originalTitle: originalTitle,
-          coverHash: coverHash,
-          type: type,
-          origin: originForType(type),
-          status: detail.status,
-          description: detail.description,
-          createdAt: now,
-          updatedAt: now,
-        ));
+        seriesId = await seriesDao.insert(
+          Series(
+            title: title,
+            titleNorm: norm,
+            originalTitle: originalTitle,
+            coverHash: coverHash,
+            type: type,
+            origin: originForType(type),
+            status: detail.status,
+            description: detail.description,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
       }
     }
 
@@ -551,19 +576,23 @@ class SeriesRepo {
         ),
     ]);
 
-    await seriesDao.upsertSource(SeriesSource(
-      seriesId: seriesId,
-      sourceId: source.id,
-      sourceUrl: sourceUrl,
-      sourceTitle: detail.title,
-      altTitles: detail.altTitles,
-      coverUrl: coverUrl,
-      lastChapterNumber:
-          detail.chapters.isEmpty ? null : detail.chapters.last.number,
-      lastUpdatedAt:
-          detail.chapters.isEmpty ? null : detail.chapters.last.uploadedAt,
-      fetchedAt: now,
-    ));
+    await seriesDao.upsertSource(
+      SeriesSource(
+        seriesId: seriesId,
+        sourceId: source.id,
+        sourceUrl: sourceUrl,
+        sourceTitle: detail.title,
+        altTitles: detail.altTitles,
+        coverUrl: coverUrl,
+        lastChapterNumber: detail.chapters.isEmpty
+            ? null
+            : detail.chapters.last.number,
+        lastUpdatedAt: detail.chapters.isEmpty
+            ? null
+            : detail.chapters.last.uploadedAt,
+        fetchedAt: now,
+      ),
+    );
     // Re-adding on an EXISTING series must still enrich it (L7): a new
     // source's longer description / missing type / extra tags land here —
     // and tags UNION instead of replace, so the first source's tags
@@ -586,8 +615,10 @@ class SeriesRepo {
     if (source == null) {
       throw StateError('unknown source: ${primary.sourceId}');
     }
-    final existing =
-        await seriesDao.findSeriesIdBySourceLink(source.id, primary.url);
+    final existing = await seriesDao.findSeriesIdBySourceLink(
+      source.id,
+      primary.url,
+    );
     final int seriesId;
     if (existing != null) {
       seriesId = existing;
@@ -606,28 +637,58 @@ class SeriesRepo {
     // series — a link is the stronger identity and never moves).
     final now = DateTime.now().millisecondsSinceEpoch;
     for (final member in group.members) {
-      if (member.sourceId == primary.sourceId &&
-          member.url == primary.url) {
+      if (member.sourceId == primary.sourceId && member.url == primary.url) {
         continue;
       }
       final memberSource = sourceById(member.sourceId);
       if (memberSource == null) continue;
       try {
-        final owner = await seriesDao
-            .findSeriesIdBySourceLink(member.sourceId, member.url);
+        final owner = await seriesDao.findSeriesIdBySourceLink(
+          member.sourceId,
+          member.url,
+        );
         if (owner != null) continue; // belongs elsewhere — leave it there
-        await seriesDao.upsertSource(SeriesSource(
-          seriesId: seriesId,
-          sourceId: member.sourceId,
-          sourceUrl: member.url,
-          sourceTitle: member.title,
-          coverUrl: member.coverUrl,
-          fetchedAt: now,
-        ));
+        await seriesDao.upsertSource(
+          SeriesSource(
+            seriesId: seriesId,
+            sourceId: member.sourceId,
+            sourceUrl: member.url,
+            sourceTitle: member.title,
+            coverUrl: member.coverUrl,
+            fetchedAt: now,
+          ),
+        );
       } catch (_) {
         // best-effort enrichment — the primary link is what matters
       }
     }
     return seriesId;
+  }
+
+  /// Background staleness re-check (BrowseRepo materialize pass, user
+  /// report 2026-10-22): the persisted card date froze at the last apply,
+  /// so a chapter that dropped 16 hours ago still showed "3 days ago" on
+  /// browse/search cards. Unlike [ensureSeries] this ALWAYS fetches —
+  /// the (source,url) link already existing is exactly why we're here —
+  /// then reuses that series row through [upsertFromDetail]'s identity
+  /// rules (chapters + link re-stamped, metadata unioned).
+  Future<int> refreshDetail(SearchGroup group) {
+    final primary = group.primary;
+    final source = sourceById(primary.sourceId);
+    if (source == null) {
+      throw StateError('unknown source: ${primary.sourceId}');
+    }
+    return source
+        .detail(primary.url)
+        .then(
+          (detail) => upsertFromDetail(
+            source: source,
+            sourceUrl: primary.url,
+            fallbackTitle: group.displayTitle,
+            fallbackCoverUrl: primary.coverUrl,
+            fallbackType: group.type,
+            detail: detail,
+          ),
+        );
   }
 }

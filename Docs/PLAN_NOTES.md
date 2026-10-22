@@ -1103,3 +1103,25 @@ referer pairing, novel estimate. 165 tests green.
   pan inside the slot instead of sliding). Synced from a raw Listener
   on pointer down/up/cancel edges (pointer COUNT tracked; totalScale is
   the public zoom read; initialScale is 1.0 by default).
+
+## 2026-10-22 — Browse card date freshness (staleness re-check)
+
+- The browse card stamp is the FRESHEST of the DB-enriched date and the
+  listing-carried stamps (`SearchGroup.lastUpdatedMs` = max). NEVER make
+  the DB date win unconditionally again — it shadows a fresh nekopost
+  listing stamp with a stale persisted one.
+- ts/madara listing tiles carry NO timestamps (their archive pages have
+  zero time strings; the site's "16 ชั่วโมงที่แล้ว" lives only on the
+  homepage grid we don't parse). Detail chapters are the ONLY fresh date
+  signal for these sources — so the materialize pass re-checks any card
+  whose date is older than `BrowseRepo.dateStaleAfter` (6 h) via
+  `SeriesRepo.refreshDetail` (ALWAYS fetches — `ensureSeries` skips the
+  detail fetch once the link exists, which is what froze the dates).
+  Attempts are memoized per primary URL with a timestamp
+  (`_materializedAt`), so pagination/filter re-presentation stays free
+  within the window. Cross-probe stays an incomplete-card-only extra
+  (budgeted); the detail fetch itself stays unbudgeted — safe_http's
+  per-host limiter is the politeness gate.
+- Consequence: the first browse/search refresh after ≥6 h fires one
+  detail fetch per stale card (6 concurrent workers, host-paced). That
+  is the intended freshness cost for a personal-use app.

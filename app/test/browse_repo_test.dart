@@ -15,18 +15,24 @@ import 'package:star_codex/data/sources/source_api.dart';
 import 'fake_source.dart';
 import 'helpers.dart';
 
-BrowseCandidate cand(String source, String title,
-        {int? hint, String? type, String? urlPrefix = 'x', String? cover, int? updated}) =>
-    BrowseCandidate(
-      sourceId: source,
-      referer: 'https://r/',
-      url: 'https://s/$urlPrefix/${title.hashCode}/',
-      title: title,
-      chapterCountHint: hint,
-      type: type,
-      coverUrl: cover,
-      lastUpdatedMs: updated,
-    );
+BrowseCandidate cand(
+  String source,
+  String title, {
+  int? hint,
+  String? type,
+  String? urlPrefix = 'x',
+  String? cover,
+  int? updated,
+}) => BrowseCandidate(
+  sourceId: source,
+  referer: 'https://r/',
+  url: 'https://s/$urlPrefix/${title.hashCode}/',
+  title: title,
+  chapterCountHint: hint,
+  type: type,
+  coverUrl: cover,
+  lastUpdatedMs: updated,
+);
 
 void main() {
   group('mergeIntoGroups (Plan/07 §3)', () {
@@ -50,8 +56,9 @@ void main() {
     });
 
     test('duplicate (source,url) across pages is dropped', () {
-      final first = mergeIntoGroups(
-          const [], [cand('a', 'Nano Machine', hint: 10)]);
+      final first = mergeIntoGroups(const [], [
+        cand('a', 'Nano Machine', hint: 10),
+      ]);
       final second = mergeIntoGroups(first, [
         cand('a', 'Nano Machine', hint: 10),
         cand('a', 'Nano Machine ch.2 page', hint: 11, urlPrefix: 'y'),
@@ -81,6 +88,21 @@ void main() {
       expect(g.primary.sourceId, 'a'); // most chapters
       expect(g.displayTitle, 'โซโล่ เลเวลลิ่ง');
     });
+
+    test('card date = freshest of DB + listing stamps (2026-10-22)', () {
+      // The DB stamp used to win unconditionally, shadowing a fresh
+      // nekopost listing stamp with a stale persisted date.
+      final g = SearchGroup([
+        cand('a', 'Stale DB', hint: 10, updated: 1729000000000),
+      ]);
+      g.dbLastUpdatedMs = 1700000000000; // older
+      expect(g.lastUpdatedMs, 1729000000000);
+      final h = SearchGroup([
+        cand('b', 'Older Stamp', hint: 10, updated: 1690000000000),
+      ]);
+      h.dbLastUpdatedMs = 1729000000000; // DB fresher
+      expect(h.lastUpdatedMs, 1729000000000);
+    });
   });
 
   group('needsMaterialization (background date/cover backfill)', () {
@@ -88,8 +110,11 @@ void main() {
       final g = SearchGroup([
         cand('a', 'Baek XX', hint: 199, cover: 'https://s/c.jpg'),
       ]);
-      expect(g.needsMaterialization, isTrue,
-          reason: 'listing tile has no date — detail fetch must backfill');
+      expect(
+        g.needsMaterialization,
+        isTrue,
+        reason: 'listing tile has no date — detail fetch must backfill',
+      );
     });
 
     test('nekopost-style card (date + cover) is complete', () {
@@ -114,13 +139,18 @@ void main() {
       expect(g.needsMaterialization, isFalse);
     });
 
-    test('coverless card (AVIF-skipped / dead tile) needs it even with a date',
-        () {
-      final g = SearchGroup([cand('a', 'Poison Master', hint: 109)]);
-      g.dbLastUpdatedMs = 1729000000000;
-      expect(g.needsMaterialization, isTrue,
-          reason: 'cross-probe may find a sibling site cover');
-    });
+    test(
+      'coverless card (AVIF-skipped / dead tile) needs it even with a date',
+      () {
+        final g = SearchGroup([cand('a', 'Poison Master', hint: 109)]);
+        g.dbLastUpdatedMs = 1729000000000;
+        expect(
+          g.needsMaterialization,
+          isTrue,
+          reason: 'cross-probe may find a sibling site cover',
+        );
+      },
+    );
   });
 
   group('filterGroups (Plan/08 §3, defaults OFF per L1)', () {
@@ -166,25 +196,29 @@ void main() {
       return groups;
     }
 
-    test('latest update (default): dated desc, unknown dates last, stable',
-        () {
+    test('latest update (default): dated desc, unknown dates last, stable', () {
       final sorted = sortGroups(datedGroups(), BrowseSortOrder.latestUpdate);
-      expect(
-        sorted.map((g) => g.displayTitle),
-        ['Bravo', 'Delta', 'Alpha', 'Charlie', 'Echo'],
-      );
+      expect(sorted.map((g) => g.displayTitle), [
+        'Bravo',
+        'Delta',
+        'Alpha',
+        'Charlie',
+        'Echo',
+      ]);
     });
 
     test('oldest update: dated asc, unknown dates STILL last', () {
       final sorted = sortGroups(datedGroups(), BrowseSortOrder.oldestUpdate);
-      expect(
-        sorted.map((g) => g.displayTitle),
-        ['Alpha', 'Delta', 'Bravo', 'Charlie', 'Echo'],
-      );
+      expect(sorted.map((g) => g.displayTitle), [
+        'Alpha',
+        'Delta',
+        'Bravo',
+        'Charlie',
+        'Echo',
+      ]);
     });
 
-    test('chapter sorts: desc/asc with null hints last in both directions',
-        () {
+    test('chapter sorts: desc/asc with null hints last in both directions', () {
       final groups = mergeIntoGroups(const [], [
         cand('a', 'Mid', hint: 10),
         cand('a', 'Big', hint: 50),
@@ -192,13 +226,17 @@ void main() {
         cand('a', 'Tiny', hint: 1),
       ]);
       expect(
-        sortGroups(groups, BrowseSortOrder.chaptersDesc)
-            .map((g) => g.displayTitle),
+        sortGroups(
+          groups,
+          BrowseSortOrder.chaptersDesc,
+        ).map((g) => g.displayTitle),
         ['Big', 'Mid', 'Tiny', 'NoHint'],
       );
       expect(
-        sortGroups(groups, BrowseSortOrder.chaptersAsc)
-            .map((g) => g.displayTitle),
+        sortGroups(
+          groups,
+          BrowseSortOrder.chaptersAsc,
+        ).map((g) => g.displayTitle),
         ['Tiny', 'Mid', 'Big', 'NoHint'],
       );
     });
@@ -210,38 +248,46 @@ void main() {
         cand('a', 'Third', updated: 1000, hint: 7),
       ]);
       for (final order in BrowseSortOrder.values) {
-        expect(sortGroups(groups, order).map((g) => g.displayTitle),
-            ['First', 'Second', 'Third'],
-            reason: '$order must not shuffle ties');
+        expect(sortGroups(groups, order).map((g) => g.displayTitle), [
+          'First',
+          'Second',
+          'Third',
+        ], reason: '$order must not shuffle ties');
       }
     });
 
-    test('popular keeps the server order (merged sort section 2026-10-21)',
-        () {
+    test('popular keeps the server order (merged sort section 2026-10-21)', () {
       final groups = mergeIntoGroups(const [], [
         cand('a', 'Tall', hint: 10, updated: 1000),
         cand('a', 'Short', hint: 1, updated: 9000),
       ]);
       final out = sortGroups(groups, BrowseSortOrder.popular);
-      expect(out.map((g) => g.displayTitle), ['Tall', 'Short'],
-          reason: 'a client re-sort would erase the popularity order');
+      expect(out.map((g) => g.displayTitle), [
+        'Tall',
+        'Short',
+      ], reason: 'a client re-sort would erase the popularity order');
       expect(
-          const BrowseFilters(sort: BrowseSortOrder.popular).isDefault,
-          isFalse,
-          reason: 'ยอดนิยม is a non-default choice — badge shows');
+        const BrowseFilters(sort: BrowseSortOrder.popular).isDefault,
+        isFalse,
+        reason: 'ยอดนิยม is a non-default choice — badge shows',
+      );
     });
 
-    test('BrowseFilters: default sort latestUpdate; non-default flips badge',
-        () {
-      const filters = BrowseFilters();
-      expect(filters.sort, BrowseSortOrder.latestUpdate);
-      expect(filters.isDefault, isTrue);
-      final changed = filters.copyWith(sort: BrowseSortOrder.chaptersDesc);
-      expect(changed.isDefault, isFalse);
-      expect(changed.copyWith().sort, BrowseSortOrder.chaptersDesc);
-      expect(filters.copyWith(sort: BrowseSortOrder.oldestUpdate).isDefault,
-          isFalse);
-    });
+    test(
+      'BrowseFilters: default sort latestUpdate; non-default flips badge',
+      () {
+        const filters = BrowseFilters();
+        expect(filters.sort, BrowseSortOrder.latestUpdate);
+        expect(filters.isDefault, isTrue);
+        final changed = filters.copyWith(sort: BrowseSortOrder.chaptersDesc);
+        expect(changed.isDefault, isFalse);
+        expect(changed.copyWith().sort, BrowseSortOrder.chaptersDesc);
+        expect(
+          filters.copyWith(sort: BrowseSortOrder.oldestUpdate).isDefault,
+          isFalse,
+        );
+      },
+    );
   });
 
   group('BrowseRepo', () {
@@ -262,41 +308,49 @@ void main() {
     });
 
     BrowseRepo repoWith(List<FakeSource> sources) => BrowseRepo(
-          sources: sources,
-          seriesDao: seriesDao,
-          chaptersDao: chaptersDao,
-          libraryDao: libraryDao,
-          tagsDao: tagsDao,
-          historyDao: historyDao,
-          seriesRepo: SeriesRepo(
-            sources: sources,
-            seriesDao: seriesDao,
-            chaptersDao: chaptersDao,
-            tagsDao: tagsDao,
-            libraryDao: libraryDao,
-            downloadsDao: DownloadsDao(db),
-            settingsDao: SettingsDao(db),
-          ),
-        );
+      sources: sources,
+      seriesDao: seriesDao,
+      chaptersDao: chaptersDao,
+      libraryDao: libraryDao,
+      tagsDao: tagsDao,
+      historyDao: historyDao,
+      seriesRepo: SeriesRepo(
+        sources: sources,
+        seriesDao: seriesDao,
+        chaptersDao: chaptersDao,
+        tagsDao: tagsDao,
+        libraryDao: libraryDao,
+        downloadsDao: DownloadsDao(db),
+        settingsDao: SettingsDao(db),
+      ),
+    );
 
     test('search groups across sources and records history', () async {
-      final a = FakeSource('a', searchResults: {
-        'nano': [
-          const SourceSeries(
+      final a = FakeSource(
+        'a',
+        searchResults: {
+          'nano': [
+            const SourceSeries(
               url: 'https://a/nano-machine/',
               title: 'Nano Machine',
               chapterCountHint: 920,
-              type: 'manhwa'),
-        ],
-      });
-      final b = FakeSource('b', searchResults: {
-        'nano': [
-          const SourceSeries(
+              type: 'manhwa',
+            ),
+          ],
+        },
+      );
+      final b = FakeSource(
+        'b',
+        searchResults: {
+          'nano': [
+            const SourceSeries(
               url: 'https://b/nano-machine/',
               title: 'nano machine (แปลไทย)',
-              chapterCountHint: 900),
-        ],
-      });
+              chapterCountHint: 900,
+            ),
+          ],
+        },
+      );
       final page = await repoWith([a, b]).search(' nano ');
       expect(page.groups, hasLength(1));
       expect(page.groups.first.members, hasLength(2));
@@ -305,13 +359,15 @@ void main() {
     });
 
     test('one failing source never blanks results (Plan/08)', () async {
-      final a = FakeSource('a',
-          error: SourceException.cloudflare('a'));
-      final b = FakeSource('b', searchResults: {
-        'nano': [
-          const SourceSeries(url: 'https://b/n/', title: 'Nano Machine'),
-        ],
-      });
+      final a = FakeSource('a', error: SourceException.cloudflare('a'));
+      final b = FakeSource(
+        'b',
+        searchResults: {
+          'nano': [
+            const SourceSeries(url: 'https://b/n/', title: 'Nano Machine'),
+          ],
+        },
+      );
       final page = await repoWith([a, b]).search('nano');
       expect(page.groups, hasLength(1));
       expect(page.failures, hasLength(1));
@@ -343,190 +399,345 @@ void main() {
       expect(recent.contains('q1'), isFalse); // oldest fell off
     });
 
-    test('materializeIncompleteGroups backfills dates on EVERY undated card',
-        () async {
-      // User report 2026-10-20: most search cards showed no last-update
-      // while their detail pages had every chapter stamp — the pass used
-      // to stop after a budget of 12. Here 16 cover-bearing but dateless
-      // cards must ALL get their newest-chapter stamp even with the
-      // cross-probe budget at 0 (dates must not depend on the probe).
-      // Detail titles deliberately DIFFER from the tile titles (each
-      // site's Thai subtitle differs — the live Overgeared case), so a
-      // date landing here can only come from the materialize pass
-      // writing the row it already knows onto the card, never from a
-      // title-norm lookup.
-      // Real seeded source id — series_sources FKs to `sources`.
-      const names = [
-        'Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Golf',
-        'Hotel', 'India', 'Juliet', 'Kilo', 'Lima', 'Mike', 'November',
-        'Oscar', 'Papa',
-      ];
-      final src = FakeSource('slow-manga', searchResults: {
-        'q': [
-          for (var i = 0; i < names.length; i++)
-            SourceSeries(
-              url: 'https://s/$i/',
-              title: names[i],
-              coverUrl: 'https://s/c$i.jpg', // cover fine → date is the gap
+    test(
+      'materializeIncompleteGroups backfills dates on EVERY undated card',
+      () async {
+        // User report 2026-10-20: most search cards showed no last-update
+        // while their detail pages had every chapter stamp — the pass used
+        // to stop after a budget of 12. Here 16 cover-bearing but dateless
+        // cards must ALL get their newest-chapter stamp even with the
+        // cross-probe budget at 0 (dates must not depend on the probe).
+        // Detail titles deliberately DIFFER from the tile titles (each
+        // site's Thai subtitle differs — the live Overgeared case), so a
+        // date landing here can only come from the materialize pass
+        // writing the row it already knows onto the card, never from a
+        // title-norm lookup.
+        // Real seeded source id — series_sources FKs to `sources`.
+        const names = [
+          'Alpha',
+          'Bravo',
+          'Charlie',
+          'Delta',
+          'Echo',
+          'Foxtrot',
+          'Golf',
+          'Hotel',
+          'India',
+          'Juliet',
+          'Kilo',
+          'Lima',
+          'Mike',
+          'November',
+          'Oscar',
+          'Papa',
+        ];
+        final src = FakeSource(
+          'slow-manga',
+          searchResults: {
+            'q': [
+              for (var i = 0; i < names.length; i++)
+                SourceSeries(
+                  url: 'https://s/$i/',
+                  title: names[i],
+                  coverUrl: 'https://s/c$i.jpg', // cover fine → date is the gap
+                ),
+            ],
+          },
+          details: {
+            for (var i = 0; i < names.length; i++)
+              'https://s/$i/': SourceSeriesDetail(
+                title: '${names[i]} จ้าวแห่งบททดสอบ',
+                chapters: [
+                  SourceChapter(
+                    url: 'https://s/$i/c1/',
+                    title: 'ตอนที่ 1',
+                    number: 1,
+                    uploadedAt: 1700000000000 + i,
+                  ),
+                ],
+              ),
+          },
+        );
+        final repo = repoWith([src]);
+        final page = await repo.search('q');
+        expect(page.groups, hasLength(names.length));
+        // No onCardDone enrichment — the direct row→card write is the only
+        // path under test.
+        await repo.materializeIncompleteGroups(page.groups, budget: 0);
+        expect(
+          src.detailCalls,
+          names.length,
+          reason: 'every undated card needs its detail fetch',
+        );
+        for (final g in page.groups) {
+          expect(
+            g.dbLastUpdatedMs,
+            isNotNull,
+            reason: '${g.displayTitle} stayed dateless',
+          );
+        }
+        // Persisted + session-memoized: a re-presented page fetches nothing.
+        final again = await repo.search('q');
+        await repo.materializeIncompleteGroups(again.groups, budget: 0);
+        expect(src.detailCalls, names.length);
+      },
+    );
+
+    test(
+      'stale dated cards get a background re-check; fresh ones do not',
+      () async {
+        // User report 2026-10-22: site tiles said "16 ชั่วโมงที่แล้ว" while
+        // app cards showed 3–6 days — the persisted date froze at the first
+        // materialization and nothing ever re-checked the site. ts/madara
+        // listing tiles carry no timestamps, so the detail chapters are the
+        // only fresh date signal: a dated card older than the 6 h window
+        // must re-fetch; a card the listing itself stamps fresh must not.
+        final nowMs = DateTime.now().millisecondsSinceEpoch;
+        const staleUrl = 'https://s/stale/';
+        const freshUrl = 'https://s/fresh/';
+        final src = FakeSource(
+          'slow-manga',
+          details: {
+            staleUrl: SourceSeriesDetail(
+              title: 'Stale Card',
+              chapters: [
+                SourceChapter(
+                  url: 'https://s/stale/c9/',
+                  title: 'ตอนที่ 9',
+                  number: 9,
+                  uploadedAt: 1700000000000,
+                ),
+              ],
             ),
-        ],
-      }, details: {
-        for (var i = 0; i < names.length; i++)
-          'https://s/$i/': SourceSeriesDetail(
-            title: '${names[i]} จ้าวแห่งบททดสอบ',
-            chapters: [
-              SourceChapter(
-                url: 'https://s/$i/c1/',
-                title: 'ตอนที่ 1',
-                number: 1,
-                uploadedAt: 1700000000000 + i,
+            freshUrl: SourceSeriesDetail(
+              title: 'Fresh Card',
+              chapters: [
+                SourceChapter(
+                  url: 'https://s/fresh/c2/',
+                  title: 'ตอนที่ 2',
+                  number: 2,
+                  uploadedAt: 1700000000001,
+                ),
+              ],
+            ),
+          },
+        );
+        final repo = repoWith([src]);
+        SearchGroup card(String url, String title, int stamp) => SearchGroup([
+          BrowseCandidate(
+            sourceId: 'slow-manga',
+            referer: 'https://r/',
+            url: url,
+            title: title,
+            coverUrl: 'https://s/c.jpg',
+            lastUpdatedMs: stamp,
+          ),
+        ]);
+        final stale = card(
+          staleUrl,
+          'Stale Card',
+          nowMs - const Duration(days: 7).inMilliseconds,
+        );
+        final fresh = card(
+          freshUrl,
+          'Fresh Card',
+          nowMs - const Duration(hours: 1).inMilliseconds,
+        );
+
+        await repo.materializeIncompleteGroups([stale, fresh], budget: 0);
+        expect(
+          src.detailCalls,
+          1,
+          reason: 'only the 7-day-old card is older than the 6 h window',
+        );
+        expect(
+          stale.dbLastUpdatedMs,
+          1700000000000,
+          reason: 're-check re-applies the row: chapter stamp lands on card',
+        );
+        expect(fresh.dbLastUpdatedMs, isNull);
+
+        // Within the window a re-presented card never re-attempts…
+        await repo.materializeIncompleteGroups([stale, fresh], budget: 0);
+        expect(src.detailCalls, 1);
+        // …but staleAfter: Duration.zero unlocks an immediate re-attempt
+        // (both cards re-fetch — fresh card included, every attempt older
+        // than zero is stale).
+        await repo.materializeIncompleteGroups(
+          [stale, fresh],
+          budget: 0,
+          staleAfter: Duration.zero,
+        );
+        expect(src.detailCalls, 3);
+      },
+    );
+
+    test(
+      'merges carry db enrichment to the rebuilt groups (2026-10-20)',
+      () async {
+        final first = mergeIntoGroups(const [], [
+          cand('a', 'Long Series', hint: 50),
+        ]);
+        first.single.dbLastUpdatedMs = 1700000000000;
+        first.single.dbType = 'manhwa';
+        // A second page merges → every existing group is REBUILT; the
+        // enriched fields must ride along or page-1 cards lose their dates.
+        final merged = mergeGroupLists(first, [
+          SearchGroup([cand('a', 'Other Series', hint: 3)]),
+        ]);
+        expect(merged.first.dbLastUpdatedMs, 1700000000000);
+        expect(merged.first.dbType, 'manhwa');
+      },
+    );
+
+    test(
+      'addToLibrary creates merged rows + cross-probes other sources',
+      () async {
+        // Real seeded source ids — series_sources has a FK to `sources`.
+        final a = FakeSource(
+          'slow-manga',
+          searchResults: {
+            'nano': [
+              const SourceSeries(
+                url: 'https://a/nano-machine/',
+                title: 'Nano Machine',
+                chapterCountHint: 920,
+                type: 'manhwa',
               ),
             ],
-          ),
-      });
-      final repo = repoWith([src]);
-      final page = await repo.search('q');
-      expect(page.groups, hasLength(names.length));
-      // No onCardDone enrichment — the direct row→card write is the only
-      // path under test.
-      await repo.materializeIncompleteGroups(page.groups, budget: 0);
-      expect(src.detailCalls, names.length,
-          reason: 'every undated card needs its detail fetch');
-      for (final g in page.groups) {
-        expect(g.dbLastUpdatedMs, isNotNull,
-            reason: '${g.displayTitle} stayed dateless');
-      }
-      // Persisted + session-memoized: a re-presented page fetches nothing.
-      final again = await repo.search('q');
-      await repo.materializeIncompleteGroups(again.groups, budget: 0);
-      expect(src.detailCalls, names.length);
-    });
-
-    test('merges carry db enrichment to the rebuilt groups (2026-10-20)',
-        () async {
-      final first = mergeIntoGroups(const [], [cand('a', 'Long Series', hint: 50)]);
-      first.single.dbLastUpdatedMs = 1700000000000;
-      first.single.dbType = 'manhwa';
-      // A second page merges → every existing group is REBUILT; the
-      // enriched fields must ride along or page-1 cards lose their dates.
-      final merged = mergeGroupLists(first, [
-        SearchGroup([cand('a', 'Other Series', hint: 3)]),
-      ]);
-      expect(merged.first.dbLastUpdatedMs, 1700000000000);
-      expect(merged.first.dbType, 'manhwa');
-    });
-
-    test('addToLibrary creates merged rows + cross-probes other sources',
-        () async {
-      // Real seeded source ids — series_sources has a FK to `sources`.
-      final a = FakeSource('slow-manga', searchResults: {
-        'nano': [
-          const SourceSeries(
-              url: 'https://a/nano-machine/',
+          },
+          details: {
+            'https://a/nano-machine/': const SourceSeriesDetail(
               title: 'Nano Machine',
+              altTitles: [],
+              description: 'desc',
+              tags: ['Action', 'Sci-Fi'],
+              type: 'manhwa',
+              status: 'ongoing',
+              chapters: [
+                SourceChapter(
+                  url: 'https://a/nano-1/',
+                  title: 'ตอนที่ 1',
+                  number: 1,
+                ),
+              ],
+            ),
+          },
+        );
+        // Cross-probe hit on the other source (alt spellings count).
+        final b = FakeSource(
+          'go-manga',
+          searchResults: {
+            'Nano Machine': [
+              const SourceSeries(
+                url: 'https://b/nano/',
+                title: 'nano machine (แปลไทย)',
+                chapterCountHint: 880,
+              ),
+            ],
+          },
+        );
+        final repo = repoWith([a, b]);
+
+        final page = await repo.search('nano');
+        final seriesId = await repo.addToLibrary(page.groups.first);
+
+        final series = (await seriesDao.byId(seriesId))!;
+        expect(series.type, 'manhwa');
+        expect(series.origin, 'korea'); // L6
+        expect(series.status, 'ongoing');
+        expect(series.description, 'desc');
+
+        final links = await seriesDao.sourcesOf(seriesId);
+        expect(
+          links.map((l) => l.sourceId),
+          containsAll(['slow-manga', 'go-manga']),
+        ); // §3.2
+
+        final chapters = await chaptersDao.listForSeries(seriesId);
+        expect(chapters, hasLength(1));
+        expect(chapters.first.number, 1);
+
+        // Per-chapter source visibility (doc 09 addendum).
+        expect(await chaptersDao.sourcesForNumber(seriesId, 1), ['slow-manga']);
+
+        expect(await libraryDao.contains(seriesId), isTrue);
+        expect(
+          await tagsDao.tagsOf(seriesId),
+          containsAll(['Action', 'Sci-Fi']),
+        ); // L7 union path
+
+        // URL-dedup: re-adding the SAME source page under a drifted title
+        // reuses the series row — no second series (review-pass regression).
+        final again = await repo.addToLibrary(
+          SearchGroup([
+            BrowseCandidate(
+              sourceId: 'slow-manga',
+              referer: 'https://r/',
+              url: 'https://a/nano-machine/',
+              title: 'นาโน แมชชีน', // drifted Thai title, no alt bridge
               chapterCountHint: 920,
-              type: 'manhwa'),
-        ],
-      }, details: {
-        'https://a/nano-machine/': const SourceSeriesDetail(
-          title: 'Nano Machine',
-          altTitles: [],
-          description: 'desc',
-          tags: ['Action', 'Sci-Fi'],
-          type: 'manhwa',
-          status: 'ongoing',
-          chapters: [
-            SourceChapter(
-                url: 'https://a/nano-1/', title: 'ตอนที่ 1', number: 1),
-          ],
-        ),
-      });
-      // Cross-probe hit on the other source (alt spellings count).
-      final b = FakeSource('go-manga', searchResults: {
-        'Nano Machine': [
-          const SourceSeries(
-              url: 'https://b/nano/', title: 'nano machine (แปลไทย)', chapterCountHint: 880),
-        ],
-      });
-      final repo = repoWith([a, b]);
+            ),
+          ]),
+        );
+        expect(again, seriesId); // same row — (source,url) identity wins
+        expect(await seriesDao.findByTitleNorm('nano machine'), isNotNull);
+      },
+    );
 
-      final page = await repo.search('nano');
-      final seriesId = await repo.addToLibrary(page.groups.first);
-
-      final series = (await seriesDao.byId(seriesId))!;
-      expect(series.type, 'manhwa');
-      expect(series.origin, 'korea'); // L6
-      expect(series.status, 'ongoing');
-      expect(series.description, 'desc');
-
-      final links = await seriesDao.sourcesOf(seriesId);
-      expect(links.map((l) => l.sourceId),
-          containsAll(['slow-manga', 'go-manga'])); // §3.2
-
-      final chapters = await chaptersDao.listForSeries(seriesId);
-      expect(chapters, hasLength(1));
-      expect(chapters.first.number, 1);
-
-      // Per-chapter source visibility (doc 09 addendum).
-      expect(await chaptersDao.sourcesForNumber(seriesId, 1),
-          ['slow-manga']);
-
-      expect(await libraryDao.contains(seriesId), isTrue);
-      expect(await tagsDao.tagsOf(seriesId),
-          containsAll(['Action', 'Sci-Fi'])); // L7 union path
-
-      // URL-dedup: re-adding the SAME source page under a drifted title
-      // reuses the series row — no second series (review-pass regression).
-      final again = await repo.addToLibrary(SearchGroup([
-        BrowseCandidate(
-          sourceId: 'slow-manga',
-          referer: 'https://r/',
-          url: 'https://a/nano-machine/',
-          title: 'นาโน แมชชีน', // drifted Thai title, no alt bridge
-          chapterCountHint: 920,
-        ),
-      ]));
-      expect(again, seriesId); // same row — (source,url) identity wins
-      expect(await seriesDao.findByTitleNorm('nano machine'), isNotNull);
-    });
-
-    test('cross-probe never re-links a URL owned by another series',
-        () async {
+    test('cross-probe never re-links a URL owned by another series', () async {
       // Source b's URL is already linked to an existing series.
-      final existing = await seriesDao.upsertByTitleNorm(Series(
-        title: 'Unrelated',
-        titleNorm: 'unrelated',
-        createdAt: 1,
-        updatedAt: 1,
-      ));
-      await seriesDao.upsertSource(SeriesSource(
-        seriesId: existing,
-        sourceId: 'go-manga',
-        sourceUrl: 'https://b/nano/',
-        fetchedAt: 1,
-      ));
+      final existing = await seriesDao.upsertByTitleNorm(
+        Series(
+          title: 'Unrelated',
+          titleNorm: 'unrelated',
+          createdAt: 1,
+          updatedAt: 1,
+        ),
+      );
+      await seriesDao.upsertSource(
+        SeriesSource(
+          seriesId: existing,
+          sourceId: 'go-manga',
+          sourceUrl: 'https://b/nano/',
+          fetchedAt: 1,
+        ),
+      );
 
-      final a = FakeSource('slow-manga', searchResults: {
-        'nano': [
-          const SourceSeries(url: 'https://a/nano/', title: 'Nano Machine'),
-        ],
-      }, details: {
-        'https://a/nano/': const SourceSeriesDetail(
-            title: 'Nano Machine', chapters: []),
-      });
-      final b = FakeSource('go-manga', searchResults: {
-        'Nano Machine': [
-          const SourceSeries(
-              url: 'https://b/nano/', title: 'nano machine (แปลไทย)'),
-        ],
-      });
+      final a = FakeSource(
+        'slow-manga',
+        searchResults: {
+          'nano': [
+            const SourceSeries(url: 'https://a/nano/', title: 'Nano Machine'),
+          ],
+        },
+        details: {
+          'https://a/nano/': const SourceSeriesDetail(
+            title: 'Nano Machine',
+            chapters: [],
+          ),
+        },
+      );
+      final b = FakeSource(
+        'go-manga',
+        searchResults: {
+          'Nano Machine': [
+            const SourceSeries(
+              url: 'https://b/nano/',
+              title: 'nano machine (แปลไทย)',
+            ),
+          ],
+        },
+      );
       final repo = repoWith([a, b]);
       final page = await repo.search('nano');
       final seriesId = await repo.addToLibrary(page.groups.first);
 
       // b's link stays on the series that owns it.
-      final owner =
-          await seriesDao.findSeriesIdBySourceLink('go-manga', 'https://b/nano/');
+      final owner = await seriesDao.findSeriesIdBySourceLink(
+        'go-manga',
+        'https://b/nano/',
+      );
       expect(owner, existing);
       final links = await seriesDao.sourcesOf(seriesId);
       expect(links.map((l) => l.sourceId), ['slow-manga']);
@@ -534,27 +745,40 @@ void main() {
 
     test('pure-noise title never collides on empty title_norm', () async {
       // Both pages titled ONLY 'มังงะ' (a pure noise word → norm '').
-      final a = FakeSource('slow-manga', details: {
-        'https://a/one/': const SourceSeriesDetail(
-            title: 'มังงะ', chapters: []),
-        'https://a/two/': const SourceSeriesDetail(
-            title: 'มังงะ', chapters: []),
-      });
+      final a = FakeSource(
+        'slow-manga',
+        details: {
+          'https://a/one/': const SourceSeriesDetail(
+            title: 'มังงะ',
+            chapters: [],
+          ),
+          'https://a/two/': const SourceSeriesDetail(
+            title: 'มังงะ',
+            chapters: [],
+          ),
+        },
+      );
       final repo = repoWith([a]);
-      final one = await repo.addToLibrary(SearchGroup([
-        BrowseCandidate(
+      final one = await repo.addToLibrary(
+        SearchGroup([
+          BrowseCandidate(
             sourceId: 'slow-manga',
             referer: 'https://r/',
             url: 'https://a/one/',
-            title: 'มังงะ'),
-      ]));
-      final two = await repo.addToLibrary(SearchGroup([
-        BrowseCandidate(
+            title: 'มังงะ',
+          ),
+        ]),
+      );
+      final two = await repo.addToLibrary(
+        SearchGroup([
+          BrowseCandidate(
             sourceId: 'slow-manga',
             referer: 'https://r/',
             url: 'https://a/two/',
-            title: 'มังงะ'),
-      ]));
+            title: 'มังงะ',
+          ),
+        ]),
+      );
       // Two different pages must NOT fuse onto one ''-normed row.
       expect(one, isNot(two));
       expect(await seriesDao.findByTitleNorm(''), isNull); // never ''
