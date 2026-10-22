@@ -79,6 +79,20 @@ query ─▶ browse_repo.search()
 open card ─▶ series_repo: series_sources rows (the merge), chapters upserted
 ```
 
+## Data flow — the update feed (grid-head, v1.3.0)
+
+```
+browse_repo.latest()
+  ├─ source.recentStamps()  → the site's own homepage "updated recently"
+  │    grid: .chfiv .fivtime (go/dark/fin/up) / .epxdate (slow-manga)
+  │    → live relative labels ("2 นาที", "6 ชั่วโมง") = precise stamps
+  ├─ page 1 = grid entries (the site's own order) + archive tail, deduped
+  └─ card date = max(listing stamp, DB stamp)  → freshest wins
+background pass (6 h TTL):
+  stale card ─▶ grid hit? → write the link stamp (no detail fetch)
+              └▶ no hit   → series_repo.refreshDetail (chapters re-stamped)
+```
+
 ## Where things live (DB)
 
 | Concern | Table(s) |

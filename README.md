@@ -63,9 +63,15 @@ One app instead of seven websites — read like a site, cache like an app.
   carries (grounded in the sites' own listings)
 - **Smart cards** — type chips in per-type colors (มังงะ / มังฮวา /
   นิยาย), chapter counts, and last-update stamps colored by freshness
-  (green = hours → grey = years)
+  (green = hours → grey = years); the leftover space under the chips
+  shows the series intro, as many lines as fit
+- **The feed is the site's own grid** — page 1 of the feed is built from
+  each site's "updated recently" homepage grid, so the card order and
+  the "x minutes ago" stamps match the website instead of a local guess
 - **Background enrichment** — cards missing dates or covers get them
-  filled in automatically from a budgeted detail fetch, no tapping needed
+  filled in automatically from a budgeted detail fetch, no tapping needed;
+  dated cards are re-checked every 6 h, and a card the site's grid lists
+  is refreshed from that label (no extra request)
 - **Skeleton loading** — browse cards and series detail pages show
   shape-matching placeholders while they load, never bare spinners
 - **Robust covers** — dead or undecodable (AVIF) covers fall back to
@@ -133,7 +139,7 @@ Requires Android 6.0+ (API 23).
 > **Upgrading from a debug/test build?** Uninstall it first — release
 > builds are signed with a different key.
 
-See [what changed in v1.2.7](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.2.7).
+See [what changed in v1.3.0](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.3.0).
 
 ## 🛠️ Tech stack
 
@@ -146,7 +152,7 @@ See [what changed in v1.2.7](https://github.com/DotJumpDot/Star_Codex/releases/t
   loading never stutters scrolling
 - **Scraping** — `html` parser for the Madara/ts/classic themes and the
   custom engines; JSON POST API for nekopost
-- **223 tests**, `flutter analyze` clean
+- **243 tests**, `flutter analyze` clean
 
 ## 🔨 Build from source
 
@@ -177,18 +183,23 @@ Star_Codex/
 │   ├── ARCHITECTURE.md / BUILD.md / HOW_TO_RUN.md / PLAN_NOTES.md
 │   └── HANDOFF.md     session-to-session state
 ├── Picture/           the Star Codex logo (banner + icon sources)
-├── scripts/           emulator boot helpers for low-load situations
+├── scripts/           emulator boot helpers (boot-emu.bat = windowed,
+│                      boot-emu-low.bat = low-load headless)
 ├── AGENTS.md          operating instructions for AI coding agents
 └── CHANGELOG.md       one entry per completed batch
 ```
 
 ## 📜 Status
 
-**v1.2.7 (2026-10-21)** — all 11 build phases complete, seven user-driven
-rounds shipped (UX, Doujin 18+, sort/popular feeds, offline fallback,
-reading smoothness), on-device QA verified (see
-[CHANGELOG.md](./CHANGELOG.md) for the full history). Every batch landed
-as a commit with a `- [x] item complete` checklist.
+**v1.3.0 (2026-10-22)** — all 11 build phases complete, and the browse
+feed now matches the websites: page 1 of the feed is built from each
+site's own recent-updates grid (the site's order + its live "x minutes
+ago" labels), stale card dates are re-checked every 6 h instead of
+freezing at the first read, and cards fill their leftover space with
+the series intro. Plus the reader gesture work (real per-chapter crop
+lock, website-style pinch zoom) from v1.2.10. On-device QA verified;
+every batch landed as a commit with a `- [x] item complete` checklist
+(see [CHANGELOG.md](./CHANGELOG.md) for the full history).
 
 ## ⚠️ Disclaimer
 

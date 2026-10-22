@@ -633,3 +633,12 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   budget is measured (title's real line count via TextPainter + the rows
   the chip labels wrap into), never fewer than 2 and never more than 4,
   then truncated with an ellipsis. 243 tests green.
+- 2026-10-22 — Release: v1.3.0 — version 1.3.0+15. The browse feed finally
+  matches the websites: page 1 is built from each site's own
+  recent-updates grid (the site's own order + its live "x minutes ago"
+  labels), card dates are re-checked every 6 h instead of freezing at the
+  first read (a grid-listed card refreshes without any extra request),
+  and the cards fill their leftover space with the series intro (2–4
+  measured lines, ellipsized) under compact site chips. Ships the v1.2.10
+  reader gestures too (real per-chapter crop lock, website-style pinch
+  zoom, paged-slide freeze). 243 tests green.

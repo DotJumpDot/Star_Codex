@@ -14,8 +14,10 @@ engine + nekopost API incl. novels) plus a separate **Doujin 18+ page**
 (ntr-manga, hentaithai; doujin-lc + miku-doujin seed disabled behind a
 Cloudflare TLS-fingerprint block — see PLAN_NOTES 2026-10-19). Streaming
 reading, silent WebP q80 caching, content-hash dedup. Personal local use
-only — no server, no cloud, no login. **v1.2.7 released** (GitHub
-Releases, release-signed APK); the repo is public.
+only — no server, no cloud, no login. **v1.3.0 released** (GitHub
+Releases, release-signed APK); the repo is public. The browse feed is
+built from each site's own recent-updates grid — the site's order and
+its live "x minutes ago" labels (see PLAN_NOTES 2026-10-22).
 
 ## Startup sequence (every session)
 
@@ -24,7 +26,7 @@ Releases, release-signed APK); the repo is public.
    [`Docs/Plan/15-BUILD-ORDER.md`](Docs/Plan/15-BUILD-ORDER.md).
 3. Check `git log --oneline -10` and [`CHANGELOG.md`](CHANGELOG.md) (repo
    root) for progress. All 11 build phases are complete and **v1.0.0 →
-   v1.2.7 are shipped**; remaining work is whatever the user asks for in
+   v1.3.0 are shipped**; remaining work is whatever the user asks for in
    chat, landing as `Phase`/`Fix`/feature commits per the discipline
    below.
 4. [`Docs/Plan/00-DECISIONS.md`](Docs/Plan/00-DECISIONS.md) is the contract —
@@ -101,7 +103,11 @@ Also append lines to [`CHANGELOG.md`](CHANGELOG.md) per batch.
   `uiautomator dump`, `screencap`) — screenshot + inspect before declaring
   UI work done. For the USER to look at the app themselves, drop
   `-no-window` (app installs persist across reboots; a GUI exit code of
-  2816 usually just means the user closed the window).
+  2816 usually just means the user closed the window) — or just run
+  `scripts\boot-emu.bat [ramMB]`, which does exactly that (windowed
+  boot, no CPU/RAM caps). A leftover HEADLESS qemu holds the AVD lock
+  and a second launch dies with "Running multiple emulators" — kill it
+  first (`taskkill //PID <qemu> //F`).
 - When the host is busy (user gaming etc.), boot via
   `scripts\boot-emu-low.bat [ramMB]` instead: guest RAM default 2048,
   QEMU pinned to the top 2 threads + BelowNormal priority, GPU untouched.

@@ -33,6 +33,9 @@ cached as WebP q80, content-hash deduplicated across sites (measured
 one library entry (Thai title kept, original name shown as subtitle)
 with per-chapter source fallback, and cards enrich themselves in the
 background (dates, covers) when the listings alone don't carry them.
+The update feed itself is built from each site's own recent-updates
+grid, so its order and its "x minutes ago" stamps match the website
+(since v1.3.0).
 Navigation is a left drawer — Browse · Doujin 18+ · Library · History ·
 Offline · Settings. Thai-first UI with an English toggle, 25 themes
 (including a true-black OLED family), 12 fonts. SQLite schema v8.
