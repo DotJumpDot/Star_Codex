@@ -1161,3 +1161,12 @@ referer pairing, novel estimate. 165 tests green.
   row (browse enrichment + offline catalog) and carried across group
   rebuilds like the other DB-enriched fields — listing-only series have
   no description until their row exists.
+- BROWSE CARD LAYOUT (2026-10-22, commit 3b234c3): browse chips use the
+  COMPACT site label (shortSourceName: the generic "Manga" word is
+  dropped — "Slow Manga" → "Slow"; full names stay in the site sheet
+  and detail screen) so 3 merged sites fit on one chip line, 5 on two.
+  The card intro takes as many lines as FIT beside the 128 px cover: the
+  budget is measured (title line count via TextPainter + the rows the
+  chip labels wrap into), clamped to 2..4, then ellipsized. Measurement
+  errors only shift the line count — the column height is natural, so
+  nothing can overflow.
