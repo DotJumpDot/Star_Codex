@@ -642,3 +642,22 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   measured lines, ellipsized) under compact site chips. Ships the v1.2.10
   reader gestures too (real per-chapter crop lock, website-style pinch
   zoom, paged-slide freeze). 243 tests green.
+- 2026-10-22 — Docs: full audit against the code (not just a version bump).
+  Fixed the facts the docs got wrong: the main feed has 7 live sources (not
+  9 — the other 2 live on the Doujin page), the app requires Android 7.0
+  / API 24 (not 6.0 / API 23), ARCHITECTURE no longer says "five manga
+  websites" and its DB table now lists blob_urls + page_bands, BUILD.md is
+  retitled "Star Codex" and gained the release-signing + two-place version
+  bump rules, HOW_TO_RUN gained the emulator boot scripts and fin-manga in
+  the smoke test, QA-ON-DEVICE no longer links a non-existent shots folder
+  (and is marked as the historical v1.0.0-era log), and 2 broken
+  ../CHANGELOG.md links in the Plan folder now resolve. Added two new
+  docs: Docs/SOURCES.md (per-site reference — adapter, markup quirks,
+  which sites support the grid feed, which are Cloudflare-blocked) and
+  Docs/RELEASING.md (the release runbook: bump → build → verify the
+  signature → publish → clean up). Live-probed every homepage while
+  auditing: the grid has a THIRD family (ntr-manga's own ntr-upd-grid
+  markup, which the Madara parser does not read yet — recorded as a
+  follow-up). Repaired 3 stray cp1252 bytes that made PLAN_NOTES.md
+  invalid UTF-8 (sequence-aware replacement — a blind byte replace
+  corrupts the Thai sections). 243 tests green, analyze clean.

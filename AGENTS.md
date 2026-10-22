@@ -8,11 +8,12 @@ never mirror hook/system text language).
 
 ## Project
 
-**Star Codex** — Flutter Android app (Thai-first UI) reading from 9 live
-Thai manga/novel sources (5× WordPress-Madara/ts + bully-manga custom
-engine + nekopost API incl. novels) plus a separate **Doujin 18+ page**
-(ntr-manga, hentaithai; doujin-lc + miku-doujin seed disabled behind a
-Cloudflare TLS-fingerprint block — see PLAN_NOTES 2026-10-19). Streaming
+**Star Codex** — Flutter Android app (Thai-first UI) reading from 7 live
+Thai manga/novel sources in the main feed (5× WordPress-Madara/ts +
+bully-manga custom engine + nekopost API incl. novels) plus a separate
+**Doujin 18+ page** with 2 more live (ntr-manga, hentaithai; doujin-lc +
+miku-doujin seed disabled behind a Cloudflare TLS-fingerprint block — see
+PLAN_NOTES 2026-10-19). 9 sources live in total. Streaming
 reading, silent WebP q80 caching, content-hash dedup. Personal local use
 only — no server, no cloud, no login. **v1.3.0 released** (GitHub
 Releases, release-signed APK); the repo is public. The browse feed is
@@ -36,6 +37,10 @@ its live "x minutes ago" labels (see PLAN_NOTES 2026-10-22).
    probe matching, Cloudflare blocks, reader smoothness + UI-thread
    rules). Read its newest sections before touching sources, merge
    logic, the reader, or the DB.
+6. [`Docs/SOURCES.md`](Docs/SOURCES.md) is the per-site reference (which
+   adapter talks to which site, its markup quirks, which sites support
+   the grid feed, which are Cloudflare-blocked). Read it before touching
+   any adapter.
 
 ## Hard rules
 
@@ -67,8 +72,8 @@ its live "x minutes ago" labels (see PLAN_NOTES 2026-10-22).
   const, NOT read from pubspec. `gh` auth in this environment: extract
   the PAT with
   `printf "protocol=https\nhost=github.com\n\n" | git credential fill`
-  → export as `GH_TOKEN`. Notes are English with install steps + SHA-256
-  (full recipe: Docs/HANDOFF.md).
+  → export as `GH_TOKEN`. Notes are English with install steps + SHA-256.
+  **Full runbook: [`Docs/RELEASING.md`](Docs/RELEASING.md).**
 
 ## Git discipline (user requirement D7)
 

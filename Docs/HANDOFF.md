@@ -28,6 +28,10 @@
   card intros in the leftover space, compact site chips. Invariants:
   PLAN_NOTES 2026-10-22 (three sections). Reader gestures shipped in
   v1.2.10 (real crop lock, website-style pinch, paged freeze).
+- **Open technical item: bully-manga's feed order** still differs from
+  its site — its engine is custom markup, so the grid-head treatment
+  needs its own port there (the ts sites are all done). Would ride a
+  v1.3.1.
 - **Remaining work = whatever the user asks for in chat.** There is no
   open phase. The user drives batches; land them with the checklist
   commit + push discipline (AGENTS.md → Git discipline), one CHANGELOG
@@ -41,10 +45,11 @@
 
 ## Project in 3 lines
 
-**Star Codex** = Flutter Android app (Thai-first UI) reading from 9 live
-Thai manga/novel sources (5× WordPress-Madara/ts + bully-manga custom
-engine + nekopost API incl. novels) plus a separate Doujin 18+ page
-(ntr-manga, hentaithai). Reading is streaming like a website; viewed
+**Star Codex** = Flutter Android app (Thai-first UI) reading from 7 live
+Thai manga/novel sources in the main feed (5× WordPress-Madara/ts +
+bully-manga custom engine + nekopost API incl. novels) plus a separate
+Doujin 18+ page with 2 more live (ntr-manga, hentaithai) — 9 live in
+total. Reading is streaming like a website; viewed
 pages silently cache as WebP q80, content-hash deduplicated. Navigation:
 left drawer — Browse / Doujin 18+ / Library / History / Offline /
 Settings. Personal local use only — no server, no cloud, no login.
@@ -61,6 +66,8 @@ push, and keep the full test suite green.
 ```
 
 ## Release recipe (short)
+
+Full runbook: [`Docs/RELEASING.md`](./RELEASING.md).
 
 1. Version: `app/pubspec.yaml` (`x.y.z+N`) AND the About string in
    `settings_storage_sources.dart` (`AboutSection.appVersion`), CHANGELOG

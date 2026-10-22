@@ -11,9 +11,24 @@ flutter run              # picks the connected phone; r = hot reload, R = restar
 Emulator works too (`flutter emulators`), but real phone is the target —
 image scrolling feel and storage behave differently on emulators.
 
+### Booting the emulator
+
+```powershell
+scripts\boot-emu.bat          # windowed, full speed — for looking at it yourself
+scripts\boot-emu-low.bat      # headless, 2 QEMU threads + BelowNormal priority
+```
+
+`boot-emu-low.bat` takes 10–20 minutes to boot (expected, not a hang) —
+use it when the host is busy. Both scripts wait for `sys.boot_completed`
+and print `BOOTED`.
+
+**A leftover headless qemu holds the AVD lock** — a second launch dies with
+"Running multiple emulators". Kill it first:
+`taskkill //PID <qemu-pid> //F`.
+
 ## Scraper smoke-test (no app UI)
 
-After Phase 3 of the build order, sources can be tested from the CLI:
+Sources can be tested from the CLI:
 
 ```powershell
 cd C:\Code\StarCodex\app
@@ -21,9 +36,14 @@ dart run tool/verify_sources.dart --source slow-manga
 dart run tool/verify_sources.dart --source go-manga
 dart run tool/verify_sources.dart --source up-manga
 dart run tool/verify_sources.dart --source dark-manga
+dart run tool/verify_sources.dart --source fin-manga
 dart run tool/verify_sources.dart --source nekopost
 dart run tool/verify_sources.dart --all
 ```
+
+`--all` covers every Madara-family site plus nekopost. The custom
+engines (bully, hentaithai, miku) are not in this tool — probe them
+through the app.
 
 It prints: 10 latest series → a search → chapters with parsed numbers →
 image URLs (and for nekopost, a novel excerpt). If a site changed, this is
@@ -60,8 +80,15 @@ flutter test
 
 Both must be clean at the end of every plan phase (Plan/15 rules).
 
-## The old compression experiment
+**In Git Bash, never pipe `flutter` output** through `tr`/`grep`/`tail` —
+the dart children hold the pipe and the shell hangs. Redirect to a file
+instead and read the file:
 
-`compress_test/` holds the 2026-10-17 one-off WebP benchmark (real chapter
-from slow-manga, report.html side-by-side). Safe to delete anytime; the
-numbers live in Plan/00-DECISIONS.md.
+```bash
+flutter.bat test > out.log 2>&1; echo $?
+```
+
+The suite is ~11 s warm. If a run takes minutes, something is hanging —
+investigate, don't retry blindly. Widget-test gotchas (FakeAsync drains,
+one widget test per file, `pumpAndSettle` timeouts) are listed in
+[../AGENTS.md](../AGENTS.md).

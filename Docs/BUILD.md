@@ -1,8 +1,8 @@
-# Manga Reader — Build Guide (Windows PC → Android APK)
+# Star Codex — Build Guide (Windows PC → Android APK)
 
 One-time setup on this machine, then two commands per build. For the dev
-loop see [HOW_TO_RUN.md](./HOW_TO_RUN.md). For what to build, see
-[Plan/15-BUILD-ORDER.md](./Plan/15-BUILD-ORDER.md).
+loop see [HOW_TO_RUN.md](./HOW_TO_RUN.md). For the release procedure
+(sign → tag → publish) see [RELEASING.md](./RELEASING.md).
 
 ## 1. One-time toolchain setup
 
@@ -52,6 +52,13 @@ flutter build apk --release
 Output: `build\app\outputs\flutter-apk\app-release.apk` (a single fat APK,
 arm32+arm64 — fine for personal use; `--split-per-abi` if you want smaller).
 
+The release build signs itself with the dedicated keystore when the
+descriptor is present at
+`%USERPROFILE%\.android\star-codex-key.properties`; without it the build
+falls back to debug signing (fine for local testing, NOT publishable).
+The `storeFile` path in that properties file must use **forward slashes** —
+`java.util.Properties` eats single backslashes as escapes.
+
 ## 3. Install on the phone
 
 ```powershell
@@ -63,11 +70,24 @@ adb install -r build\app\outputs\flutter-apk\app-release.apk
 First install: Android will warn "unknown sources" — allow it (personal
 sideload, decision D5/D6).
 
+**Upgrading over a debug-signed install?** Uninstall first — the release
+key differs, so the install fails with a signature mismatch.
+
 ## 4. Version bump policy
 
 Bump `pubspec.yaml` `version: X.Y.Z+NN` before every release build that
 leaves your phone's old data in place. SQLite schema migrations key off the
 db `version`, not the app version (see Plan/02).
+
+**Two places, not one.** The About screen shows a HARDCODED const, not the
+pubspec value:
+
+```dart
+// app/lib/ui/settings/settings_storage_sources.dart
+static const appVersion = '1.3.0';
+```
+
+Bump both, or the app keeps advertising the old version.
 
 ## 5. Gotchas
 
@@ -79,5 +99,8 @@ db `version`, not the app version (see Plan/02).
 - **Gradle first build is slow** (5–15 min, downloads). Later builds ~1 min.
 - **Antivirus can lock `build\`**: if a build fails weirdly, delete
   `app\build` and retry.
-- **Do not ship `compress_test/`** — it's the one-off experiment folder; it
-  can be deleted at any time.
+- **Min SDK is 24 (Android 7.0)** — inherited from Flutter's default
+  `flutter.minSdkVersion`. The release notes and README must say 7.0+.
+- **Back up the keystore** (`star-codex-release.jks` +
+  `star-codex-key.properties`). Losing it means no future release can
+  update over an installed v1.0.0+ device.

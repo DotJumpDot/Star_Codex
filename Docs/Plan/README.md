@@ -1,5 +1,14 @@
 # Manga Reader — Plan (build instructions for the coding model)
 
+> **Historical reference — all 11 phases are complete and shipped**
+> (v1.0.0 → v1.3.0 are on GitHub Releases). The app was renamed
+> **Manga Reader → Star Codex** on 2026-10-17, which is why the old name
+> still appears throughout this folder. Nothing here needs executing again;
+> read it for the *why* behind a decision. For the current state see
+> [../HANDOFF.md](../HANDOFF.md), for the post-plan invariants see
+> [../PLAN_NOTES.md](../PLAN_NOTES.md), and for the per-site reference see
+> [../SOURCES.md](../SOURCES.md).
+
 This folder is the **complete build plan** for the Manga Reader Flutter app.
 It is written to be executed by a coding model (GLM 5.3 Flash) phase by phase
 without needing to re-derive any decision. Everything is already decided,
@@ -28,7 +37,7 @@ sites on 2026-10-17.
 - **Thai first.** Default UI language is Thai (`assets/i18n/th.json`), with an
   English toggle. All user-visible strings go through the i18n helper.
 - **Keep the repo clean:** no build artifacts in git, update
-  [`../CHANGELOG.md`](../CHANGELOG.md) (repo root) at the end of every phase
+  [`../../CHANGELOG.md`](../../CHANGELOG.md) (repo root) at the end of every phase
   (one line per phase).
 - **Git = progress report (user requirement):** this folder is the git repo
   `github.com/DotJumpDot/Star_Codex`. Every phase ends with a commit whose

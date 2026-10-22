@@ -2,7 +2,7 @@
 
 **Star Codex** is a **single Flutter Android app** under `app/` (repo:
 github.com/DotJumpDot/Star_Codex). There is no backend, no server, no cloud —
-the phone talks directly to the five manga websites, exactly like a browser
+the phone talks directly to the source websites, exactly like a browser
 would. The PC is only used to compile the APK.
 
 > Full build plan with every detail: [`Plan/`](./Plan/) — start at
@@ -22,7 +22,8 @@ StarCodex/
 │   │   ├── core/
 │   │   │   ├── i18n/            th.json / en.json + tiny t() helper
 │   │   │   ├── theme/           M3 dark-first incl. OLED family, Sarabun
-│   │   │   ├── utils/           title_norm, thai collation, chapter-number parse, jaro_winkler
+│   │   │   ├── utils/           title_norm, thai collation, chapter-number parse, jaro_winkler,
+│   │   │   │                    thai.dart (site/relative date parsing — the v1.3.0 date rules)
 │   │   │   └── net/             safe_http (host-validated) + rate_limiter  ← ONLY network door
 │   │   ├── data/
 │   │   │   ├── db.dart + dao/   sqflite, append-only migrations (v1→v8, Plan/02 + PLAN_NOTES)
@@ -34,8 +35,9 @@ channel on a worker thread)
 │   │   └── ui/                  shell/ browse/ detail/ reader/ library/ downloads/ settings/
 │   ├── assets/i18n/
 │   ├── tool/verify_sources.dart scraper smoke-test CLI
-│   └── android/                 minSdk 23, INTERNET permission, appId com.jamej.starcodex
-└── compress_test/               one-off compression experiment (2026-10-17, can be deleted)
+│   └── android/                 minSdk 24 (Android 7.0), INTERNET permission, appId com.jamej.starcodex
+└── scripts/                     emulator boot helpers (boot-emu.bat = windowed,
+                                 boot-emu-low.bat = low-load headless)
 ```
 
 ## Layering
@@ -73,7 +75,8 @@ tap chapter ─▶ ReaderScreen (ui/reader)
 
 ```
 query ─▶ browse_repo.search()
-           ├─ 5 × source.search() in parallel (rate-limited per host)
+           ├─ every active source.search() in parallel (rate-limited per
+           │  host) — 7 in the main feed, 2 on the Doujin page
            ├─ normalizeTitle + match (07: exact → alt-title → Jaro-Winkler)
            └▶ grouped cards: one series, N source badges
 open card ─▶ series_repo: series_sources rows (the merge), chapters upserted
@@ -93,14 +96,18 @@ background pass (6 h TTL):
               └▶ no hit   → series_repo.refreshDetail (chapters re-stamped)
 ```
 
+Per-site grid support and quirks live in [SOURCES.md](./SOURCES.md).
+
 ## Where things live (DB)
 
 | Concern | Table(s) |
 |---|---|
-| Sources registry | `sources` (5 seeded rows) |
+| Sources registry | `sources` (11 seeded rows — 9 live, 2 seeded off behind a Cloudflare block) |
 | Merged series | `series` (+ `original_title`, `type`, `origin`) + `series_sources` (+ `tags`, `series_tags`) |
 | Chapters & pages | `chapters`, `chapter_pages`, `chapter_text` (novels) |
 | Blob store index | `blobs` (hash → file, pinned flag, last_access) |
+| Cover cache | `blob_urls` (source URL → blob hash; avoids re-downloading covers) |
+| Oversized-page slices | `page_bands` (GPU-safe bands of a >8192 px strip) |
 | Progress & library | `read_progress`, `reading_history`, `library`, `categories`, `category_members` |
 | Downloads & queue | `downloads` |
 | Settings & misc | `settings`, `search_history` |

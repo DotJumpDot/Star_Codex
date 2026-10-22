@@ -1,10 +1,18 @@
 # QA — On-device DoD verification (phases 4–11) — COMPLETE
 
+> **Historical log (2026-10-18).** It records the v1.0.0-era QA pass and
+> its 168-test baseline; the suite has grown a lot since (243 at v1.3.0 —
+> see [../CHANGELOG.md](../CHANGELOG.md)). Later QA rounds live in
+> [PLAN_NOTES.md](./PLAN_NOTES.md); the current state of the project is in
+> [HANDOFF.md](./HANDOFF.md).
+
 Date: 2026-10-18 · Emulator: Pixel 7 AVD `StarCodex`, API 36, headless
 (swiftshader GPU) · Builds: debug **and** release, both rebuilt AFTER the
 review pass (`4204e9e`) and after this session's Fix commit. Emulator
 numbers are INDICATIVE — the phone-in-hand session remains the judge for
-performance DoDs (AGENTS.md). Screenshots: [`qa/shots/`](qa/shots/)
+performance DoDs (AGENTS.md). Screenshots live under the gitignored
+`qa_f/` and `qa_v2/` folders (emulator driving byproducts — deliberately
+not in git); the shot numbers in the tables below refer to them
 (78–113 are this session's; 01–76 belong to the earlier run recorded in
 [`QA-SESSION-PROGRESS.md`](QA-SESSION-PROGRESS.md)).
 

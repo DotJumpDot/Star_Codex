@@ -1,18 +1,21 @@
 # Star Codex — Docs
 
 Local-first, Android manga/manhwa/manhua/novel reader ("Star Codex") for
-nine live Thai sources plus a separate Doujin (18+) page, built with
-Flutter. Personal use only.
+nine live Thai sources (7 in the main feed, 2 on a separate Doujin 18+
+page), built with Flutter. Personal use only.
 Repo: https://github.com/DotJumpDot/Star_Codex (this folder is the repo root).
 
 | Doc | What it is |
 |---|---|
 | [HANDOFF.md](./HANDOFF.md) | Session-to-session state + the release recipe — **read first** |
+| [SOURCES.md](./SOURCES.md) | Per-site reference: adapter, quirks, grid support, known blocks |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | How the app is put together (Maki-style overview) |
 | [BUILD.md](./BUILD.md) | Setting up the toolchain on this PC and building the APK |
+| [RELEASING.md](./RELEASING.md) | The release runbook: bump → build → sign → publish |
 | [HOW_TO_RUN.md](./HOW_TO_RUN.md) | Dev workflow: run on phone, hot reload, verify sources, logs |
 | [PLAN_NOTES.md](./PLAN_NOTES.md) | Post-plan invariants & gotchas (source quirks, migrations, covers) |
 | [QA-ON-DEVICE.md](./QA-ON-DEVICE.md) | The v1.0.0 on-device QA log (8 bugs found + fixed) |
+| [QA-SESSION-PROGRESS.md](./QA-SESSION-PROGRESS.md) | The detailed working log behind that QA log |
 | [../CHANGELOG.md](../CHANGELOG.md) | One line per completed batch (repo root) |
 | [Plan/](./Plan/) | The complete build plan (16 documents) — start at [Plan/README.md](./Plan/README.md) |
 
@@ -23,9 +26,10 @@ slow-manga.net, up-manga.com, dark-manga.com, fin-manga.com** (WordPress/
 Madara-ts — one shared adapter), **bully-manga.com** (custom static-engine
 adapter: JSON-LD detail pages, `IMAGE_MAP` chapter arrays, relative Thai
 date stamps) and **nekopost.net** (custom JSON API, also carries นิยาย
-novels), plus a separate **Doujin 18+ page** with **ntr-manga.net**
-(Madara/ts) and **hentaithai.net** (custom one-shot engine; two more
-doujin sites seed disabled behind a Cloudflare block — see PLAN_NOTES).
+novels) — 7 live sites in the main feed — plus a separate **Doujin 18+ page**
+with **ntr-manga.net** (Madara/ts) and **hentaithai.net** (custom one-shot
+engine); two more doujin sites seed disabled behind a Cloudflare block —
+see PLAN_NOTES and [SOURCES.md](./SOURCES.md).
 Reading is streaming like a website; every viewed page is silently
 cached as WebP q80, content-hash deduplicated across sites (measured
 −58% size), with an LRU cache (5 GB default) that cleans itself and a

@@ -467,18 +467,18 @@ Regression tests added: un-opened-chapter download, times_read spam
 guard, merge-with-dropped-last-read, badge dedupe across mirrors, cover
 referer pairing, novel estimate. 165 tests green.
 
-## On-device QA (2026-10-18) — running findings
+## On-device QA (2026-10-18) â€” running findings
 
 - **Riverpod scope crash, browse  detail (fixed, a3a1c75).** Opening any
   detail screen from a browse card red-screened with "dependencies were
   overridden but the provider is not": the push site overrode
   detailGroupProvider(-1) in a nested ProviderScope while
-  detailControllerProvider (family, no dependencies declared) watched it —
+  detailControllerProvider (family, no dependencies declared) watched it â€”
   riverpod 2.6 asserts exactly this shape. Fixed by keying the controller
   family on a DetailKey (id / group identity) and dropping the nested
   scope entirely. dependencies: alone did NOT satisfy the assert.
   Test-env corollary: series_sources.source_id FKs the seeded sources
-  table — fake sources in tests must use a seeded id (slow-manga etc.).
+  table â€” fake sources in tests must use a seeded id (slow-manga etc.).
 - **flutter_image_compress rejects 0-sized targets (fixed).** The
   pipeline's "no resize" passed minWidth: 0, minHeight: 0  the plugin
   threw CompressError(unknown): width and height must be > 0 for EVERY
@@ -1170,3 +1170,31 @@ referer pairing, novel estimate. 165 tests green.
   chip labels wrap into), clamped to 2..4, then ellipsized. Measurement
   errors only shift the line count â€” the column height is natural, so
   nothing can overflow.
+- GRID FAMILIES (2026-10-22, live probe): the homepage grid has THREE
+  shapes, not two. Family A = `.listupd .bsx` + `.fivtime` (go, up, dark,
+  fin). Family B = `.epxdate` on a chapter-linked tile (slow-manga).
+  Family C = ntr-manga's OWN markup (`div.ntr-upd-grid` with
+  `ntr-upd-card` tiles and an `ntr-upd-eptime` stamp like
+  "8 minutes ago") -- the Madara parser finds no `.bsx`/`.fivtime` there,
+  so ntr-manga's Doujin feed still uses the archive order. Its stamps
+  are already in a parseable form, so family C is a small follow-up.
+  Live probe counts (2026-10-22): go bsx=19/fivtime=12, slow
+  bsx=59/epxdate=60, up bsx=27/fivtime=20, dark bsx=19/fivtime=12,
+  fin bsx=19/fivtime=12, bully bsx=0/fivtime=0/epxdate=0.
+  The per-site reference now lives in Docs/SOURCES.md.
+- DOC AUDIT (2026-10-22): every doc was re-checked against the CODE, not
+  just re-versioned. Real errors found and fixed: README said the main
+  feed has 9 live sources (it has 7 -- the other 2 are on the Doujin
+  page); README said API 23 while the merged manifest says minSdk 24
+  (Android 7.0); ARCHITECTURE said "five manga websites", listed the
+  deleted compress_test/ folder, and its DB table was missing
+  blob_urls/page_bands; BUILD.md was still titled "Manga Reader" and
+  had no signing step; HOW_TO_RUN.md had no emulator section and
+  omitted fin-manga from the smoke test; QA-ON-DEVICE.md linked a
+  non-existent qa/shots/ folder. Lesson: a doc claiming a NUMBER must
+  be checked against the code, not against the last release.
+- PLAN_NOTES ENCODING (2026-10-22): this file carried 3 stray cp1252
+  em-dash bytes (0x97) that made it invalid UTF-8. Repaired by
+  replacing only the standalone 0x97 bytes -- 0x97 is also a UTF-8
+  continuation byte inside Thai text, so a blind global replace
+  CORRUPTS the Thai sections. Replacements must be sequence-aware.

@@ -46,12 +46,13 @@ One app instead of seven websites — read like a site, cache like an app.
   site's copy of the same chapter loads instead, badged with its origin
 
 ### Browsing & discovery
-- **All 9 live sources in one feed** — search everything at once, filter
-  by site, browse per-site genres, sort the results (latest/oldest
+- **All 7 live sources in the main feed** — search everything at once,
+  filter by site, browse per-site genres, sort the results (latest/oldest
   update, most/fewest chapters — latest update by default), and flip
   the feed between ล่าสุด and ยอดนิยม (server-side popularity on the
   sites that support it); the same title on several sites merges into a
-  single card (Thai title kept, original as subtitle)
+  single card (Thai title kept, original as subtitle). The Doujin page
+  adds 2 more live sites of its own
 - **Works offline** — airplane mode shows your visited series from the
   on-device catalog instead of a blank page, downloaded chapters read
   anywhere, and covers/last-update dates persist to disk
@@ -108,7 +109,7 @@ One app instead of seven websites — read like a site, cache like an app.
 
 ## 📖 Sources
 
-Main feed (9 live):
+Main feed (7 live):
 
 | Site | Content | Adapter |
 |---|---|---|
@@ -120,7 +121,7 @@ Main feed (9 live):
 | bully-manga.com | Manhwa / Manhua | custom static-site engine |
 | nekopost.net | Comics + Thai novels (นิยาย) | custom JSON API |
 
-Doujin 18+ page (separate destination):
+Doujin 18+ page (separate destination — 2 live of 4):
 
 | Site | Content | Adapter |
 |---|---|---|
@@ -134,7 +135,7 @@ Doujin 18+ page (separate destination):
 Grab `StarCodex-<version>.apk` from the
 [latest release](https://github.com/DotJumpDot/Star_Codex/releases/latest)
 and install it (allow "install from unknown sources" when prompted).
-Requires Android 6.0+ (API 23).
+Requires Android 7.0+ (API 24).
 
 > **Upgrading from a debug/test build?** Uninstall it first — release
 > builds are signed with a different key.
@@ -170,6 +171,8 @@ release build falls back to debug signing — see
 
 Full toolchain setup: [Docs/BUILD.md](./Docs/BUILD.md) ·
 Dev loop: [Docs/HOW_TO_RUN.md](./Docs/HOW_TO_RUN.md) ·
+Release runbook: [Docs/RELEASING.md](./Docs/RELEASING.md) ·
+Per-site reference: [Docs/SOURCES.md](./Docs/SOURCES.md) ·
 Architecture: [Docs/ARCHITECTURE.md](./Docs/ARCHITECTURE.md)
 
 ## 📁 Repository layout
@@ -181,6 +184,8 @@ Star_Codex/
 ├── Docs/
 │   ├── Plan/          the complete 16-document build plan
 │   ├── ARCHITECTURE.md / BUILD.md / HOW_TO_RUN.md / PLAN_NOTES.md
+│   ├── SOURCES.md     per-site reference (adapter, quirks, grid support)
+│   ├── RELEASING.md   the release runbook
 │   └── HANDOFF.md     session-to-session state
 ├── Picture/           the Star Codex logo (banner + icon sources)
 ├── scripts/           emulator boot helpers (boot-emu.bat = windowed,
