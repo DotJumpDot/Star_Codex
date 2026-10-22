@@ -60,6 +60,33 @@ Future<void> openReader(
   );
 }
 
+/// System-bars handover between two readers (user report 2026-10-23:
+/// the Android status/navigation bars came back after a force-drag
+/// chapter switch and after a webtoon↔paged mode flip). The incoming
+/// reader asserts immersive in its initState, but the OUTGOING reader's
+/// dispose only runs when the new route's entrance animation COMPLETES —
+/// its "restore the bars" call landed last and un-hid them. While this
+/// flag is set, a disposing reader skips the restore: its successor
+/// owns the system-UI state.
+bool readerHandsOverSystemBars = false;
+
+/// Every reader→reader replacement (chapter switch, mode flip) goes
+/// through HERE so the handover flag is always set around the swap.
+Future<void> replaceReaderRoute(
+  BuildContext context,
+  WidgetBuilder builder,
+) async {
+  readerHandsOverSystemBars = true;
+  try {
+    await Navigator.of(context)
+        .pushReplacement(MaterialPageRoute<void>(builder: builder));
+  } finally {
+    // The old route's dispose (during the await above) already consumed
+    // the flag; clear it defensively in case the swap never landed.
+    readerHandsOverSystemBars = false;
+  }
+}
+
 /// Mode flips apply to the OPEN reader, not just the next chapter (user
 /// report 2026-10-19: flipping เว็บตูน ↔ หน้าต่อหน้า in the drawer used to
 /// need an exit + re-enter). Callers save progress FIRST so the
@@ -76,16 +103,21 @@ Future<void> replaceWithResolvedReader(
   final series = await seriesDao.byId(chapter.seriesId);
   final mode = resolveReaderMode(series?.type, modeOverride);
   if (mode == current || !context.mounted) return;
-  await Navigator.of(context).pushReplacement(
-    MaterialPageRoute<void>(
-      builder: (_) => switch (mode) {
-        ReaderMode.webtoon =>
-          ReaderScreen(chapter: chapter, chromeVisible: chromeVisible),
-        ReaderMode.paged =>
-          PagedReaderScreen(chapter: chapter, chromeVisible: chromeVisible),
-        ReaderMode.novel =>
-          NovelReaderScreen(chapter: chapter, chromeVisible: chromeVisible),
-      },
-    ),
+  await replaceReaderRoute(
+    context,
+    (_) => switch (mode) {
+      ReaderMode.webtoon => ReaderScreen(
+        chapter: chapter,
+        chromeVisible: chromeVisible,
+      ),
+      ReaderMode.paged => PagedReaderScreen(
+        chapter: chapter,
+        chromeVisible: chromeVisible,
+      ),
+      ReaderMode.novel => NovelReaderScreen(
+        chapter: chapter,
+        chromeVisible: chromeVisible,
+      ),
+    },
   );
 }

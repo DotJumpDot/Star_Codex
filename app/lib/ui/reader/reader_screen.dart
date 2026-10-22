@@ -67,12 +67,23 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   /// Scaffold this screen builds, so Scaffold.of can never find it.
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  /// Drag-past-the-end state: the next chapter (or null at the very end)
-  /// is resolved once, lazily, while parked at the end.
+  /// Drag-past-the-edge state: the neighbour chapters (or null at the
+  /// very ends) are resolved once, lazily, while parked at that edge.
+  /// The pull itself is signed: past the END pulls the NEXT chapter,
+  /// past the START pulls the PREVIOUS one (user request 2026-10-23:
+  /// dragging back gets the same progress treatment as dragging on).
   Chapter? _next;
   bool _nextKnown = false;
   bool _nextLookup = false;
-  final _pull = PullNextTracker();
+  Chapter? _prev;
+  bool _prevKnown = false;
+  bool _prevLookup = false;
+  final _pull = PullChapterTracker(threshold: 420);
+
+  /// Scroll offset sampled during an active pull — the delta between
+  /// samples shrinks the pull once the finger reverses back into
+  /// content (see _onScroll).
+  double? _pullOffset;
   DateTime _lastSave = DateTime.fromMillisecondsSinceEpoch(0);
 
   /// Pending "on reading" marker for this chapter (armed on open, fired
@@ -383,9 +394,36 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     );
   }
 
+  /// Parked at the very top — the previous-chapter pull edge.
+  bool get _atStart => _scroll.hasClients && _scroll.offset <= 0;
+
   void _onScroll() {
     final loaded = _loaded;
     if (loaded == null || !_scroll.hasClients) return;
+
+    // The finger reversed back into CONTENT during a pull: overscroll
+    // notifications stop once the position re-enters range, so the
+    // in-range movement feeds `shrink` instead — the indicator FALLS
+    // BACK with the finger and only disappears when it reaches zero
+    // (user report 2026-10-23: it must not vanish on the first
+    // reversal).
+    if (_pull.dragging) {
+      final off = _scroll.offset;
+      final max = _scroll.position.maxScrollExtent;
+      final atEdge = _pull.direction > 0 ? off >= max - 1 : off <= 1;
+      if (!atEdge && _pullOffset != null) {
+        final moved = off - _pullOffset!;
+        if (_pull.direction > 0 && moved < 0) {
+          setState(() => _pull.shrink(-moved));
+        } else if (_pull.direction < 0 && moved > 0) {
+          setState(() => _pull.shrink(moved));
+        }
+      }
+      _pullOffset = off;
+    } else {
+      _pullOffset = null;
+    }
+
     final viewport = _scroll.position.viewportDimension;
     final offsets = slotOffsets(_heights);
 
@@ -414,23 +452,35 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     }
   }
 
-  /// Overscroll past the bottom edge while parked at the end = the
-  /// drag-to-continue pull (ClampingScrollPhysics fires Overscroll
-  /// notifications during the active drag only). Negative deltas (the
-  /// finger dragging back) shrink an in-progress pull so the indicator
-  /// follows both directions.
+  /// Overscroll past an edge while parked there = the drag-to-switch
+  /// pull (ClampingScrollPhysics fires Overscroll notifications during
+  /// the active drag only). Past the end → next chapter; past the start
+  /// → previous chapter (user request 2026-10-23). A delta AGAINST the
+  /// active pull (finger reversing, either direction) shrinks it so the
+  /// indicator follows the finger.
   void _onOverscroll(double overscroll) {
-    if (!_autoNext || !_atEnd) return;
-    if (overscroll <= 0) {
-      if (_pull.dragging) setState(() => _pull.add(overscroll));
+    if (!_autoNext) return;
+    if (_atEnd && overscroll > 0) {
+      _ensureNext();
+      setState(() => _pull.add(overscroll));
       return;
     }
-    _ensureNext();
-    setState(() => _pull.add(overscroll));
+    if (_atStart && overscroll < 0) {
+      _ensurePrev();
+      setState(() => _pull.add(overscroll));
+      return;
+    }
+    // Opposing deltas shrink the in-progress pull; same-sign deltas on
+    // the other edge do nothing.
+    if (_pull.dragging &&
+        (_pull.direction > 0 ? overscroll < 0 : overscroll > 0)) {
+      setState(() => _pull.add(overscroll));
+    }
   }
 
-  /// Fingers up: past the threshold → advance; otherwise the pull
-  /// springs back. Also the parked-at-end completion save point.
+  /// Fingers up: past the threshold → switch in the pulled direction;
+  /// otherwise the pull springs back. Also the parked-at-end completion
+  /// save point.
   Future<void> _onScrollEnd() async {
     final loaded = _loaded;
     if (loaded == null || !_scroll.hasClients) return;
@@ -442,13 +492,20 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       _saveProgress(_currentPage, completed: true);
     }
     if (!_pull.dragging) return;
-    final go = _pull.release();
+    final dir = _pull.release();
     setState(() {});
-    if (!go) return;
-    await _ensureNext();
-    if (!mounted) return;
-    final next = _next;
-    if (next != null) _goTo(next);
+    if (dir == 0) return;
+    if (dir > 0) {
+      await _ensureNext();
+      if (!mounted) return;
+      final next = _next;
+      if (next != null) _goTo(next);
+    } else {
+      await _ensurePrev();
+      if (!mounted) return;
+      final prev = _prev;
+      if (prev != null) _goTo(prev);
+    }
   }
 
   /// Resolve the next chapter once (guarded against re-entrant lookups).
@@ -460,6 +517,18 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     if (!mounted) return;
     _next = next;
     _nextKnown = true;
+    if (_pull.dragging) setState(() {});
+  }
+
+  /// Same, for the previous chapter (top-edge pull).
+  Future<void> _ensurePrev() async {
+    if (_prevKnown || _prevLookup || _loaded == null) return;
+    _prevLookup = true;
+    final prev = await _repo.adjacentChapter(_loaded!.chapter, forward: false);
+    _prevLookup = false;
+    if (!mounted) return;
+    _prev = prev;
+    _prevKnown = true;
     if (_pull.dragging) setState(() {});
   }
 
@@ -650,14 +719,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   Future<void> _goTo(Chapter next) async {
     await _saveProgress(_currentPage, completed: _atEnd);
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(
-        builder: (_) => ReaderScreen(
-          chapter: next,
-          // Carry the chrome state: hidden stays hidden (user request
-          // 2026-10-22), visible stays visible.
-          chromeVisible: _chromeVisible,
-        ),
+    await replaceReaderRoute(
+      context,
+      (_) => ReaderScreen(
+        chapter: next,
+        // Carry the chrome state: hidden stays hidden (user request
+        // 2026-10-22), visible stays visible.
+        chromeVisible: _chromeVisible,
       ),
     );
   }
@@ -704,7 +772,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     _routeAnimation?.removeStatusListener(_onRouteStatus);
     // Replacement exits (chapter/mode switch) never run reverse — those
     // still restore here; pop exits already restored at reverse-start.
-    if (_barsHidden) _setImmersive(false);
+    // EXCEPT reader→reader handovers: the successor re-asserted
+    // immersive in its initState, and this dispose fires only after the
+    // new route's entrance animation, so restoring here would bring the
+    // system bars BACK (user report 2026-10-23).
+    if (_barsHidden && !readerHandsOverSystemBars) _setImmersive(false);
     _setAwake(false);
     super.dispose();
   }
@@ -761,53 +833,69 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               // (no relayout — the strip never re-flows or shakes while
               // zooming). Clipped by the Stack; chrome/tap zones above
               // are unaffected. See ViewZoom for the math.
-              Transform(
-                transform: Matrix4.identity()
-                  ..translateByDouble(_view.dx, _view.dy, 0, 1)
-                  ..scaleByDouble(_view.scale, _view.scale, 1, 1),
-                alignment: Alignment.topLeft,
-                child: NotificationListener<ScrollNotification>(
-                  onNotification: (n) {
-                    if (n is ScrollUpdateNotification) _onScroll();
-                    if (n is OverscrollNotification) {
-                      _onOverscroll(n.overscroll);
-                    }
-                    if (n is ScrollEndNotification) {
-                      // Keep the end-state handling off the notification path
-                      // (it awaits chapter lookups).
-                      _onScrollEnd();
-                    }
-                    return false;
-                  },
-                  child: ListView.builder(
-                    controller: _scroll,
-                    // Frozen while a pinch or an active view zoom holds —
-                    // one finger then PANS the zoomed view instead.
-                    physics: _scrollFrozen || _view.active
-                        ? const NeverScrollableScrollPhysics()
-                        : null,
-                    // ~5 viewports: slots (and their height fix-ups) resolve
-                    // well before entering the viewport, so first-read
-                    // corrections shift content the user can't see yet.
-                    scrollCacheExtent: ScrollCacheExtent.pixels(4500),
-                    itemCount: loaded.pages.length,
-                    itemBuilder: (context, i) => _cropBox(
-                      PageSlot(
-                        ref: loaded.pages[i],
-                        screenWidth: _slotWidth,
-                        resolve: () => _resolvePage(i),
-                        onDimensions: _onDimensions,
-                        // Session memo: a slot rebuilt on the way back up
-                        // renders its image on the FIRST frame — no spinner.
-                        initial: _pageFiles[i],
-                        observedAspect: _observedAspectCount >= 3
-                            ? _observedAspectSum / _observedAspectCount
-                            : null,
+              //
+              // Layered on top: the pull slide (user request 2026-10-23
+              // — the page physically moves with the finger past an
+              // edge, opening the black space the dot trail sits in;
+              // releasing springs it back). Paint-only, so scroll math
+              // and the zoom never interact.
+              Builder(
+                builder: (context) {
+                  final pullShift = _pull.dragging ? _pull.extent * 0.55 : 0.0;
+                  return Transform.translate(
+                    offset: Offset(0, -pullShift),
+                    child: Transform(
+                      transform: Matrix4.identity()
+                        ..translateByDouble(_view.dx, _view.dy, 0, 1)
+                        ..scaleByDouble(_view.scale, _view.scale, 1, 1),
+                      alignment: Alignment.topLeft,
+                      child: NotificationListener<ScrollNotification>(
+                        onNotification: (n) {
+                          if (n is ScrollUpdateNotification) _onScroll();
+                          if (n is OverscrollNotification) {
+                            _onOverscroll(n.overscroll);
+                          }
+                          if (n is ScrollEndNotification) {
+                            // Keep the end-state handling off the notification path
+                            // (it awaits chapter lookups).
+                            _onScrollEnd();
+                          }
+                          return false;
+                        },
+                        child: ListView.builder(
+                          controller: _scroll,
+                          // Frozen while a pinch or an active view zoom holds —
+                          // one finger then PANS the zoomed view instead.
+                          physics: _scrollFrozen || _view.active
+                              ? const NeverScrollableScrollPhysics()
+                              : null,
+                          // ~5 viewports: slots (and their height fix-ups) resolve
+                          // well before entering the viewport, so first-read
+                          // corrections shift content the user can't see yet.
+                          scrollCacheExtent: ScrollCacheExtent.pixels(4500),
+                          itemCount: loaded.pages.length,
+                          itemBuilder: (context, i) => _cropBox(
+                            PageSlot(
+                              ref: loaded.pages[i],
+                              screenWidth: _slotWidth,
+                              resolve: () => _resolvePage(i),
+                              onDimensions: _onDimensions,
+                              // Session memo: a slot rebuilt on the way back up
+                              // renders its image on the FIRST frame — no spinner.
+                              initial: _pageFiles[i],
+                              observedAspect: _observedAspectCount >= 3
+                                  ? _observedAspectSum / _observedAspectCount
+                                  : null,
+                            ),
+                            i < _heights.length
+                                ? _heights[i]
+                                : _screenWidth * 1.9,
+                          ),
+                        ),
                       ),
-                      i < _heights.length ? _heights[i] : _screenWidth * 1.9,
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
               // Middle-60% tap toggles chrome (doc 10 §6).
               Positioned.fill(
@@ -847,14 +935,26 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               ),
               if (_pull.dragging)
                 Positioned(
-                  bottom: 90,
+                  // The trail sits INSIDE the space the slide opens:
+                  // next-pull anchors to the bottom edge, prev-pull to
+                  // the top (the content slid the other way). It fades
+                  // in with progress so a shallow pull doesn't overlap
+                  // the artwork underneath.
+                  top: _pull.direction < 0 ? 10 : null,
+                  bottom: _pull.direction > 0 ? 10 : null,
                   left: 0,
                   right: 0,
-                  child: Center(
-                    child: PullNextIndicator(
-                      progress: _pull.progress,
-                      armed: _pull.armed,
-                      hasNext: !_nextKnown || _next != null,
+                  child: Opacity(
+                    opacity: (_pull.progress * 1.8).clamp(0.0, 1.0),
+                    child: Center(
+                      child: PullNextIndicator(
+                        progress: _pull.progress,
+                        armed: _pull.armed,
+                        back: _pull.direction < 0,
+                        hasNext: _pull.direction < 0
+                            ? (!_prevKnown || _prev != null)
+                            : (!_nextKnown || _next != null),
+                      ),
                     ),
                   ),
                 ),

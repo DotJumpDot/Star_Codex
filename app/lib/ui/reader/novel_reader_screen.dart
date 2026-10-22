@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemChrome, SystemUiMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -59,10 +60,18 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
   /// callback context sits above this Scaffold).
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  final _pull = PullNextTracker(threshold: 120);
+  final _pull = PullChapterTracker(threshold: 300);
+
+  /// Scroll offset sampled during an active pull — the delta between
+  /// samples shrinks the pull once the finger reverses back into
+  /// content (see _onScroll).
+  double? _pullOffset;
   Chapter? _next;
   bool _nextKnown = false;
   bool _nextLookup = false;
+  Chapter? _prev;
+  bool _prevKnown = false;
+  bool _prevLookup = false;
 
   final _scroll = ScrollController();
   DateTime _lastSave = DateTime.fromMillisecondsSinceEpoch(0);
@@ -86,6 +95,15 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
   @override
   void initState() {
     super.initState();
+    // The novel reader shows the system bars on purpose (unlike the
+    // webtoon/paged readers) — say so EXPLICITLY: a webtoon↔novel mode
+    // flip replaces this route while the old screen's bars were hidden,
+    // and without this call the novel would inherit the hidden state
+    // now that the old screen skips its restore on a reader→reader
+    // handover (see readerHandsOverSystemBars).
+    try {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    } catch (_) {}
     WidgetsBinding.instance.addPostFrameCallback((_) => _open());
     _scroll.addListener(_onScroll);
   }
@@ -149,33 +167,68 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
     if (atEnd != _endVisible) setState(() => _endVisible = atEnd);
     if (atEnd) {
       _ensureNext();
-    } else if (_pull.dragging) {
-      setState(() => _pull.cancel());
+    }
+
+    // The finger reversed back into CONTENT during a pull: overscroll
+    // notifications stop once the position re-enters range, so the
+    // in-range movement feeds `shrink` instead — the indicator FALLS
+    // BACK with the finger and only disappears when it reaches zero
+    // (user report 2026-10-23: it must not vanish on the first
+    // reversal).
+    if (_pull.dragging) {
+      final off = _scroll.offset;
+      final atEdge = _pull.direction > 0 ? off >= max - 1 : off <= 1;
+      if (!atEdge && _pullOffset != null) {
+        final moved = off - _pullOffset!;
+        if (_pull.direction > 0 && moved < 0) {
+          setState(() => _pull.shrink(-moved));
+        } else if (_pull.direction < 0 && moved > 0) {
+          setState(() => _pull.shrink(moved));
+        }
+      }
+      _pullOffset = off;
+    } else {
+      _pullOffset = null;
     }
   }
 
-  /// Overscroll past the bottom while at the end = pull-to-continue.
+  /// Overscroll past an edge while parked there = pull-to-switch: the
+  /// bottom edge pulls the NEXT chapter, the top edge the PREVIOUS one
+  /// (user request 2026-10-23). A delta AGAINST the active pull shrinks
+  /// it so the indicator follows the finger.
   void _onOverscroll(double overscroll) {
-    if (!_autoNext || !_endVisible) return;
-    // Dragging back shrinks an in-progress pull (indicator follows both
-    // directions, user QA 2026-10-19).
-    if (overscroll <= 0) {
-      if (_pull.dragging) setState(() => _pull.add(overscroll));
+    if (!_autoNext) return;
+    if (_endVisible && overscroll > 0) {
+      _ensureNext();
+      setState(() => _pull.add(overscroll));
       return;
     }
-    _ensureNext();
-    setState(() => _pull.add(overscroll));
+    if (_scroll.hasClients && _scroll.offset <= 0 && overscroll < 0) {
+      _ensurePrev();
+      setState(() => _pull.add(overscroll));
+      return;
+    }
+    if (_pull.dragging &&
+        (_pull.direction > 0 ? overscroll < 0 : overscroll > 0)) {
+      setState(() => _pull.add(overscroll));
+    }
   }
 
   Future<void> _onScrollEnd() async {
     if (_endVisible) _saveProgress(100, completed: true);
     if (!_pull.dragging) return;
-    final go = _pull.release();
+    final dir = _pull.release();
     setState(() {});
-    if (!go) return;
-    await _ensureNext();
-    if (!mounted) return;
-    if (_next != null) _goNext();
+    if (dir == 0) return;
+    if (dir > 0) {
+      await _ensureNext();
+      if (!mounted) return;
+      if (_next != null) _goNext();
+    } else {
+      await _ensurePrev();
+      if (!mounted) return;
+      if (_prev != null) _goPrev();
+    }
   }
 
   Future<void> _ensureNext() async {
@@ -186,6 +239,18 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
     if (!mounted) return;
     _next = next;
     _nextKnown = true;
+    if (_pull.dragging) setState(() {});
+  }
+
+  /// Same, for the previous chapter (top-edge pull).
+  Future<void> _ensurePrev() async {
+    if (_prevKnown || _prevLookup) return;
+    _prevLookup = true;
+    final prev = await _repo.adjacentChapter(widget.chapter, forward: false);
+    _prevLookup = false;
+    if (!mounted) return;
+    _prev = prev;
+    _prevKnown = true;
     if (_pull.dragging) setState(() {});
   }
 
@@ -214,10 +279,8 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute<void>(
-            builder: (_) => NovelReaderScreen(
-              chapter: next,
-              chromeVisible: _chromeVisible,
-            ),
+            builder: (_) =>
+                NovelReaderScreen(chapter: next, chromeVisible: _chromeVisible),
           ),
         );
       }
@@ -237,10 +300,8 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute<void>(
-            builder: (_) => NovelReaderScreen(
-              chapter: prev,
-              chromeVisible: _chromeVisible,
-            ),
+            builder: (_) =>
+                NovelReaderScreen(chapter: prev, chromeVisible: _chromeVisible),
           ),
         );
       }
@@ -307,45 +368,57 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
             Positioned.fill(
               child: Container(
                 color: colors.bg.withValues(alpha: _bgOpacity),
-                child: NotificationListener<ScrollNotification>(
-                  onNotification: (n) {
-                    if (n is OverscrollNotification) {
-                      _onOverscroll(n.overscroll);
-                    }
-                    if (n is ScrollEndNotification) _onScrollEnd();
-                    return false;
-                  },
-                  child: SingleChildScrollView(
-                    controller: _scroll,
-                    padding: const EdgeInsets.fromLTRB(20, 60, 20, 40),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        for (final para in paragraphs)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 14),
-                            child: Text(
-                              para.trim().isEmpty ? '' : '\u2003${para.trim()}',
-                              style: GoogleFonts.getFont(
-                                _uiFontFamily,
-                                fontSize: _fontSize.toDouble(),
-                                height: _lineHeight,
-                                color: colors.fg,
+                // The pull SLIDE (user request 2026-10-23): the text
+                // physically moves with the finger past an edge, opening
+                // space for the dot trail; releasing springs it back.
+                child: Transform.translate(
+                  offset: Offset(0, _pull.dragging ? -_pull.extent * 0.55 : 0),
+                  child: NotificationListener<ScrollNotification>(
+                    onNotification: (n) {
+                      if (n is OverscrollNotification) {
+                        _onOverscroll(n.overscroll);
+                      }
+                      if (n is ScrollEndNotification) _onScrollEnd();
+                      return false;
+                    },
+                    child: SingleChildScrollView(
+                      controller: _scroll,
+                      padding: const EdgeInsets.fromLTRB(20, 60, 20, 40),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          for (final para in paragraphs)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 14),
+                              child: Text(
+                                para.trim().isEmpty
+                                    ? ''
+                                    : '\u2003${para.trim()}',
+                                style: GoogleFonts.getFont(
+                                  _uiFontFamily,
+                                  fontSize: _fontSize.toDouble(),
+                                  height: _lineHeight,
+                                  color: colors.fg,
+                                ),
                               ),
                             ),
-                          ),
-                        if (_endVisible)
-                          Center(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 24),
-                              child: FilledButton.icon(
-                                icon: const Icon(Icons.skip_next),
-                                label: Text(t(context, 'reader.next_chapter')),
-                                onPressed: _goNext,
+                          if (_endVisible)
+                            Center(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 24,
+                                ),
+                                child: FilledButton.icon(
+                                  icon: const Icon(Icons.skip_next),
+                                  label: Text(
+                                    t(context, 'reader.next_chapter'),
+                                  ),
+                                  onPressed: _goNext,
+                                ),
                               ),
                             ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -377,14 +450,23 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
           ),
           if (_pull.dragging)
             Positioned(
-              bottom: 90,
+              // The trail sits INSIDE the space the slide opens: next at
+              // the bottom edge, prev at the top. Fades in with progress.
+              top: _pull.direction < 0 ? 10 : null,
+              bottom: _pull.direction > 0 ? 10 : null,
               left: 0,
               right: 0,
-              child: Center(
-                child: PullNextIndicator(
-                  progress: _pull.progress,
-                  armed: _pull.armed,
-                  hasNext: !_nextKnown || _next != null,
+              child: Opacity(
+                opacity: (_pull.progress * 1.8).clamp(0.0, 1.0),
+                child: Center(
+                  child: PullNextIndicator(
+                    progress: _pull.progress,
+                    armed: _pull.armed,
+                    back: _pull.direction < 0,
+                    hasNext: _pull.direction < 0
+                        ? (!_prevKnown || _prev != null)
+                        : (!_nextKnown || _next != null),
+                  ),
                 ),
               ),
             ),

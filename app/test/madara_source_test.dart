@@ -56,6 +56,28 @@ Future<void> main() async {
       final mixed = items.firstWhere((s) => s.title.contains('Mixed'));
       expect(mixed.coverUrl, endsWith('mixed-cover-197x300.jpg'));
     });
+
+    test(
+      'WP Fastest Cache lazy attribute (data-wpfc-original-src) wins over '
+      'the base64 src placeholder — fin-manga enabled it 2026-10-23 and '
+      'every Fin cover went placeholder',
+      () async {
+        const wpfc = '''
+<div class="listupd"><div class="bs"><div class="bsx">
+  <a href="https://www.fin-manga.com/wpfc-title/" title="WPFC Title">
+   <div class="limit"><img onload="Wpfcll.r(this,true);"
+        src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+        data-wpfc-original-src="https://www.fin-manga.com/wp-content/uploads/2026/06/real-cover.jpg"/></div>
+  </a>
+ </div></div></div>''';
+        final items = await slowMangaServing(wpfc).latest();
+        expect(items, hasLength(1));
+        expect(
+          items.single.coverUrl,
+          'https://www.fin-manga.com/wp-content/uploads/2026/06/real-cover.jpg',
+        );
+      },
+    );
   });
 
   group('latest() leads with the homepage grid (2026-10-22)', () {

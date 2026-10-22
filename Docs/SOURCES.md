@@ -17,8 +17,8 @@ the main feed and vice versa (`adultSourceIds` in
 | go-manga.com | main | Madara (ts) | ✅ | ✅ family A | ✅ | |
 | slow-manga.net | main | Madara (ts) | ✅ | ✅ family B | ✅ | grid is chapter-linked |
 | up-manga.com | main | Madara (ts) | ✅ | ✅ family A | ⚠️ Cloudflare | search endpoint 403s |
-| dark-manga.com | main | Madara (ts) | ✅ | ✅ family A | ⚠️ Cloudflare | search endpoint 403s |
-| fin-manga.com | main | Madara (ts) | ✅ | ✅ family A | ✅ | archive order drifts A–Z |
+| dark-manga.com | main | Madara (ts) | ✅ | ✅ family A | 🚫 Cloudflare | 2026-10-23: WHOLE SITE behind the "Just a moment..." challenge — feed fails gracefully until it relents |
+| fin-manga.com | main | Madara (ts) | ✅ | ✅ family A | ✅ | archive order drifts A–Z; 2026-10-23: WPFC lazy covers (data-wpfc-original-src) |
 | bully-manga.com | main | custom static | ✅ | ❌ **open** | ✅ | needs its own grid port |
 | nekopost.net | main | JSON API | ✅ | n/a (API) | ✅ | the only novel carrier |
 | ntr-manga.net | Doujin | Madara (ts) | ✅ | ❌ custom grid | ✅ | its own grid markup — not parsed |

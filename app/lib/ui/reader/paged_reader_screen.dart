@@ -79,12 +79,21 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   /// callback context sits above this Scaffold).
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  /// Drag-past-the-last-page state (horizontal pull, rtl-aware arrow).
-  /// 160 px (raised from 100, user QA 2026-10-19: it armed too easily).
-  final _pull = PullNextTracker(threshold: 160);
+  /// Drag-past-the-edge state (horizontal pull, rtl-aware arrow). The
+  /// pull is signed: past the LAST page → next chapter, past the FIRST
+  /// page → previous (user request 2026-10-23).
+  final _pull = PullChapterTracker(threshold: 400);
+
+  /// Scroll offset sampled during an active pull — the delta between
+  /// samples shrinks the pull once the finger reverses back into
+  /// content (see _onPixels).
+  double? _pullPixels;
   Chapter? _next;
   bool _nextKnown = false;
   bool _nextLookup = false;
+  Chapter? _prev;
+  bool _prevKnown = false;
+  bool _prevLookup = false;
 
   /// Created in [_open] once the saved page is known (doc 11 DoD:
   /// progress resumes in both modes). Null while loading.
@@ -163,6 +172,7 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
         _page = initial;
         _pageController = PageController(initialPage: initial);
       });
+      _pageController!.addListener(_onPixels);
       _prefetchFrom(initial);
       // "On reading" marker — a chapter left open for a couple of
       // seconds counts as started (user request 2026-10-22).
@@ -241,29 +251,63 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
       _lastSave = now;
       _saveProgress(page, completed: page == loaded.pages.length - 1);
     }
-    if (page < loaded.pages.length - 1 && _pull.dragging) {
-      setState(() => _pull.cancel());
-    }
     if (page == loaded.pages.length - 1) _ensureNext();
   }
 
-  /// Forward overscroll while ON the last page = the drag-to-continue
-  /// pull. Positive overscroll is always the forward direction (PageView
-  /// accounts for `reverse` internally). Negative deltas (dragging back)
-  /// shrink an in-progress pull so the indicator follows both directions.
+  /// The finger reversed back into CONTENT during a pull: overscroll
+  /// notifications stop once the position re-enters range, so the
+  /// in-range movement feeds `shrink` instead — the indicator FALLS
+  /// BACK with the finger and only disappears when it reaches zero
+  /// (user report 2026-10-23: it must not vanish on the first reversal).
+  void _onPixels() {
+    final c = _pageController;
+    if (c == null || !c.hasClients || !_pull.dragging) {
+      _pullPixels = null;
+      return;
+    }
+    final px = c.position.pixels;
+    final max = c.position.maxScrollExtent;
+    final atEdge = _pull.direction > 0 ? px >= max - 1 : px <= 1;
+    if (!atEdge && _pullPixels != null) {
+      final moved = px - _pullPixels!;
+      if (_pull.direction > 0 && moved < 0) {
+        setState(() => _pull.shrink(-moved));
+      } else if (_pull.direction < 0 && moved > 0) {
+        setState(() => _pull.shrink(moved));
+      }
+    }
+    _pullPixels = px;
+  }
+
+  /// Forward overscroll while ON the last page = the drag-to-next pull;
+  /// backward overscroll while ON the first page = drag-to-previous
+  /// (user request 2026-10-23). Positive overscroll is always the
+  /// forward direction (PageView accounts for `reverse` internally). A
+  /// delta AGAINST the active pull shrinks it so the indicator follows
+  /// the finger in both directions.
   void _onOverscroll(double overscroll) {
     final loaded = _loaded;
     if (!_autoNext || loaded == null) return;
-    if (_page != loaded.pages.length - 1) return;
-    if (overscroll <= 0) {
-      if (_pull.dragging) setState(() => _pull.add(overscroll));
+    final onLast = _page == loaded.pages.length - 1;
+    final onFirst = _page == 0;
+    if (onLast && overscroll > 0) {
+      _ensureNext();
+      setState(() => _pull.add(overscroll));
       return;
     }
-    _ensureNext();
-    setState(() => _pull.add(overscroll));
+    if (onFirst && overscroll < 0) {
+      _ensurePrev();
+      setState(() => _pull.add(overscroll));
+      return;
+    }
+    if (_pull.dragging &&
+        (_pull.direction > 0 ? overscroll < 0 : overscroll > 0)) {
+      setState(() => _pull.add(overscroll));
+    }
   }
 
-  /// Fingers up on the last page: past the threshold → next chapter.
+  /// Fingers up on an edge: past the threshold → switch in the pulled
+  /// direction. Also the parked-at-end completion save point.
   Future<void> _onScrollEnd() async {
     final loaded = _loaded;
     if (loaded == null) return;
@@ -271,12 +315,18 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
       _saveProgress(_page, completed: true);
     }
     if (!_pull.dragging) return;
-    final go = _pull.release();
+    final dir = _pull.release();
     setState(() {});
-    if (!go) return;
-    await _ensureNext();
-    if (!mounted) return;
-    if (_next != null) _goNext();
+    if (dir == 0) return;
+    if (dir > 0) {
+      await _ensureNext();
+      if (!mounted) return;
+      if (_next != null) _goNext();
+    } else {
+      await _ensurePrev();
+      if (!mounted) return;
+      if (_prev != null) _goPrev();
+    }
   }
 
   Future<void> _ensureNext() async {
@@ -290,6 +340,18 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
     if (_pull.dragging) setState(() {});
   }
 
+  /// Same, for the previous chapter (first-page pull).
+  Future<void> _ensurePrev() async {
+    if (_prevKnown || _prevLookup || _loaded == null) return;
+    _prevLookup = true;
+    final prev = await _repo.adjacentChapter(_loaded!.chapter, forward: false);
+    _prevLookup = false;
+    if (!mounted) return;
+    _prev = prev;
+    _prevKnown = true;
+    if (_pull.dragging) setState(() {});
+  }
+
   Future<void> _goNext() async {
     final loaded = _loaded;
     if (loaded == null || _switching) return;
@@ -300,13 +362,12 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
       _switching = true;
       await _saveProgress(loaded.pages.length - 1, completed: true);
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute<void>(
-            builder: (_) => PagedReaderScreen(
-              chapter: next,
-              // Carry the chrome state across the chapter switch.
-              chromeVisible: _chromeVisible,
-            ),
+        await replaceReaderRoute(
+          context,
+          (_) => PagedReaderScreen(
+            chapter: next,
+            // Carry the chrome state across the chapter switch.
+            chromeVisible: _chromeVisible,
           ),
         );
       }
@@ -325,13 +386,10 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
       // Same rule as _goNext: land the progress write before the swap.
       await _saveProgress(_page, completed: _page == loaded.pages.length - 1);
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute<void>(
-            builder: (_) => PagedReaderScreen(
-              chapter: prev,
-              chromeVisible: _chromeVisible,
-            ),
-          ),
+        await replaceReaderRoute(
+          context,
+          (_) =>
+              PagedReaderScreen(chapter: prev, chromeVisible: _chromeVisible),
         );
       }
     }
@@ -413,7 +471,11 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
     _routeAnimation?.removeStatusListener(_onRouteStatus);
     // Replacement exits (chapter/mode switch) never run reverse — those
     // still restore here; pop exits already restored at reverse-start.
-    if (_barsHidden) _setImmersive(false);
+    // EXCEPT reader→reader handovers: the successor re-asserted
+    // immersive in its initState, and this dispose fires only after the
+    // new route's entrance animation, so restoring here would bring the
+    // system bars BACK (user report 2026-10-23).
+    if (_barsHidden && !readerHandsOverSystemBars) _setImmersive(false);
     _setAwake(false);
     super.dispose();
   }
@@ -480,29 +542,45 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
                   if (n is ScrollEndNotification) _onScrollEnd();
                   return false;
                 },
-                child: PageView.builder(
-                  controller: _pageController!,
-                  reverse: _rtl,
-                  // While a pinch holds (two fingers) or the page image is
-                  // zoomed in, the page must NOT slide — one finger then
-                  // pans the zoomed image, and a pinch never flips the page
-                  // (user report 2026-10-21).
-                  physics: _pinchHold || _pageZoomed
-                      ? const NeverScrollableScrollPhysics()
-                      : null,
-                  // Keep the neighboring page BUILT (viewport cacheExtent):
-                  // the target page of a turn is already constructed and
-                  // decoded while it slides in — no black flash frame
-                  // between pages (user QA 2026-10-19).
-                  allowImplicitScrolling: true,
-                  itemCount: loaded.pages.length,
-                  onPageChanged: _onPageChanged,
-                  itemBuilder: (context, i) => _PageSlotPaged(
-                    page: loaded.pages[i],
-                    index: i,
-                    resolve: () => _resolvePage(i),
-                    register: (i, key) => _slotKeys[i] = key,
-                  ),
+                // The pull SLIDE (user request 2026-10-23): the page
+                // physically moves sideways with the finger past the
+                // last/first page, opening the black space the dot trail
+                // sits in; releasing springs it back. Paint-only.
+                child: Builder(
+                  builder: (context) {
+                    // Forward = along the reading direction: LTR slides
+                    // left, RTL slides right.
+                    final shift =
+                        (_pull.dragging ? _pull.extent * 0.55 : 0.0) *
+                        (_rtl ? -1 : 1);
+                    return Transform.translate(
+                      offset: Offset(-shift, 0),
+                      child: PageView.builder(
+                        controller: _pageController!,
+                        reverse: _rtl,
+                        // While a pinch holds (two fingers) or the page image is
+                        // zoomed in, the page must NOT slide — one finger then
+                        // pans the zoomed image, and a pinch never flips the page
+                        // (user report 2026-10-21).
+                        physics: _pinchHold || _pageZoomed
+                            ? const NeverScrollableScrollPhysics()
+                            : null,
+                        // Keep the neighboring page BUILT (viewport cacheExtent):
+                        // the target page of a turn is already constructed and
+                        // decoded while it slides in — no black flash frame
+                        // between pages (user QA 2026-10-19).
+                        allowImplicitScrolling: true,
+                        itemCount: loaded.pages.length,
+                        onPageChanged: _onPageChanged,
+                        itemBuilder: (context, i) => _PageSlotPaged(
+                          page: loaded.pages[i],
+                          index: i,
+                          resolve: () => _resolvePage(i),
+                          register: (i, key) => _slotKeys[i] = key,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
               // Tap zones: left 30% prev, right 30% next, middle 40% chrome
@@ -561,16 +639,31 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
               ),
               if (_pull.dragging)
                 Positioned(
-                  bottom: 90,
-                  left: 0,
-                  right: 0,
+                  // The trail sits INSIDE the space the slide opens: on
+                  // the side the next/prev chapter comes FROM. Fades in
+                  // with progress so a shallow pull doesn't overlap the
+                  // artwork underneath.
+                  top: 0,
+                  bottom: 0,
+                  left: _pull.direction < 0
+                      ? (_rtl ? 0 : null)
+                      : (_rtl ? null : 0),
+                  right: _pull.direction > 0
+                      ? (_rtl ? 0 : null)
+                      : (_rtl ? null : 0),
                   child: Center(
-                    child: PullNextIndicator(
-                      progress: _pull.progress,
-                      armed: _pull.armed,
-                      horizontal: true,
-                      rtl: _rtl,
-                      hasNext: !_nextKnown || _next != null,
+                    child: Opacity(
+                      opacity: (_pull.progress * 1.8).clamp(0.0, 1.0),
+                      child: PullNextIndicator(
+                        progress: _pull.progress,
+                        armed: _pull.armed,
+                        horizontal: true,
+                        rtl: _rtl,
+                        back: _pull.direction < 0,
+                        hasNext: _pull.direction < 0
+                            ? (!_prevKnown || _prev != null)
+                            : (!_nextKnown || _next != null),
+                      ),
                     ),
                   ),
                 ),
@@ -664,12 +757,11 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
       vm: vm,
       current: loaded.chapter,
       onPick: (chapter, sourceId) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute<void>(
-            builder: (_) => PagedReaderScreen(
-              chapter: chapter,
-              chromeVisible: _chromeVisible,
-            ),
+        replaceReaderRoute(
+          context,
+          (_) => PagedReaderScreen(
+            chapter: chapter,
+            chromeVisible: _chromeVisible,
           ),
         );
       },

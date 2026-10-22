@@ -681,3 +681,20 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   fixes above (chapter read-state indicator, reader chrome carry-over,
   hentaithai /image/ detail pages) plus the smaller indicator size the
   user asked for. 253 tests green.
+- 2026-10-23 — Fix/UX: reader pull rework + two site-side breakages.
+  (1) The Android status/navigation bars stayed hidden across chapter
+  switches and webtoon↔paged mode flips (the outgoing reader's cleanup
+  fired after the new reader's setup and un-hid them — all reader
+  replacements now route through one handover path). (2) The
+  pull-to-switch gesture is rebuilt to Webtoon style: the page slides
+  with the finger past an edge, opening space for a growing-dot trail
+  (small→large dots + faux-bold arrow) whose fill sweeps with the
+  pull; dragging BACK at the top pulls the previous chapter with the
+  same indicator; reversing the finger falls the progress back
+  smoothly instead of vanishing; thresholds raised (420/400/300).
+  (3) fin-manga covers: the site enabled WP Fastest Cache lazy-loading
+  (covers moved to data-wpfc-original-src) — the parser reads it now.
+  (4) dark-manga.com is behind the Cloudflare challenge as of today
+  (same WAF family as the disabled doujin sources); it stays enabled —
+  the feed degrades gracefully and auto-recovers if the site relents.
+  254 tests green, analyze clean.

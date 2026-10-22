@@ -75,4 +75,3 @@ Timer armStartedMarker(
     markChapterStarted(ref, chapter);
   });
 }
-

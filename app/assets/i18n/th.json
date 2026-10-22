@@ -276,5 +276,8 @@
   "settings.personal_use_body": "แอปนี้อ่านจากเว็บแหล่งข่าวสารสาธารณะเพื่อใช้ส่วนตัว ไม่มีเซิร์ฟเวอร์ ไม่มีคลาวด์ ไม่มีการเข้าสู่ระบบ ไม่มีการแจกจ่าย",
   "settings.github": "เปิดหน้า GitHub",
   "settings.licenses": "ใบอนุญาตซอฟต์แวร์",
-  "offline.delete_go": "ลบ {n} ตอน"
+  "offline.delete_go": "ลบ {n} ตอน",
+  "reader.pull_prev_more": "ดึงต่อเพื่อย้อนไปตอนก่อนหน้า",
+  "reader.pull_prev_release": "ปล่อยเพื่อย้อนไปตอนก่อนหน้า",
+  "reader.first": "ตอนแรกสุดแล้ว — ไม่มีตอนก่อนหน้า"
 }

@@ -433,18 +433,17 @@ class MadaraSource implements Source {
       if (urls.isNotEmpty) return ChapterPages(imageUrls: urls);
     }
     // Fallback: content <img> tags (05 §5). Classic Madara lazy-loads with
-    // a base64 svg placeholder in `src` — prefer data-src and drop data:
-    // URIs either way.
+    // a base64 svg placeholder in `src` — prefer the lazy attributes and
+    // drop data: URIs either way.
     final doc = html_parser.parse(body);
-    final imgs = doc
-        .querySelectorAll('.reading-content img')
-        .map(
-          (img) =>
-              _absolutize(img.attributes['data-src'] ?? img.attributes['src']),
-        )
-        .where((u) => u != null && u.isNotEmpty && !u.startsWith('data:'))
-        .cast<String>()
-        .toList();
+    final imgs = doc.querySelectorAll('.reading-content img').map((img) {
+      final raw = img.attributes['data-src'] ??
+          img.attributes['data-wpfc-original-src'] ??
+          img.attributes['src'];
+      return _absolutize(raw);
+    }).where(
+      (u) => u != null && u.isNotEmpty && !u.startsWith('data:'),
+    ).cast<String>().toList();
     if (imgs.isEmpty) {
       throw SourceException(
         id,
@@ -608,14 +607,18 @@ class MadaraSource implements Source {
 
   /// Best cover URL from a listing/detail <img>: lazy-loaded tiles carry a
   /// placeholder (base64 / grey gif / site logo) in `src` and the real
-  /// image in `data-src`. Prefer data-src, then src, skipping data: URIs,
-  /// svg placeholders and AVIF uploads — Flutter's engine can't decode
-  /// AVIF so such covers can never render (slow-manga uploads, on-device
-  /// QA 2026-10-18; the card/hero layer falls back to sibling sites).
+  /// image in a data attribute. Prefer the lazy attributes, then src,
+  /// skipping data: URIs, svg placeholders and AVIF uploads — Flutter's
+  /// engine can't decode AVIF so such covers can never render (slow-manga
+  /// uploads, on-device QA 2026-10-18; the card/hero layer falls back to
+  /// sibling sites). `data-wpfc-original-src` is WP Fastest Cache's
+  /// lazy-load attribute — fin-manga turned it on 2026-10-23 and every
+  /// Fin cover in the feed went placeholder until this was added.
   String? _bestCoverUrl(html_dom.Element? img) {
     if (img == null) return null;
     for (final raw in [
       img.attributes['data-src'],
+      img.attributes['data-wpfc-original-src'],
       img.attributes['data-lazy-src'],
       img.attributes['src'],
     ]) {

@@ -1246,3 +1246,45 @@ referer pairing, novel estimate. 165 tests green.
   `/thai/`). The image filter is now "the path carries a DATE segment
   under /thai/ or /image/", which also excludes the site's non-content
   images (`/image/other/`, `/image/sticker/`, `/image/credit/`).
+- READER SYSTEM-BARS HANDOVER (2026-10-23): every reader-to-reader
+  replacement (chapter switch, webtoon<->paged mode flip) must go
+  through `replaceReaderRoute` in reader_router.dart. It sets
+  `readerHandsOverSystemBars` around the swap: the OUTGOING reader's
+  dispose fires only AFTER the new route's entrance animation, so its
+  "restore the bars" call would land last and un-hide them. A disposing
+  reader skips the restore while the flag is set. The novel reader
+  shows the system bars ON PURPOSE and says so explicitly in its
+  initState (edgeToEdge) so it never inherits a hidden state across a
+  mode flip.
+- PULL-TO-SWITCH INDICATOR (2026-10-23, user-guided rework): the
+  tracker is `PullChapterTracker` (SIGNED extent: + = next chapter,
+  - = previous). All three readers support BOTH edges — webtoon/novel
+  pull past the bottom = next, past the top = previous; paged =
+  overscroll past the last/first page (reverse-aware). The indicator
+  is a Webtoon-style trail: dots growing small->large along the drag
+  direction, a faux-bold arrow (layered same-color shadows) at the
+  end; the fill (theme primary) sweeps through dots then the arrow,
+  so at 50% roughly half the trail is colored. The reader also SLIDES
+  the page with the finger (Transform.translate = paint-only, 0.55x
+  the damped extent) so the trail sits in REVEALED space, not over
+  the artwork; it fades in with progress and springs back on release.
+  Thresholds (user: "too easy"): webtoon 420, paged 400, novel 300.
+  REVERSAL RULE: while past the edge, opposing overscroll deltas
+  shrink the pull; once the finger is back IN RANGE the in-range
+  scroll delta feeds `shrink()` (never crosses zero) so the progress
+  falls back with the finger instead of vanishing — the sampled
+  _pullOffset/_pullPixels fields exist only for this.
+- FIN-MANGA WPFC LAZY COVERS (2026-10-23): fin turned on WP Fastest
+  Cache lazy-loading — grid <img> src is a 1px GIF placeholder and
+  the real cover moved to `data-wpfc-original-src`. `_bestCoverUrl`
+  prefers data-src, data-wpfc-original-src, data-lazy-src, then src
+  (skipping data:/svg/avif). The chapter-image fallback path got the
+  same treatment. Covers already materialized in the DB repopulate on
+  the next feed refresh (enrichment overwrites coverUrl).
+- DARK-MANGA CLOUDFLARED (2026-10-23): dark-manga.com now answers
+  every request with the Cloudflare "Just a moment..." challenge
+  (403), same TLS-fingerprint WAF family as doujin-lc/miku (see
+  2026-10-19). Consistent across retries and direct image URLs; not
+  fixable in-app. The source stays ENABLED on purpose: the feed
+  degrades gracefully (red-dot banner + other sites' results) and
+  auto-recovers on the next refresh if the site drops the challenge.

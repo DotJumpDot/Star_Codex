@@ -276,5 +276,8 @@
   "settings.personal_use_body": "This app reads public catalog websites for personal use. No server, no cloud, no login, no redistribution.",
   "settings.github": "Open GitHub page",
   "settings.licenses": "Open-source licenses",
-  "offline.delete_go": "Delete {n}"
+  "offline.delete_go": "Delete {n}",
+  "reader.pull_prev_more": "Keep pulling for previous chapter",
+  "reader.pull_prev_release": "Release for previous chapter",
+  "reader.first": "First chapter — no previous chapter"
 }
