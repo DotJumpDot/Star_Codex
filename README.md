@@ -121,14 +121,20 @@ Main feed (7 live):
 | bully-manga.com | Manhwa / Manhua | custom static-site engine |
 | nekopost.net | Comics + Thai novels (นิยาย) | custom JSON API |
 
-Doujin 18+ page (separate destination — 2 live of 4):
+Doujin 18+ page (separate destination — all 4 enabled):
 
 | Site | Content | Adapter |
 |---|---|---|
 | ntr-manga.net | Manga (18+) | WordPress-Madara |
 | hentaithai.net | Manga (18+) | custom one-shot engine |
-| doujin-lc.net | Manhwa (18+) | WordPress-Madara (classic) — *seeded off: Cloudflare blocks non-browser apps* |
-| miku-doujin.com | Manga (18+) | custom one-shot engine — *seeded off: Cloudflare blocks non-browser apps* |
+| doujin-lc.net | Manhwa (18+) | WordPress-Madara (classic) |
+| miku-doujin.com | Manga (18+) | custom one-shot engine |
+
+Cloudflare-blocked sites (dark-manga's whole-site challenge,
+doujin-lc/miku's TLS fingerprinting) are handled by the app's **WAF
+ladder**: the normal stack first, an embedded Chromium network stack
+(cronet) for fingerprint blocks, and an in-app WebView that clears
+"Just a moment..." challenges automatically.
 
 ## 📥 Download & install
 
@@ -140,20 +146,21 @@ Requires Android 7.0+ (API 24).
 > **Upgrading from a debug/test build?** Uninstall it first — release
 > builds are signed with a different key.
 
-See [what changed in v1.3.1](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.3.1).
+See [what changed in v1.4.0](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.4.0).
 
 ## 🛠️ Tech stack
 
 - **Flutter 3.47 / Dart** — Material 3, no codegen (plain classes, manual
   Riverpod providers)
-- **SQLite** (sqflite) — append-only migrations, currently v8
+- **SQLite** (sqflite) — append-only migrations, currently v9
 - **Image pipeline** — download → magic-byte validation → SHA-256 dedup →
   WebP q80 recompress (flutter_image_compress) → atomic write; hashing
   and oversized-strip slicing run on background threads/isolates so
   loading never stutters scrolling
 - **Scraping** — `html` parser for the Madara/ts/classic themes and the
-  custom engines; JSON POST API for nekopost
-- **253 tests**, `flutter analyze` clean
+  custom engines; JSON POST API for nekopost; WAF ladder (dio → cronet →
+  webview) for Cloudflare-blocked sites
+- **267 tests**, `flutter analyze` clean
 
 ## 🔨 Build from source
 
@@ -196,17 +203,21 @@ Star_Codex/
 
 ## 📜 Status
 
-**v1.3.1 (2026-10-22)** — bug-fix release on top of the v1.3.0 feed work.
-The chapter list now shows each chapter's read state in front of the
-title (hollow = never opened, solid = on reading, solid with a check =
-finished — both colors follow the active theme, and opening a chapter
-for a couple of seconds counts as "on reading"). The reader header
-stays hidden when you pull to the next chapter instead of popping back.
-hentaithai.com threads whose pages are served under the `/image/…` CDN
-layout now open instead of failing with "can't load the detail page".
-All 11 build phases are complete; every batch landed as a commit with a
-`- [x] item complete` checklist (see [CHANGELOG.md](./CHANGELOG.md) for
-the full history).
+**v1.4.0 (2026-10-23)** — every source loads again. Cloudflare blocks
+are answered by a per-site ladder: the normal stack, an embedded
+Chromium network stack for TLS-fingerprint blocks (doujin-lc,
+miku-doujin — blocked since v1, now live), and an in-app WebView that
+clears "Just a moment..." challenges automatically (dark-manga). All 11
+sources are enabled by default. The reader's pull-to-switch got a
+Webtoon-style rework (page slides with the finger, dot-trail + arrow
+indicator, bidirectional, smooth fall-back), the Android bars stay
+hidden across chapter switches, hentaithai's feed pages properly, and
+fin-manga covers are fixed. All 11 build phases are complete; every
+batch landed as a commit with a `- [x] item complete` checklist (see
+[CHANGELOG.md](./CHANGELOG.md) for the full history).
+
+**v1.3.1 (2026-10-22)** — bug-fix release: per-chapter read-state
+indicators, reader chrome carry-over, hentaithai /image/ detail pages.
 
 ## ⚠️ Disclaimer
 
