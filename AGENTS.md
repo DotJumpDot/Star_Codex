@@ -16,10 +16,11 @@ miku-doujin — since db v9 (2026-10-23) ALL 11 sources ship enabled: the
 WAF ladder (dio → cronet → webview, PLAN_NOTES 2026-10-23) gets through
 every Cloudflare block. Streaming
 reading, silent WebP q80 caching, content-hash dedup. Personal local use
-only — no server, no cloud, no login. **v1.4.0 released** (GitHub
+only — no server, no cloud, no login. **v1.4.1 released** (GitHub
 Releases, release-signed APK); the repo is public. The browse feed is
 built from each site's own recent-updates grid — the site's order and
-its live "x minutes ago" labels (see PLAN_NOTES 2026-10-22).
+its live "x minutes ago" labels, anchored at the page's cache-generation
+time so cached copies can't freeze them (PLAN_NOTES 2026-10-22/23).
 
 ## Startup sequence (every session)
 
@@ -28,7 +29,7 @@ its live "x minutes ago" labels (see PLAN_NOTES 2026-10-22).
    [`Docs/Plan/15-BUILD-ORDER.md`](Docs/Plan/15-BUILD-ORDER.md).
 3. Check `git log --oneline -10` and [`CHANGELOG.md`](CHANGELOG.md) (repo
    root) for progress. All 11 build phases are complete and **v1.0.0 →
-   v1.4.0 are shipped**; remaining work is whatever the user asks for in
+   v1.4.1 are shipped**; remaining work is whatever the user asks for in
    chat, landing as `Phase`/`Fix`/feature commits per the discipline
    below.
 4. [`Docs/Plan/00-DECISIONS.md`](Docs/Plan/00-DECISIONS.md) is the contract —

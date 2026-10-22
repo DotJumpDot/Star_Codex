@@ -1,13 +1,13 @@
 # HANDOFF — read this first in a new conversation
 
-> Last updated 2026-10-23 (v1.4.0 release). Written originally 2026-10-17
+> Last updated 2026-10-23 (v1.4.1 release). Written originally 2026-10-17
 > when the folder was renamed `C:\Code\Manga_Reader` → `C:\Code\StarCodex`.
 
 ## Where things stand
 
 - **The app is built, QA'd, and released.** All 11 plan phases completed
   (2026-10-17), four user-driven UX rounds + the Doujin (18+) page
-  landed (2026-10-18/19), and **v1.0.0 → v1.4.0 are live on GitHub
+  landed (2026-10-18/19), and **v1.0.0 → v1.4.1 are live on GitHub
   Releases** (release-signed `StarCodex-<version>.apk`).
 - **ALL 11 sources are live and enabled by default** (db v9): main feed
   = go-manga, slow-manga, up-manga, dark-manga, fin-manga (Madara/ts),
@@ -16,9 +16,20 @@
   unreachable from v1 to v1.3.1 (Cloudflare) — the **WAF ladder**
   (2026-10-23, bc469e5) unlocks them: per-host direct (Dio) → cronet
   (embedded Chromium TLS) → webview (headless challenge solver + the
-  settings lock-icon manual tier). SQLite is at schema v9. 267 tests
-  green, analyze clean. Invariants: PLAN_NOTES 2026-10-23 (three
-  sections: WAF ladder, hentaithai /page-N, tooling note).
+  settings lock-icon manual tier). SQLite is at schema v9. 276 tests
+  green, analyze clean. Invariants: PLAN_NOTES 2026-10-23 (four
+  sections: WAF ladder, hentaithai /page-N, tooling note, grid-label
+  generation-time anchor).
+- **v1.4.1 (a780836/d0f4282)**: browse/search card dates froze at the
+  site's cache-generation labels ("4 วินาที" for days on fin/up) — the
+  ts homepages ride WP Fastest Cache behind the Cloudflare edge
+  (186-day TTL, probed) and our parser re-anchored the cached labels at
+  fetch time, which also dodged the 6 h stale re-check. Fix:
+  `SafeHttp.getHtmlPage` returns response headers;
+  `pageGenerationMs` (Last-Modified, else Date−Age) anchors the grid
+  labels at the page's true generation moment. Emulator-verified: ages
+  tick in real time, newest chapter holds the top slot, search filter
+  accurate. Invariants: PLAN_NOTES 2026-10-23 (anchor section).
 - **v1.3.1 → v1.4.0 batches**: the chapter read-state indicator +
   reader chrome carry-over (v1.3.1); the Webtoon-style pull-to-switch
   rework (slide + dot trail, bidirectional, smooth fall-back —

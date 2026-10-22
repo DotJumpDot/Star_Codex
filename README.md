@@ -146,7 +146,7 @@ Requires Android 7.0+ (API 24).
 > **Upgrading from a debug/test build?** Uninstall it first — release
 > builds are signed with a different key.
 
-See [what changed in v1.4.0](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.4.0).
+See [what changed in v1.4.1](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.4.1).
 
 ## 🛠️ Tech stack
 
@@ -160,7 +160,7 @@ See [what changed in v1.4.0](https://github.com/DotJumpDot/Star_Codex/releases/t
 - **Scraping** — `html` parser for the Madara/ts/classic themes and the
   custom engines; JSON POST API for nekopost; WAF ladder (dio → cronet →
   webview) for Cloudflare-blocked sites
-- **267 tests**, `flutter analyze` clean
+- **276 tests**, `flutter analyze` clean
 
 ## 🔨 Build from source
 
@@ -202,6 +202,13 @@ Star_Codex/
 ```
 
 ## 📜 Status
+
+**v1.4.1 (2026-10-23)** — patch: real update dates. The sites' homepages
+are served from long-lived caches, so their relative labels ("4 วินาที")
+were true only at page-generation time — cards sat "just updated" for
+days and skewed the update-date filter. Labels are now anchored at the
+page's real generation time (response `Last-Modified` / `Age`), so card
+dates tick truthfully and genuinely fresh drops rank on top.
 
 **v1.4.0 (2026-10-23)** — every source loads again. Cloudflare blocks
 are answered by a per-site ladder: the normal stack, an embedded
