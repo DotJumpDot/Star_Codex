@@ -11,9 +11,10 @@ never mirror hook/system text language).
 **Star Codex** — Flutter Android app (Thai-first UI) reading from 7 live
 Thai manga/novel sources in the main feed (5× WordPress-Madara/ts +
 bully-manga custom engine + nekopost API incl. novels) plus a separate
-**Doujin 18+ page** with 2 more live (ntr-manga, hentaithai; doujin-lc +
-miku-doujin seed disabled behind a Cloudflare TLS-fingerprint block — see
-PLAN_NOTES 2026-10-19). 9 sources live in total. Streaming
+**Doujin 18+ page** with 2 more (ntr-manga, hentaithai) and doujin-lc +
+miku-doujin — since db v9 (2026-10-23) ALL 11 sources ship enabled: the
+WAF ladder (dio → cronet → webview, PLAN_NOTES 2026-10-23) gets through
+every Cloudflare block. Streaming
 reading, silent WebP q80 caching, content-hash dedup. Personal local use
 only — no server, no cloud, no login. **v1.3.1 released** (GitHub
 Releases, release-signed APK); the repo is public. The browse feed is
@@ -33,7 +34,7 @@ its live "x minutes ago" labels (see PLAN_NOTES 2026-10-22).
 4. [`Docs/Plan/00-DECISIONS.md`](Docs/Plan/00-DECISIONS.md) is the contract —
    it wins over any phase doc. Never violate it silently.
 5. [`Docs/PLAN_NOTES.md`](Docs/PLAN_NOTES.md) carries the post-plan
-   invariants (source quirks, db migrations v2–v8, cover fallbacks,
+   invariants (source quirks, db migrations v2–v9, cover fallbacks,
    probe matching, Cloudflare blocks, reader smoothness + UI-thread
    rules). Read its newest sections before touching sources, merge
    logic, the reader, or the DB.

@@ -64,12 +64,12 @@ void main() {
     expect(byId['doujin-lc']!['adapter'], 'madara');
     expect(byId['hentaithai']!['adapter'], 'hentaithai');
     expect(byId['miku-doujin']!['adapter'], 'miku');
-    // v6: the two Cloudflare-blocked adult sites seed OFF; the two
-    // reachable ones stay on.
-    expect(byId['doujin-lc']!['enabled'], 0,
-        reason: 'Cloudflare fingerprint-blocks the app (2026-10-19 probe)');
-    expect(byId['miku-doujin']!['enabled'], 0,
-        reason: 'Cloudflare fingerprint-blocks the app (2026-10-19 probe)');
+    // db v9 (2026-10-23): every source seeds ON — the WAF ladder made
+    // the last two Cloudflare-blocked ones reachable.
+    expect(byId['doujin-lc']!['enabled'], 1,
+        reason: 'v9 re-enabled the WAF-unlocked sources');
+    expect(byId['miku-doujin']!['enabled'], 1,
+        reason: 'v9 re-enabled the WAF-unlocked sources');
     expect(byId['ntr-manga']!['enabled'], 1);
     expect(byId['hentaithai']!['enabled'], 1);
   });
@@ -112,14 +112,13 @@ void main() {
     final rows = await db.query('sources');
     expect(rows.length, 11,
         reason: 'migration must (re)insert every post-v1 source row');
-    // The v1→v6 chain inserts the adult rows (v5, enabled) and then v6
-    // disables the two Cloudflare-blocked ones — end state matches fresh
-    // seeds.
+    // The v1→v9 chain inserts the adult rows (v5), v6 disables the two
+    // Cloudflare-blocked ones, and v9 re-enables them (WAF ladder,
+    // 2026-10-23) — end state matches fresh seeds.
     final byId = {for (final r in rows) r['id'] as String: r};
-    expect(byId['doujin-lc']!['enabled'], 0,
-        reason: 'v6 must disable the Cloudflare-blocked sources after v5 '
-            'inserted them enabled');
-    expect(byId['miku-doujin']!['enabled'], 0);
+    expect(byId['doujin-lc']!['enabled'], 1,
+        reason: 'v9 must re-enable the sources v6 disabled');
+    expect(byId['miku-doujin']!['enabled'], 1);
     expect(byId['ntr-manga']!['enabled'], 1);
     final quota =
         await db.query('settings', where: "key = 'total_quota_bytes'");

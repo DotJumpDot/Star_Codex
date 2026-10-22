@@ -698,3 +698,24 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   (same WAF family as the disabled doujin sources); it stays enabled —
   the feed degrades gracefully and auto-recovers if the site relents.
   254 tests green, analyze clean.
+- 2026-10-23 — WAF ladder: blocked sites now load. Cloudflare blocks come
+  in two shapes and each gets its tier: (1) TLS-fingerprint blocks
+  (doujin-lc, miku-doujin — 403 for dart:io since v1) pass through a new
+  **cronet tier** (embedded Chromium network stack — real Chrome TLS
+  handshake at native speed; verified on-device: doujin-lc OK 2699 ms,
+  miku OK 1166 ms; both stay seed-disabled). (2) Interactive challenges
+  (dark-manga, whole site) are executed by a **webview tier**: a
+  headless WebView auto-solves the managed challenge (verified: OK
+  1008 ms, zero interaction) and byte traffic rides cronet with the
+  relayed clearance cookies; if a site ever demands a human tap, a lock
+  icon appears on the source row in Settings → visible verification
+  dialog. Lanes are learned per host at runtime (direct → cronet →
+  webview, fail-fast 10 min after exhaustion); all requests still go
+  through SafeHttp's scheme/host validation, POSTs stay on the direct
+  lane. Two new dependencies (justified in PLAN_NOTES): cronet_http
+  1.10.0 + cronet-embedded 143.7445.0 (~8 MB/ABI), flutter_inappwebview
+  6.2.0-beta.3 (pinned — 6.1.5 breaks Flutter 3.47's AGP). Default UA
+  bumped Chrome/126 (2024) → Chrome/140. **db v9 re-enables every
+  source** (user request: all sites open by default — the ladder made
+  the two seed-disabled doujin sites reachable). 265 tests green (11
+  new ladder tests), analyze clean.

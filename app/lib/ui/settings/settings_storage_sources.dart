@@ -318,6 +318,24 @@ class _SourceTile extends ConsumerStatefulWidget {
 
 class _SourceTileState extends ConsumerState<_SourceTile> {
   String? _testResult; // null = untested; "1234 ms" / "error"
+  bool _unlocking = false;
+
+  /// WAF ladder (PLAN_NOTES 2026-10-23): when this source's host sits
+  /// behind a challenge the headless WebView couldn't auto-solve, offer
+  /// the one-tap visible verification here.
+  Future<void> _unlockWaf() async {
+    if (_unlocking) return;
+    setState(() => _unlocking = true);
+    try {
+      await ref.read(wafGateProvider).webview!.fetchHtml(
+          Uri.parse(widget.info.baseUrl),
+          allowManualUnlock: true);
+    } catch (_) {
+      // dialog reports; the lock icon stays until a solve succeeds
+    } finally {
+      if (mounted) setState(() => _unlocking = false);
+    }
+  }
 
   Future<void> _testConnection() async {
     final http = ref.read(safeHttpProvider);
@@ -374,6 +392,25 @@ class _SourceTileState extends ConsumerState<_SourceTile> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
+              ValueListenableBuilder<List<String>>(
+                valueListenable:
+                    ref.watch(wafGateProvider).webview!.needsUnlock,
+                builder: (context, locked, _) {
+                  final host = Uri.parse(info.baseUrl).host;
+                  if (!locked.contains(host)) return const SizedBox.shrink();
+                  return IconButton(
+                    tooltip: t(context, 'settings.source_unlock'),
+                    icon: _unlocking
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.lock_open, size: 20),
+                    onPressed: _unlockWaf,
+                  );
+                },
+              ),
               IconButton(
                 tooltip: t(context, 'settings.source_test'),
                 icon: const Icon(Icons.network_check, size: 20),

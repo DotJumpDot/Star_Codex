@@ -22,8 +22,11 @@ import '../data/sources/source_api.dart';
 import '../data/storage/blob_store.dart';
 import '../data/storage/cache_janitor.dart';
 import '../data/storage/image_pipeline.dart';
+import 'net/cronet_lane.dart';
 import 'net/rate_limiter.dart';
 import 'net/safe_http.dart';
+import 'net/waf_gate.dart';
+import 'net/webview_gate.dart';
 
 /// Opened once in `main()` and overridden here; tests override with an
 /// in-memory database (sqflite_common_ffi).
@@ -67,8 +70,17 @@ final rateLimiterProvider = Provider((ref) => RateLimiter());
 
 /// Single shared network door — uses the shared rate limiter so runtime
 /// image-host registrations (ts_reader CDN domains) apply to every request.
+/// The WAF gate rides along so Cloudflare-blocked hosts can climb the
+/// cronet/webview ladder (PLAN_NOTES 2026-10-23).
+final wafGateProvider = Provider((ref) => WafGate(
+      cronet: CronetLane(),
+      webview: WebviewGate(),
+    ));
+
 final safeHttpProvider = Provider(
-    (ref) => SafeHttp(rateLimiter: ref.watch(rateLimiterProvider)));
+    (ref) => SafeHttp(
+        rateLimiter: ref.watch(rateLimiterProvider),
+        gate: ref.watch(wafGateProvider)));
 
 /// Overridden in `main()` with the real library dir; tests use temp dirs.
 final libraryDirProvider = Provider<Directory>(

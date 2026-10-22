@@ -51,6 +51,18 @@ dependencies:
   url_launcher: ^6.3.3
   wakelock_plus: ^1.8.1
   connectivity_plus: ^7.3.2
+  # WAF ladder (2026-10-23, PLAN_NOTES): cronet = Chromium's own network
+  # stack, so requests carry a real Chrome TLS fingerprint (unlocks
+  # fingerprint-blocked sites at native speed, e.g. doujin-lc/miku).
+  cronet_http: ^1.10.0
+  # WAF ladder tier 3: a real WebView executes Cloudflare's JS challenge
+  # (the Android equivalent of a headless desktop browser solver). Pinned
+  # beta: 6.1.5's android platform package uses a proguard directive that
+  # Flutter 3.47's AGP rejects at configuration time.
+  flutter_inappwebview: 6.2.0-beta.3
+  # Direct use by cronet_lane (package:http Request/StreamedResponse
+  # types; already in the tree via cronet_http — now referenced directly).
+  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:

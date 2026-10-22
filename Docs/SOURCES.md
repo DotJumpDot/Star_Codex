@@ -5,10 +5,11 @@ looks like, and what breaks on it. Everything here was probed against the
 live sites; when a site changes, update this file **and**
 [PLAN_NOTES.md](./PLAN_NOTES.md) in the same batch.
 
-11 sources are seeded, **9 live**. The Doujin (18+) page holds 4 of them
-(2 live); the main feed holds the other 7. Adult sources never appear in
-the main feed and vice versa (`adultSourceIds` in
-`app/lib/data/sources/source_registry.dart`).
+11 sources are seeded and since db v9 (2026-10-23) **all 11 ship
+enabled** — the WAF ladder made the last two Cloudflare-blocked ones
+reachable. The Doujin (18+) page holds 4 of them; the main feed holds
+the other 7. Adult sources never appear in the main feed and vice versa
+(`adultSourceIds` in `app/lib/data/sources/source_registry.dart`).
 
 ## At a glance
 
@@ -17,14 +18,14 @@ the main feed and vice versa (`adultSourceIds` in
 | go-manga.com | main | Madara (ts) | ✅ | ✅ family A | ✅ | |
 | slow-manga.net | main | Madara (ts) | ✅ | ✅ family B | ✅ | grid is chapter-linked |
 | up-manga.com | main | Madara (ts) | ✅ | ✅ family A | ⚠️ Cloudflare | search endpoint 403s |
-| dark-manga.com | main | Madara (ts) | ✅ | ✅ family A | 🚫 Cloudflare | 2026-10-23: WHOLE SITE behind the "Just a moment..." challenge — feed fails gracefully until it relents |
+| dark-manga.com | main | Madara (ts) | ✅ | ✅ family A | 🚫 Cloudflare | 2026-10-23: whole site behind the challenge — the WAF ladder's webview tier auto-solves it (verified on-device) |
 | fin-manga.com | main | Madara (ts) | ✅ | ✅ family A | ✅ | archive order drifts A–Z; 2026-10-23: WPFC lazy covers (data-wpfc-original-src) |
 | bully-manga.com | main | custom static | ✅ | ❌ **open** | ✅ | needs its own grid port |
 | nekopost.net | main | JSON API | ✅ | n/a (API) | ✅ | the only novel carrier |
 | ntr-manga.net | Doujin | Madara (ts) | ✅ | ❌ custom grid | ✅ | its own grid markup — not parsed |
 | hentaithai.net | Doujin | custom one-shot | ✅ | n/a | ❌ | one-shot; thread page = reader |
-| doujin-lc.net | Doujin | Madara (classic) | ❌ off | n/a | ✅ | Cloudflare-blocked |
-| miku-doujin.com | Doujin | custom one-shot | ❌ off | n/a | ❌ | Cloudflare-blocked |
+| doujin-lc.net | Doujin | Madara (classic) | ✅ | n/a | ✅ | cronet lane unlocks it (2026-10-23); enabled since db v9 |
+| miku-doujin.com | Doujin | custom one-shot | ✅ | n/a | ❌ | cronet lane unlocks it (2026-10-23); enabled since db v9 |
 
 "Grid feed" = whether the site renders a server-side recent-updates grid
 that the v1.3.0 grid-head feed can read for exact order + live relative
@@ -153,13 +154,30 @@ WordPress with a fully custom "inz" theme:
   exactly one chapter whose URL is the series URL. Tags come from
   `a[href*="/category/"]`.
 
-## Cloudflare blocks (not fixable in-app)
+## Cloudflare blocks → the WAF ladder (2026-10-23)
 
-`doujin-lc.net` and `miku-doujin.com` fingerprint-block Dart's TLS
-stack: every app request gets "Attention Required!" 403 while
-browsers and curl pass (UA / header / HTTP-version probes all returned
-200). The adapters are correct — the sites are simply unreachable from
-the app. Both **seed disabled** (users can re-enable them in Settings).
+Cloudflare blocks sites in two ways, and the app now answers both
+(`app/lib/core/net/waf_gate.dart`, per-host ladder; full write-up in
+PLAN_NOTES 2026-10-23):
+
+- **TLS fingerprint block** (doujin-lc, miku-doujin): the site serves
+  200 to Chrome and 403 to dart:io's handshake. The **cronet tier**
+  (embedded Chromium network stack) handshakes like Chrome and passes —
+  verified on-device 2026-10-23 (doujin-lc OK 2699 ms, miku OK 1166 ms).
+  Both re-enabled everywhere in db v9 (2026-10-23): with the ladder in
+  place there is no reason to keep them off.
+- **Interactive challenge** (dark-manga, whole site since 2026-10-23):
+  "Just a moment..." JS challenge on every request. The **webview tier**
+  loads the site in a headless WebView, the managed challenge
+  auto-solves (verified: dark-manga OK 1008 ms, no user interaction),
+  and follow-up byte traffic rides cronet with the relayed clearance
+  cookies. If a site ever demands a human tap, a lock icon appears on
+  the source row in Settings → one tap opens the visible verification
+  page; after that the headless WebView takes over again.
+
+`up-manga`'s `?s=` search 403 is a CF challenge too, but search there
+stays off (`searchSupported: false`) — the ladder is for whole-site
+reachability, not per-endpoint toggling.
 
 ## When a site breaks
 

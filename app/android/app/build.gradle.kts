@@ -62,6 +62,13 @@ android {
     }
 }
 
+// Embedded Cronet (WAF ladder, 2026-10-23): ships Chromium's network stack
+// inside the APK so the Chrome-TLS transport works on devices/emulators
+// without the Google Play Services Cronet provider. ~8 MB per ABI.
+dependencies {
+    implementation("org.chromium.net:cronet-embedded:143.7445.0")
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17

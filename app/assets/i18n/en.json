@@ -279,5 +279,8 @@
   "offline.delete_go": "Delete {n}",
   "reader.pull_prev_more": "Keep pulling for previous chapter",
   "reader.pull_prev_release": "Release for previous chapter",
-  "reader.first": "First chapter — no previous chapter"
+  "reader.first": "First chapter — no previous chapter",
+  "settings.source_unlock": "Unlock site (verify WAF)",
+  "waf.challenge_title": "Verify to unlock this site",
+  "waf.challenge_hint": "Tap the checkmark in the page once and wait a moment — the app unlocks automatically and closes this window"
 }

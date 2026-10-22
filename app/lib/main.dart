@@ -6,12 +6,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
 import 'core/i18n/i18n.dart';
+import 'core/net/cronet_lane.dart';
 import 'core/net/rate_limiter.dart';
 import 'core/net/safe_http.dart';
+import 'core/net/waf_gate.dart';
+import 'core/net/webview_gate.dart';
 import 'core/providers.dart';
 import 'data/dao/settings_dao.dart';
 import 'data/db.dart';
 import 'data/sources/source_registry.dart';
+import 'ui/webview/challenge_dialog.dart';
 
 /// Doc 13 §A: Wi-Fi-only downloads (default ON) — mobile data keeps the
 /// queue paused. Wi-Fi AND Ethernet count as unmetered.
@@ -41,15 +45,25 @@ Future<void> main() async {
   final libraryDir = await defaultLibraryDir();
   final initialSettings = await SettingsDao(db).getAll();
   // One shared limiter + http door for everything (review pass: a detached
-  // RateLimiter would silently drop image-host registration).
+  // RateLimiter would silently drop image-host registration). The WAF gate
+  // lets Cloudflare-blocked hosts climb dio → cronet → webview
+  // (PLAN_NOTES 2026-10-23); its manual-unlock tier pops the visible
+  // challenge dialog through the global navigator key.
   final rateLimiter = RateLimiter();
-  final http = SafeHttp(rateLimiter: rateLimiter);
+  final wafGate = WafGate(cronet: CronetLane(), webview: WebviewGate());
+  wafGate.webview!.manualUnlock = (uri) async {
+    final context = appNavigatorKey.currentContext;
+    if (context == null) return false;
+    return showChallengeDialog(context, uri);
+  };
+  final http = SafeHttp(rateLimiter: rateLimiter, gate: wafGate);
   final sources = await loadSources(db, http);
   final container = ProviderContainer(overrides: [
     dbProvider.overrideWithValue(db),
     libraryDirProvider.overrideWithValue(libraryDir),
     initialSettingsProvider.overrideWithValue(initialSettings),
     rateLimiterProvider.overrideWithValue(rateLimiter),
+    wafGateProvider.overrideWithValue(wafGate),
     safeHttpProvider.overrideWithValue(http),
     sourcesProvider.overrideWith((ref) => SourcesController(sources)),
     unmeteredCheckProvider.overrideWithValue(isUnmeteredNow),

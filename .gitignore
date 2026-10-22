@@ -23,6 +23,7 @@ app/.packages
 app/build/
 app/.idea/
 app/android/.gradle/
+app/android/build/
 app/android/local.properties
 
 # general

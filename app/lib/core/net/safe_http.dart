@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 
 import 'net_exception.dart';
 import 'rate_limiter.dart';
+import 'waf_gate.dart';
 
 /// Injectable transport for tests (a local mock server would violate the
 /// loopback rule, so retries are tested through a fake fetcher instead).
@@ -30,10 +31,15 @@ typedef SafeHttpDelay = Future<void> Function(Duration d);
 /// host validation, rate limiter and retry policy as every GET.
 class SafeHttp {
   SafeHttp(
-      {RateLimiter? rateLimiter, SafeHttpFetcher? fetcher, SafeHttpDelay? delay})
+      {RateLimiter? rateLimiter,
+      SafeHttpFetcher? fetcher,
+      SafeHttpDelay? delay,
+      WafGate? gate})
       : _rateLimiter = rateLimiter ?? RateLimiter(),
-        // ignore: prefer_initializing_formals — private field, public param
+        // ignore: prefer_initializing_formals — private fields
         _fetcher = fetcher,
+        // ignore: prefer_initializing_formals — private field
+        _gate = gate,
         _delay = delay ?? ((d) => Future<void>.delayed(d)) {
     _dio = Dio(BaseOptions(
       connectTimeout: const Duration(seconds: 15),
@@ -41,9 +47,7 @@ class SafeHttp {
       followRedirects: false, // hops validated manually in _run
       maxRedirects: 8,
       headers: {
-        'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                '(KHTML, like Gecko) Chrome/126.0 Safari/537.36',
+        'User-Agent': wafBrowserUserAgent,
         'Accept-Language': 'th,en;q=0.8',
       },
       validateStatus: (status) => status != null && status < 400,
@@ -77,6 +81,9 @@ class SafeHttp {
   final SafeHttpFetcher? _fetcher;
   final SafeHttpDelay _delay;
   late final SafeHttpFetcher _fetch;
+
+  /// WAF ladder (2026-10-23): null in tests → direct-lane-only behavior.
+  final WafGate? _gate;
 
   static const maxBodyBytes = 50 * 1024 * 1024;
 
@@ -131,10 +138,98 @@ class SafeHttp {
     await _validate(uri);
     final release = await _rateLimiter.acquire(uri.host);
     try {
-      return await _withRetries(uri,
-          referer: referer, method: method, data: data);
+      // WAF ladder: POST (nekopost API) and gate-less instances always
+      // take the direct Dio lane. GETs on a lane the gate learned for
+      // this host go straight there.
+      final lane = _gate?.laneFor(uri.host) ?? WafLane.direct;
+      if (method != 'GET' || lane == WafLane.direct) {
+        try {
+          return await _withRetries(uri,
+              referer: referer, method: method, data: data);
+        } on _CloudflareBlock catch (e) {
+          final next = _gate?.laneFor(uri.host) ?? WafLane.direct;
+          if (next == WafLane.direct) {
+            throw NetException('HTTP ${e.statusCode}',
+                uri: uri, statusCode: e.statusCode);
+          }
+          return await _laneFetch(uri, referer: referer);
+        }
+      }
+      return await _laneFetch(uri, referer: referer);
     } finally {
       release();
+    }
+  }
+
+  /// Fetch through a learned WAF lane (cronet or webview). 3xx responses
+  /// are returned unwrapped so `_loop` follows + re-validates every hop
+  /// exactly as on the direct lane. A Cloudflare-shaped failure promotes
+  /// the host one tier; exhausting the ladder throws.
+  Future<Response<List<int>>> _laneFetch(Uri uri, {String? referer}) async {
+    final gate = _gate!;
+    var lane = gate.laneFor(uri.host);
+    while (true) {
+      if (lane == WafLane.cronet && gate.cronet == null) {
+        // The engine failed its lazy init after the lane was learned.
+        final next = gate.escalate(uri.host);
+        if (next == null) {
+          throw NetException('cronet engine unavailable',
+              uri: uri, statusCode: 403);
+        }
+        lane = next;
+        continue;
+      }
+      final extra = {
+        'referer': ?referer,
+      };
+      LaneResponse r;
+      if (lane == WafLane.cronet) {
+        r = await gate.cronet!.fetch(uri, extraHeaders: extra);
+      } else {
+        // WebView tier: byte traffic rides cronet at native speed with
+        // the relayed clearance cookie + WebView UA; a Cloudflare-shaped
+        // answer falls back to fetching the document inside the WebView
+        // (which also re-solves an expired challenge).
+        final relay = await gate.webview!.relayHeadersFor(uri);
+        final cronet = gate.cronet;
+        if (cronet != null) {
+          r = await cronet.fetch(uri, extraHeaders: {...relay, ...extra});
+        } else {
+          r = await gate.webview!.fetchHtml(uri);
+        }
+        if (WafGate.cloudflareSignature(r.status, r.body, r.headers)) {
+          try {
+            r = await gate.webview!.fetchHtml(uri);
+          } on NetException {
+            // Top tier failed (challenge unsolved): stamp the host so
+            // the next refresh fails fast instead of waiting 15 s again.
+            gate.escalate(uri.host);
+            rethrow;
+          }
+        }
+      }
+      if (r.status >= 200 && r.status < 400) {
+        gate.noteSuccess(uri.host);
+        return Response<List<int>>(
+          requestOptions:
+              RequestOptions(path: uri.toString(), method: 'GET'),
+          statusCode: r.status,
+          data: r.body is Uint8List ? r.body : Uint8List.fromList(r.body),
+          headers: Headers.fromMap({
+            for (final e in r.headers.entries) e.key: [e.value],
+          }),
+        );
+      }
+      if (WafGate.cloudflareSignature(r.status, r.body, r.headers)) {
+        final next = gate.escalate(uri.host);
+        if (next == null || next == lane) {
+          throw NetException('HTTP ${r.status}',
+              uri: uri, statusCode: r.status);
+        }
+        lane = next;
+        continue;
+      }
+      throw NetException('HTTP ${r.status}', uri: uri, statusCode: r.status);
     }
   }
 
@@ -163,6 +258,23 @@ class SafeHttp {
             status == 429;
         if (!retryable || attempt == 3) {
           if (e.type == DioExceptionType.badResponse) {
+            // WAF ladder hook: a Cloudflare-shaped 403/429/503 on a GET
+            // promotes the host to the next lane before surfacing.
+            if (_gate != null && method == 'GET' && status != null) {
+              final body = e.response?.data;
+              final headers = <String, String>{
+                for (final entry
+                    in e.response?.headers.map.entries ?? const <MapEntry<
+                        String, List<String>>>[])
+                  entry.key.toLowerCase():
+                      entry.value.isNotEmpty ? entry.value.first : '',
+              };
+              if (WafGate.cloudflareSignature(
+                  status, body is List<int> ? body : null, headers)) {
+                _gate.escalate(uri.host);
+                throw _CloudflareBlock(status);
+              }
+            }
             throw NetException('HTTP $status', uri: uri, statusCode: status);
           }
           throw NetException('network: ${e.message}', uri: uri);
@@ -248,4 +360,11 @@ class SafeHttp {
       }
     }
   }
+}
+
+/// Internal: the direct lane saw a Cloudflare-shaped block and the gate
+/// already promoted the host. `_run` re-dispatches onto the new lane.
+class _CloudflareBlock implements Exception {
+  const _CloudflareBlock(this.statusCode);
+  final int statusCode;
 }

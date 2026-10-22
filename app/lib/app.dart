@@ -32,6 +32,11 @@ final appearanceProvider =
   );
 });
 
+/// Global navigator key: the WAF challenge dialog (PLAN_NOTES
+/// 2026-10-23) is raised from the network layer, which has no context of
+/// its own — this key reaches the root navigator from anywhere.
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
+
 class StarCodexApp extends ConsumerWidget {
   const StarCodexApp({super.key});
 
@@ -45,6 +50,7 @@ class StarCodexApp extends ConsumerWidget {
     // brightness can never fight the selected palette.
     final theme = buildTheme(spec, fontFamily: font.family);
     return MaterialApp(
+      navigatorKey: appNavigatorKey,
       title: 'Star Codex',
       theme: theme,
       darkTheme: theme,

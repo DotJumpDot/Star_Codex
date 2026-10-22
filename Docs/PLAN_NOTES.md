@@ -1288,3 +1288,66 @@ referer pairing, novel estimate. 165 tests green.
   fixable in-app. The source stays ENABLED on purpose: the feed
   degrades gracefully (red-dot banner + other sites' results) and
   auto-recovers on the next refresh if the site drops the challenge.
+
+## 2026-10-23 — WAF ladder: dio → cronet → webview (NEW DEPENDENCIES)
+
+**Dependency justification (AGENTS.md rule):** two additions beyond the
+Plan/01 table —
+
+- `cronet_http ^1.10.0` (+ `org.chromium.net:cronet-embedded:143.7445.0`
+  in `android/app/build.gradle.kts`, ~8 MB per ABI): Cronet IS Chromium's
+  network stack. Requests carry a real Chrome TLS fingerprint, which is
+  the ONLY thing doujin-lc/miku-doujin were blocking on (they serve 200
+  to curl/Chrome, 403 to dart:io). No pure-Dart package can change the
+  TLS handshake fingerprint; this is the smallest dependency that does.
+- `flutter_inappwebview 6.2.0-beta.3` (pinned beta — 6.1.5's android
+  platform package uses a proguard directive Flutter 3.47's AGP
+  rejects): a real WebView executes Cloudflare's interactive JS
+  challenge — the on-device equivalent of the desktop
+  puppeteer/Playwright solvers. Tier 3 of the ladder; no Dart-only
+  alternative exists for a JS challenge.
+- `http ^1.2.0` was already in the tree via cronet_http; now referenced
+  directly by `cronet_lane.dart` for Request/StreamedResponse types.
+
+**Architecture** (`app/lib/core/net/waf_gate.dart`, `cronet_lane.dart`,
+`webview_gate.dart`): every HOST climbs a ladder learned at runtime from
+Cloudflare-shaped failures (403/429/503 + `server: cloudflare` + markers
+"just a moment"/"cf_chl"/"challenge-platform"/…, or an empty CF-served
+body). `challenge-platform` also appears on HEALTHY CF pages, so a
+non-CF-server 403 without body markers stays a real 403.
+
+1. **direct** — Dio/dart:io as before (8 of 11 hosts; zero regression).
+2. **cronet** — Chromium TLS at native speed; defeats fingerprint-only
+   blocks invisibly (doujin-lc OK 2699 ms, miku OK 1166 ms on-device
+   2026-10-23). Redirects NOT followed here — the 3xx returns to
+   SafeHttp's `_loop` so EVERY hop keeps the scheme/host validation.
+3. **webview** — headless InAppWebView loads the site, polls the title
+   until the challenge clears (managed challenges usually auto-solve;
+   dark-manga OK 1008 ms on-device with NO lock icon = auto-solved),
+   then keeps fetching: cronet rides along carrying the WebView's
+   clearance cookies + real UA (relay). A CF-shaped answer at this tier
+   re-fetches the document inside the WebView. Only if THAT fails does
+   the host land in `needsUnlock` (settings → source row → lock icon →
+   visible challenge dialog via `showChallengeDialog` + the global
+   `appNavigatorKey`). NO cf_clearance cookie is ever relayed to the
+   DART stack — research (scrapfly/zenrows 2026): clearance is bound to
+   the solving stack's TLS fingerprint + UA + IP, so cookie relay to
+   dart:io would bounce.
+
+**Invariants:**
+- All network still flows through `SafeHttp` and its `_validate` — the
+  cronet/webview lanes are callees of `_run`, never a side door. POST
+  (nekopost) always takes the direct lane.
+- Lane state is per-host, per-app-session, monotonic upward; a host
+  whose ladder is exhausted fail-fasts for 10 min (`WafGate.retryAfter`)
+  so a dead site doesn't add seconds to every refresh.
+- The WebView is ONE headless instance, uses are serialized (`_serial`),
+  its DEFAULT user agent stays (overriding UA is a documented way to
+  break challenges), and storage/cookies persist (CF's own mobile docs).
+- SafeHttp's default UA bumped Chrome/126 (2024) → `wafBrowserUserAgent`
+  Chrome/140 (2026) — a stale UA is itself a bot signal. Dart tests set
+  no gate → direct-only behavior unchanged; ladder logic is covered by
+  `test/waf_ladder_test.dart` (fakes, no loopback server).
+- `tool/waf_probe.dart` answers "which sites block us right now" through
+  the app's own stack (on desktop the cronet/webview tiers are
+  unavailable — ladder-escalated hosts report FAIL there).

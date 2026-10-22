@@ -5,7 +5,7 @@ import 'package:sqflite/sqflite.dart';
 /// Single SQLite database (Plan/02). All timestamps are milliseconds since
 /// epoch (int). Migrations append only: bump [dbVersion], add a `case` in
 /// [onUpgrade] — never edit v1 statements after shipping.
-const dbVersion = 8;
+const dbVersion = 9;
 const dbFileName = 'manga_reader.db';
 
 class DbException implements Exception {
@@ -106,6 +106,8 @@ Future<Database> openDb(
           // ("Attention Required!" 403 for every app request while
           // browsers pass) — seed them OFF; users can still re-enable in
           // Settings. The adapters stay correct for if the sites lift it.
+          // (REVERSED by v9 below, 2026-10-23: the WAF ladder unlocks
+          // both and every source now seeds ON.)
           next4:
           case 5:
             await db.execute(
@@ -146,6 +148,18 @@ Future<Database> openDb(
                 height      INTEGER,
                 PRIMARY KEY (parent_hash, idx)
               )''');
+            continue next7; // chain to v9
+          // v9 (2026-10-23, WAF ladder): the cronet/webview tiers make
+          // doujin-lc + miku-doujin reachable again (on-device verified),
+          // and the user wants every source open by default — undo v6's
+          // seed-off and re-enable both, including on existing installs
+          // that never toggled them manually. Users can still disable in
+          // Settings (an explicit 0 written AFTER this migration stays).
+          next7:
+          case 8:
+            await db.execute(
+                "UPDATE sources SET enabled = 1 "
+                "WHERE id IN ('doujin-lc', 'miku-doujin')");
           // Future migrations append cases here: `case 1: ...; continue next;`
           default:
             break;
@@ -352,13 +366,13 @@ const _defaultSettings = {
   'novel_bg_opacity': '1.0',
 };
 
-/// Sources that seed DISABLED: Cloudflare fingerprint-blocks the app's
-/// TLS stack (2026-10-19 probe — adapters correct, requests 403). Users
-/// can re-enable in Settings.
-const _seededDisabled = {'doujin-lc', 'miku-doujin'};
+/// (Removed 2026-10-23: `_seededDisabled` = {doujin-lc, miku-doujin}.
+/// db v9 re-enables them everywhere — the WAF ladder unlocked both.)
 
 Future<void> _seed(Database db) async {
   final batch = db.batch();
+  // Every source seeds ENABLED since db v9 (2026-10-23): the WAF ladder
+  // made the last two Cloudflare-blocked ones reachable.
   for (var i = 0; i < _seededSources.length; i++) {
     final s = _seededSources[i];
     batch.insert('sources', {
@@ -366,7 +380,7 @@ Future<void> _seed(Database db) async {
       'name': s.$2,
       'base_url': s.$3,
       'adapter': s.$4,
-      'enabled': _seededDisabled.contains(s.$1) ? 0 : 1,
+      'enabled': 1,
       'sort': i,
     });
   }
