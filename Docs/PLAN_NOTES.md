@@ -1381,3 +1381,37 @@ next-older 24 — DESCENDING page numbers, discovered live 2026-10-23.
   (`webview_gate`), so bare `dart run tool/*.dart` probes NO LONGER
   COMPILE — run live probes through the Flutter test harness
   (plain `test()` + real awaits) or on-device.
+
+## 2026-10-23 — Grid labels anchor at the page's CACHE-GENERATION time
+
+- BUG (user report): fin-manga/up-manga cards stayed at "24 วินาที" for
+  DAYS, and the update-date search filter trusted that eternally-fresh
+  stamp. Root cause is SITE-SIDE caching, not our parser: the ts
+  homepages ride WP Fastest Cache behind the Cloudflare edge
+  (`CF-Cache-Status: HIT`, `max-age=16070400` — a 186-day edge TTL).
+  The `.fivtime` labels are relative to when the plugin GENERATED the
+  page, and the served copy can be ~a day old. Anchoring them at
+  fetch-now re-froze the same label every refresh (eternal "24 วินาที"),
+  which also DODGED the 6 h stale re-check (a 24-s-old stamp never
+  looks stale).
+- FIX: `SafeHttp.getHtmlPage` now returns the response headers alongside
+  the body, and `pageGenerationMs` (`core/utils/page_time.dart`) derives
+  the page's generation moment: `Last-Modified` first (probed EQUAL to
+  the plugin's own "file was created … @ 9:20 am" comment on fin-manga),
+  else `Date − Age`, else null → old fetch-now behavior. Guarded: never
+  anchors in the future, and a >400-day-old mtime (epoch-ish static
+  file) is distrusted. `MadaraSource.recentStamps` passes the anchor as
+  `nowMs` to both label parsers (`.fivtime` AND slow-manga `.epxdate`).
+- Effect: the date VALUE is now true while the ORDER stays the
+  homepage's own (exactly what the user asked — actual update time,
+  homepage latest-update order). The 6 h stale re-check works again
+  (truthful stamps age past the window → detail re-fetch → real
+  chapterdate lands in the DB → search filter accurate). Live-verified
+  twice on fin-manga (2026-10-23): the frozen copy anchored its
+  "24 วินาที" to 21 h before the fetch, AND the page regenerated
+  mid-probe when a new chapter dropped (`Last-Modified: 23:15:54 GMT`,
+  "8 วินาที" label) — both back-solve consistently.
+- Other sources need nothing: nekopost listings carry real API stamps,
+  hentaithai upload dates come from absolute CDN path dates, bully has
+  no grid. `parseSiteDate` (detail/archive pages) is untouched — those
+  pages carry date-only/absolute strings, no relative labels.

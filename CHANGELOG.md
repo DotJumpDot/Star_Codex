@@ -735,3 +735,12 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   covers, hentaithai feed paging (+ genre-browse union fix from the
   review pass), and the review-pass hardening of the WebView tier.
   267 tests green.
+- 2026-10-23 — Fix: browse card dates frozen at the site's cache time.
+  fin/up-manga cards stayed at "24 วินาที" for days (WP Fastest Cache +
+  the Cloudflare edge serve the homepage ~a day old, and its relative
+  grid labels were re-anchored at fetch time on every refresh, which
+  also dodged the 6 h stale re-check and skewed the update-date search
+  filter). Grid labels now anchor at the page's real generation time
+  (`Last-Modified`, else `Date − Age`) via `SafeHttp.getHtmlPage` —
+  true update times, homepage order untouched. Live-verified on
+  fin-manga (frozen + freshly-regenerated copies). 276 tests green.

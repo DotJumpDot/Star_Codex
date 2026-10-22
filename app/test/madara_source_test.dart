@@ -163,4 +163,73 @@ Future<void> main() async {
       expect(items.map((s) => s.title), contains('Myst Might Mayhem'));
     });
   });
+
+  group('grid labels anchor at the cache-generation time (2026-10-23)',
+      () {
+    // WP Fastest Cache + the CF edge serve the homepage ~a day old; a
+    // "24 วินาที" label inside is true only at page generation (user
+    // report: fin/up cards stuck at "24 วินาที" for days).
+    const home = '''
+<div class="listupd">
+ <div class="bs"><div class="bsx">
+  <a href="https://www.fin-manga.com/manga/myst/" title="Myst Might Mayhem">
+   <div class="limit"><img src="https://www.fin-manga.com/myst.jpg"/></div>
+   <div class="bigor">
+    <div class="tt"><a href="https://www.fin-manga.com/manga/myst/" title="Myst Might Mayhem">Myst Might Mayhem</a></div>
+    <ul class="chfiv"><li><a href="x"><span class="fivtime">24 วินาที</span></a></li></ul>
+   </div></a>
+ </div></div>
+</div>''';
+
+    MadaraSource serving({Map<String, List<String>>? headers}) =>
+        MadaraSource(
+          madaraConfigs.firstWhere((c) => c.id == 'fin-manga'),
+          SafeHttp(
+            rateLimiter: RateLimiter(seed: 1),
+            fetcher: (uri, options) async => Response<List<int>>(
+              requestOptions: RequestOptions(path: uri.toString()),
+              statusCode: 200,
+              data: Uint8List.fromList(const Utf8Encoder().convert(home)),
+              headers: Headers.fromMap(headers ?? const {}),
+            ),
+            delay: (_) async {},
+          ),
+        );
+
+    test('Last-Modified anchors the label exactly (not at fetch-now)',
+        () async {
+      // 21 h stale, second-truncated (HttpDate carries no sub-seconds).
+      final utcNow = DateTime.now().toUtc();
+      final lm = DateTime.utc(utcNow.year, utcNow.month, utcNow.day,
+              utcNow.hour, utcNow.minute, utcNow.second)
+          .subtract(const Duration(hours: 21));
+      final stamps = await serving(headers: {
+        'Last-Modified': [HttpDate.format(lm)],
+      }).recentStamps();
+      expect(stamps, hasLength(1));
+      expect(stamps.single.stampMs, lm.millisecondsSinceEpoch - 24 * 1000);
+    });
+
+    test('no anchor header keeps the old fetch-now behavior', () async {
+      final before = DateTime.now().millisecondsSinceEpoch;
+      final stamps = await serving().recentStamps();
+      final after = DateTime.now().millisecondsSinceEpoch;
+      expect(
+        stamps.single.stampMs,
+        inInclusiveRange(before - 24 * 1000, after),
+      );
+    });
+
+    test('Date − Age anchors when Last-Modified is absent', () async {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final stamps = await serving(headers: {
+        'Date': [HttpDate.format(DateTime.fromMillisecondsSinceEpoch(now, isUtc: true))],
+        'Age': ['900'],
+      }).recentStamps();
+      expect(
+        stamps.single.stampMs,
+        inInclusiveRange(now - 900 * 1000 - 24 * 1000 - 2000, now - 900 * 1000),
+      );
+    });
+  });
 }

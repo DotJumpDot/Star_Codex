@@ -4,6 +4,7 @@ import 'package:html/parser.dart' as html_parser;
 
 import '../../../core/net/net_exception.dart';
 import '../../../core/net/safe_http.dart';
+import '../../../core/utils/page_time.dart';
 import '../../../core/utils/thai.dart';
 import '../../../core/utils/title_norm.dart';
 import '../source_api.dart';
@@ -518,16 +519,22 @@ class MadaraSource implements Source {
   /// the stamp-null check skips them naturally.
   @override
   Future<List<SourceRecentStamp>> recentStamps() async {
-    final body = await _fetch(Uri.parse('$baseUrl/'));
-    if (_looksLikeCloudflare(body)) throw SourceException.cloudflare(id);
-    final doc = html_parser.parse(body);
+    final page = await _fetchPage(Uri.parse('$baseUrl/'));
+    if (_looksLikeCloudflare(page.body)) throw SourceException.cloudflare(id);
+    final doc = html_parser.parse(page.body);
+    // Anchor the labels at the page's GENERATION time, not fetch time:
+    // the homepage rides WP Fastest Cache behind the Cloudflare edge and
+    // the served copy can be ~a day old, freezing every label inside it
+    // (fin/up stuck-"24 วินาที" report 2026-10-23). No header anchor →
+    // fetch-now, the pre-fix behavior.
     final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final anchorMs = pageGenerationMs(page.headers, nowMs: nowMs) ?? nowMs;
     final out = <SourceRecentStamp>[];
     for (final tile in doc.querySelectorAll('.listupd .bsx')) {
       final fiv = tile.querySelector('.fivtime')?.text.trim();
       final seriesA = tile.querySelector('.tt a');
       if (seriesA != null && fiv != null && fiv.isNotEmpty) {
-        final stamp = parseRelativeStamp(fiv, nowMs: nowMs);
+        final stamp = parseRelativeStamp(fiv, nowMs: anchorMs);
         if (stamp != null) {
           final img = tile.querySelector('img');
           out.add(
@@ -546,7 +553,7 @@ class MadaraSource implements Source {
       }
       final epx = tile.querySelector('.epxdate')?.text.trim();
       if (epx == null || epx.isEmpty) continue;
-      final stamp = parseRelativeStamp(epx, nowMs: nowMs);
+      final stamp = parseRelativeStamp(epx, nowMs: anchorMs);
       if (stamp == null) continue;
       // Chapter-titled link: prefer the clean series title from `.tt`.
       final a = tile.querySelector('a[title]');
@@ -574,9 +581,17 @@ class MadaraSource implements Source {
     return out;
   }
 
-  Future<String> _fetch(Uri uri) async {
+  Future<String> _fetch(Uri uri) =>
+      _safe(() => http.getHtml(uri, referer: referer), uri);
+
+  /// Page + headers — the homepage grid needs them to anchor its
+  /// relative labels at the cache-generation time (page_time.dart).
+  Future<SafeHtmlPage> _fetchPage(Uri uri) =>
+      _safe(() => http.getHtmlPage(uri, referer: referer), uri);
+
+  Future<T> _safe<T>(Future<T> Function() run, Uri uri) async {
     try {
-      return await http.getHtml(uri, referer: referer);
+      return await run();
     } on NetException catch (e) {
       if (e.statusCode == 403) {
         // Distinguish Cloudflare later via body sniff in callers; the 403

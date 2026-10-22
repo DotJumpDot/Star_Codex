@@ -52,6 +52,16 @@ Both are parsed by `Source.recentStamps()` and `parseRelativeStamp()`
 (`app/lib/core/utils/thai.dart`). A third variant (ntr-manga) exists but
 is not parsed — see the per-site quirks below.
 
+The labels are relative to the page's **cache-generation time**, not the
+fetch time: the ts homepages ride WP Fastest Cache behind the Cloudflare
+edge (`max-age=16070400`), so the served copy can be ~a day old and a
+"24 วินาที" in it is 24 s before generation (2026-10-23 user report —
+fin/up cards stuck at "24 วินาที" for days). `recentStamps()` anchors
+the labels at the response's `Last-Modified` (probed equal to the
+plugin's own "file was created" comment), falling back to `Date − Age`
+and then to fetch-now — see `core/utils/page_time.dart` and PLAN_NOTES
+2026-10-23.
+
 ### Per-site quirks
 
 - **slow-manga** — series URLs live under `/manga/{slug}/`; the grid is

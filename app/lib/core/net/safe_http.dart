@@ -16,6 +16,16 @@ typedef SafeHttpFetcher = Future<Response<List<int>>> Function(
 /// Injectable backoff sleep for tests.
 typedef SafeHttpDelay = Future<void> Function(Duration d);
 
+/// A fetched page: UTF-8 body plus the response headers (lowercased
+/// keys, repeated headers comma-joined). Only [SafeHttp.getHtmlPage]
+/// returns it.
+class SafeHtmlPage {
+  SafeHtmlPage({required this.body, required this.headers});
+
+  final String body;
+  final Map<String, String> headers;
+}
+
 /// The ONLY network door in the app (Plan/04 §2 — hard security rule).
 ///
 /// Order of enforcement:
@@ -88,10 +98,24 @@ class SafeHttp {
   static const maxBodyBytes = 50 * 1024 * 1024;
 
   Future<String> getHtml(Uri uri, {String? referer}) async {
-    final bytes = await getBytes(uri, referer: referer);
+    final page = await getHtmlPage(uri, referer: referer);
+    return page.body;
+  }
+
+  /// GET returning the body PLUS the response headers. The homepage
+  /// recent-grids anchor their relative time labels at the page's
+  /// cache-generation time, which only the headers carry (PLAN_NOTES
+  /// 2026-10-23: WP Fastest Cache + the Cloudflare edge serve fin/up's
+  /// homepages ~a day old — a "24 วินาที" in that copy is 24 s before
+  /// generation, not before the fetch).
+  Future<SafeHtmlPage> getHtmlPage(Uri uri, {String? referer}) async {
+    final hop = await _loopFull(uri, referer: referer);
     // UTF-8 — the sites are UTF-8; Latin-1 here would mojibake all Thai
     // text (titles, tags, chapter labels, dates).
-    return utf8.decode(bytes, allowMalformed: true);
+    return SafeHtmlPage(
+      body: utf8.decode(hop.bytes, allowMalformed: true),
+      headers: hop.headers,
+    );
   }
 
   /// JSON-body POST (Plan/06 nekopost API). Validated + rate-limited +
@@ -99,14 +123,15 @@ class SafeHttp {
   /// safe.
   Future<Uint8List> postJson(Uri uri, Map<String, Object?> body,
       {String? referer}) async {
-    return _loop(uri, referer: referer, method: 'POST', data: body);
+    return (await _loopFull(uri, referer: referer, method: 'POST', data: body))
+        .bytes;
   }
 
   Future<Uint8List> getBytes(Uri uri, {String? referer}) async {
-    return _loop(uri, referer: referer);
+    return (await _loopFull(uri, referer: referer)).bytes;
   }
 
-  Future<Uint8List> _loop(Uri uri,
+  Future<({Uint8List bytes, Map<String, String> headers})> _loopFull(Uri uri,
       {String? referer, String method = 'GET', Object? data}) async {
     var current = uri;
     for (var hop = 0; hop <= 8; hop++) {
@@ -126,9 +151,17 @@ class SafeHttp {
         throw NetException('unexpected body type', uri: current);
       }
       if (payload.length > maxBodyBytes) {
-        throw NetException('body exceeds 50 MB cap', uri: current);
+        throw NetException('body exceeds 50 MB cap', uri: uri);
       }
-      return Uint8List.fromList(payload);
+      return (
+        bytes: Uint8List.fromList(payload),
+        headers: {
+          // Lowercased so readers can look up case-insensitively (the
+          // wire case differs per hop); repeated headers comma-join.
+          for (final e in response.headers.map.entries)
+            if (e.value.isNotEmpty) e.key.toLowerCase(): e.value.join(', '),
+        },
+      );
     }
     throw NetException('too many redirects', uri: uri);
   }
