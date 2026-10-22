@@ -1155,3 +1155,9 @@ referer pairing, novel estimate. 165 tests green.
   (e) engines `implements Source` need the recentStamps stub explicitly.
   Bully = custom engine, grid-head still open. Nekopost listings already
   carry stamps — no-op there.
+- BROWSE CARD INTRO (2026-10-22, commit b9b535c): the card's leftover
+  space under the chip row shows the series description (2 lines +
+  ellipsis). `SearchGroup.dbDescription` is filled from the MATERIALIZED
+  row (browse enrichment + offline catalog) and carried across group
+  rebuilds like the other DB-enriched fields — listing-only series have
+  no description until their row exists.
