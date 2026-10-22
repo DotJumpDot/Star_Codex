@@ -83,8 +83,20 @@ class WebviewGate {
     return prev.then((_) => task()).whenComplete(done.complete);
   }
 
-  Future<void> _boot() async {
-    if (_ready) return;
+  /// Single-flight boot: concurrent first fetches share one headless
+  /// instance, and a FAILED boot clears itself so the next fetch
+  /// retries instead of re-throwing a cached error (or leaking the
+  /// half-built instance) for the rest of the session.
+  Future<void>? _booting;
+
+  Future<void> _boot() {
+    if (_ready) return Future<void>.value();
+    return _booting ??= _bootOnce().whenComplete(() {
+      if (!_ready) _booting = null;
+    });
+  }
+
+  Future<void> _bootOnce() async {
     final created = Completer<void>();
     _headless = HeadlessInAppWebView(
       initialUrlRequest:
@@ -110,8 +122,15 @@ class WebviewGate {
         if (nav != null && !nav.isCompleted) nav.complete();
       },
     );
-    await _headless!.run();
-    await created.future.timeout(const Duration(seconds: 10));
+    try {
+      await _headless!.run();
+      await created.future.timeout(const Duration(seconds: 10));
+    } catch (e) {
+      _controller = null;
+      _headless?.dispose();
+      _headless = null;
+      rethrow;
+    }
   }
 
   /// Cookies (+ the WebView's real UA) for the cronet lane to reuse on
@@ -134,10 +153,16 @@ class WebviewGate {
   }
 
   /// Fetch a page's HTML through the WebView, solving the challenge
-  /// first when one is up. Throws [NetException] (403) when it cannot.
+  /// first when one is up. Throws [NetException] (403) when it cannot —
+  /// platform errors are wrapped so SafeHttp callers only ever see the
+  /// app's own exception type.
   Future<LaneResponse> fetchHtml(Uri uri,
       {bool allowManualUnlock = false}) async {
-    await _boot();
+    try {
+      await _boot();
+    } catch (e) {
+      throw NetException('webview boot failed: $e', uri: uri);
+    }
     return _serial(() async {
       final cleared =
           await _loadUntilCleared(uri, allowManualUnlock: allowManualUnlock);
@@ -191,7 +216,15 @@ class WebviewGate {
 
   Future<void> _navigate(InAppWebViewController controller, Uri uri) async {
     _navDone = Completer<void>();
-    await controller.loadUrl(urlRequest: URLRequest(url: WebUri(uri.toString())));
+    try {
+      await controller
+          .loadUrl(urlRequest: URLRequest(url: WebUri(uri.toString())));
+    } catch (e) {
+      // loadUrl itself failing (dead webview) must not leave the queue
+      // awaiting a stop that will never come.
+      _navDone = null;
+      throw NetException('webview navigation failed: $e', uri: uri);
+    }
     // The first onLoadStop = the challenge page (or content, if the
     // cookie is still warm). Polling titles BEFORE it would read the
     // PREVIOUS page — that stale-title false positive is why this wait
@@ -211,6 +244,19 @@ class WebviewGate {
         final title =
             await _controller!.evaluateJavascript(source: 'document.title');
         if (!looksChallenged(title is String ? title : null)) {
+          // A late onLoadStop from the PREVIOUS page can make the first
+          // read hit stale content — confirm once more (title AND
+          // document markers) before declaring the page served.
+          await Future<void>.delayed(const Duration(milliseconds: 500));
+          final title2 = await _controller!
+              .evaluateJavascript(source: 'document.title');
+          if (looksChallenged(title2 is String ? title2 : null)) continue;
+          final html = await _controller!.evaluateJavascript(
+              source: 'document.documentElement.outerHTML');
+          if (looksChallenged(
+              title2 is String ? title2 : null, html is String ? html : null)) {
+            continue;
+          }
           return true;
         }
       } catch (_) {

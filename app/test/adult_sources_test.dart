@@ -124,6 +124,20 @@ Future<void> main() async {
           reason: 'the CDN path carries the upload date');
     });
 
+    test('tag pages render the col-6 family, not number-even/odd — the '
+        'union parser keeps genre browse alive (2026-10-23 review fix)',
+        () async {
+      final body = await fixture('ht_tag_page.html');
+      expect(parseHentaiThaiListing(body), isEmpty,
+          reason: 'the landing-grid parser alone finds nothing on a tag '
+              'page (this was the genre-browse bug)');
+      final items = parseHentaiThaiUnionListing(body);
+      expect(items, hasLength(24));
+      expect(items.first.url, startsWith('https://hentaithai.net/t'));
+      expect(items.first.coverUrl, contains('s1.hentaithai.net'));
+      expect(items.first.lastUpdatedMs, isNotNull);
+    });
+
     test('listing cards carry the CDN-path upload date (2026-10-21 probe: '
         'no <time> stamps anywhere — the date lives only in the image path)',
         () async {

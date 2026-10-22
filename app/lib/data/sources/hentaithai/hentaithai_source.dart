@@ -110,7 +110,10 @@ class HentaiThaiSource implements Source {
     if (page > 1) return const [];
     final body = await _fetch(Uri.parse('$baseUrl/$term'));
     if (_looksLikeCloudflare(body)) throw SourceException.cloudflare(id);
-    return parseHentaiThaiListing(body);
+    // Tag pages render the /page-N col-6 card family (probed 2026-10-23:
+    // /tag-8 = 24 col-6 cards, zero number-even/odd) — parse BOTH
+    // families so a redesign of either keeps genre browse alive.
+    return parseHentaiThaiUnionListing(body);
   }
 
   @override
@@ -195,6 +198,14 @@ List<SourceSeries> parseHentaiThaiListing(String body) {
 @visibleForTesting
 List<SourceSeries> parseHentaiThaiFeedListing(String body) {
   return _parseCards(body, 'a.col-6.col-md-3');
+}
+
+/// Both card families at once — used by genre browse, where the page
+/// shape depends on the entry point (landing grid vs /page-N feed).
+@visibleForTesting
+List<SourceSeries> parseHentaiThaiUnionListing(String body) {
+  return _parseCards(
+      body, 'a.number-even, a.number-odd, a.col-6.col-md-3');
 }
 
 /// Shared card walk: both hentaithai listing families carry the thread
