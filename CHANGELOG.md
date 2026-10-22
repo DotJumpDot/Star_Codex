@@ -614,3 +614,11 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   matching hour stamps; dark-manga Reincarnator's Stream reads
   "2 นาทีที่แล้ว" — identical to the site. Bully (custom engine) grid
   support deferred. 241 tests green.
+- 2026-10-22 — Browse card intro fills the empty space under the chip row
+  (user request: short-title cards showed a dead gap next to the cover).
+  The card now renders the series description below the chips, truncated
+  to two lines with an ellipsis. New SearchGroup.dbDescription field,
+  filled from the materialized series row in the browse enrichment pass
+  (and the offline catalog), carried across group rebuilds like the other
+  DB-enriched fields. Listing-only series have no description yet — it
+  appears once the row is materialized (detail fetch). 242 tests green.

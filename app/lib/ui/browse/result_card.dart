@@ -36,12 +36,12 @@ class ResultCard extends StatelessWidget {
   final VoidCallback onLongPress;
 
   String? _typeLabel(BuildContext context, String? type) => switch (type) {
-        'manga' => t(context, 'browse.type_short.manga'),
-        'manhwa' => t(context, 'browse.type_short.manhwa'),
-        'manhua' => t(context, 'browse.type_short.manhua'),
-        'novel' => t(context, 'browse.type_short.novel'),
-        _ => null,
-      };
+    'manga' => t(context, 'browse.type_short.manga'),
+    'manhwa' => t(context, 'browse.type_short.manhwa'),
+    'manhua' => t(context, 'browse.type_short.manhua'),
+    'novel' => t(context, 'browse.type_short.novel'),
+    _ => null,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -54,11 +54,18 @@ class ResultCard extends StatelessWidget {
     String updatedKey = '';
     final lastMs = group.lastUpdatedMs;
     if (lastMs != null) {
-      final parts =
-          relativeParts(lastMs, nowMs: DateTime.now().millisecondsSinceEpoch);
+      final parts = relativeParts(
+        lastMs,
+        nowMs: DateTime.now().millisecondsSinceEpoch,
+      );
       updatedKey = parts.key;
       updated = tFmt(context, parts.key, parts.params);
     }
+
+    // Intro text for the space under the chip row — only materialized
+    // series have one (listing tiles carry no description).
+    final desc = group.dbDescription?.trim();
+    final description = (desc == null || desc.isEmpty) ? null : desc;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
@@ -84,32 +91,39 @@ class ResultCard extends StatelessWidget {
                           group.displayTitle,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w600),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         if (group.chapterCount != null || updated != null) ...[
                           const SizedBox(height: 3),
                           Text.rich(
-                            TextSpan(children: [
-                              if (group.chapterCount != null)
-                                TextSpan(
-                                  text:
-                                      '${group.chapterCount} ${t(context, 'browse.chapters_suffix')}',
-                                  style: TextStyle(
+                            TextSpan(
+                              children: [
+                                if (group.chapterCount != null)
+                                  TextSpan(
+                                    text:
+                                        '${group.chapterCount} ${t(context, 'browse.chapters_suffix')}',
+                                    style: TextStyle(
                                       fontWeight: FontWeight.w600,
-                                      color: theme.colorScheme.primary),
-                                ),
-                              if (group.chapterCount != null &&
-                                  updated != null)
-                                const TextSpan(text: ' · '),
-                              if (updated != null)
-                                TextSpan(
-                                  text: updated,
-                                  style: TextStyle(
+                                      color: theme.colorScheme.primary,
+                                    ),
+                                  ),
+                                if (group.chapterCount != null &&
+                                    updated != null)
+                                  const TextSpan(text: ' · '),
+                                if (updated != null)
+                                  TextSpan(
+                                    text: updated,
+                                    style: TextStyle(
                                       color: relativeAgeColor(
-                                          theme.colorScheme, updatedKey)),
-                                ),
-                            ]),
+                                        theme.colorScheme,
+                                        updatedKey,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                             style: theme.textTheme.bodySmall,
                           ),
                         ],
@@ -133,9 +147,27 @@ class ResultCard extends StatelessWidget {
                                 ),
                             }.entries)
                               _SourceBadge(
-                                  label: badge.value.$1, color: badge.value.$2),
+                                label: badge.value.$1,
+                                color: badge.value.$2,
+                              ),
                           ],
                         ),
+                        // Series intro fills the space under the chip row
+                        // (user request 2026-10-22: short-title cards
+                        // left a dead gap next to the cover) — truncated
+                        // to the lines that fit.
+                        if (description != null) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            description,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              height: 1.35,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -204,8 +236,11 @@ class _Cover extends StatelessWidget {
     } else {
       cover = Container(
         color: theme.colorScheme.surfaceContainerHighest,
-        child: Icon(Icons.image_outlined,
-            size: 24, color: theme.colorScheme.outline),
+        child: Icon(
+          Icons.image_outlined,
+          size: 24,
+          color: theme.colorScheme.outline,
+        ),
       );
     }
     return SizedBox(width: 92, height: 128, child: cover);
@@ -267,10 +302,14 @@ class _SimilarStripState extends State<_SimilarStrip> {
         TextButton.icon(
           onPressed: () => setState(() => _open = !_open),
           icon: Icon(_open ? Icons.expand_less : Icons.expand_more, size: 16),
-          label: Text(t(context, 'browse.similar'),
-              style: theme.textTheme.labelSmall),
+          label: Text(
+            t(context, 'browse.similar'),
+            style: theme.textTheme.labelSmall,
+          ),
           style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 4), visualDensity: VisualDensity.compact),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            visualDensity: VisualDensity.compact,
+          ),
         ),
         if (_open)
           for (final index in widget.group.similarTo)

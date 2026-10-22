@@ -50,6 +50,11 @@ class SearchGroup {
   int? dbLastUpdatedMs;
   List<String> dbTags = const [];
 
+  /// Series description from the materialized row — the browse card shows
+  /// it in the leftover space under the chip row, as much as fits
+  /// (user request 2026-10-22: short-title cards had a dead gap there).
+  String? dbDescription;
+
   /// Cover from the materialized series' links (BrowseRepo.enrichGroups).
   /// Listing tiles can point at dead/AVIF files while a sibling site's
   /// cover works — after cross-probe links one, the card renders it from
@@ -148,6 +153,7 @@ void _carryEnrichment(SearchGroup dst, SearchGroup src) {
   dst.dbTags = src.dbTags;
   dst.dbCoverUrl = src.dbCoverUrl;
   dst.dbCoverReferer = src.dbCoverReferer;
+  dst.dbDescription = src.dbDescription;
 }
 
 /// Merge [incoming] candidates into [existing] groups (Plan/07 §2):

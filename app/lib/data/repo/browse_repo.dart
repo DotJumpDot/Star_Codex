@@ -132,6 +132,7 @@ class BrowseRepo {
       g.dbType = row.type;
       g.dbLastUpdatedMs = await seriesDao.lastUpdatedAt(row.id!);
       g.dbTags = await tagsDao.tagsOf(row.id!);
+      g.dbDescription = row.description;
       for (final l in links) {
         if ((l.coverUrl ?? '').isNotEmpty) {
           g.dbCoverUrl = l.coverUrl;
@@ -192,6 +193,9 @@ class BrowseRepo {
     g.dbType = row.type;
     g.dbLastUpdatedMs = await seriesDao.lastUpdatedAt(row.id!);
     g.dbTags = await tagsDao.tagsOf(row.id!);
+    // Description: the card's leftover space under the chip row shows it
+    // (user request 2026-10-22) — only materialized rows carry one.
+    g.dbDescription = row.description;
     // DB cover: first link that carries one, paired with ITS source's
     // referer (a first link without a cover must not donate its
     // referer to a later link's cover — same rule as library cards).
