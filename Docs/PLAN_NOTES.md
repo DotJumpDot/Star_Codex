@@ -1138,3 +1138,20 @@ referer pairing, novel estimate. 165 tests green.
   Bound: morning drops understate ≤~12 h but stay in the hours bucket.
   Emu result: Fated Villain/High Martial Arts/Investors/Solo Max all
   read 16 ชั่วโมงที่แล้ว, identical to the site grid.
+- GRID-HEAD FEED (same day, commit b3ac077): the ts sites' chapterdates
+  are date-only AND lag (site tz behind ICT), so date-anchoring alone can
+  never match every site — the homepage recent grid is the authority
+  (server-rendered order + live relative labels: `.chfiv .fivtime` on
+  go/dark/fin/up, `.epxdate` on slow-manga). latest() page 1 = grid
+  entries (series-linked ones injected whole) + archive tail deduped;
+  chapter-linked grids lend stamps to archive tiles BY TITLE NORM
+  (normalizeTitle both sides — grid `.tt` text vs tile title). Rules:
+  (a) recentStamps() is best-effort — a failed/empty grid MUST degrade to
+  archive-only, never fail the feed; (b) popularity sliders share
+  `.listupd .bsx` but carry no time label — the stamp check excludes
+  them; (c) parseRelativeStamp (bare labels, seconds) never requires the
+  ที่แล้ว/ago marker, parseSiteDate still DOES; (d) the stale re-check
+  prefers a grid hit and never REGRESSES a link to an older stamp;
+  (e) engines `implements Source` need the recentStamps stub explicitly.
+  Bully = custom engine, grid-head still open. Nekopost listings already
+  carry stamps — no-op there.
