@@ -728,3 +728,10 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   family (a.col-6.col-md-3 + style-block cover) parsed alongside the
   old landing grid. The user-seen /prev-/next- links are per-thread JS
   navigation, not pagination. 266 tests green.
+- 2026-10-23 — Release: v1.4.0 — version 1.4.0+17. Ships everything
+  since v1.3.1: the WAF ladder (every Cloudflare-blocked source now
+  loads; all 11 sources enabled by default, db v9), the Webtoon-style
+  pull-to-switch rework + system-bars carry-over fix, fin-manga lazy
+  covers, hentaithai feed paging (+ genre-browse union fix from the
+  review pass), and the review-pass hardening of the WebView tier.
+  267 tests green.
