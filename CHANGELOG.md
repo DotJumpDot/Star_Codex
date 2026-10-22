@@ -595,3 +595,22 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   cluster in the evening; the site's own 16 h grid label back-solves to
   ≈19:16 posting). Known bound: morning drops may understate by up to
   ~12 h — they stay in the hours bucket. 236 tests green.
+- 2026-10-22 — Feed leads with the homepage recent grid (user reports:
+  wrong ORDER on up/dark/fin/bully + wrong dates on go/dark/up —
+  order+dates the user cross-checks against the site's own grid). Root
+  discovery: ts chapterdates are date-only AND rendered in a lagging site
+  timezone, so NO fixed anchor can be right on all sites (go-manga's
+  6-hour chapter reads Oct 21, dark-manga's 2-minute chapter reads
+  today). But every ts homepage renders the recent-updates grid
+  SERVER-SIDE with live relative labels (.chfiv .fivtime pills on
+  go/dark/fin/up, .epxdate on slow-manga). New Source.recentStamps()
+  harvests them; MadaraSource.latest() page 1 now injects grid entries
+  first (the site's own update order), appends the archive tail deduped,
+  and chapter-linked grids (slow-manga) borrow the precise stamps onto
+  their archive tiles by title. parseRelativeStamp parses bare labels
+  ("6 ชั่วโมง", "2 นาที", "38 วินาที ที่แล้ว" — seconds included). The
+  stale re-check prefers a grid hit (writes the link stamp, skips the
+  detail fetch). Emu verified: go-manga feed = the site's grid order with
+  matching hour stamps; dark-manga Reincarnator's Stream reads
+  "2 นาทีที่แล้ว" — identical to the site. Bully (custom engine) grid
+  support deferred. 241 tests green.
