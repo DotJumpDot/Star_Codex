@@ -744,3 +744,11 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   (`Last-Modified`, else `Date − Age`) via `SafeHttp.getHtmlPage` —
   true update times, homepage order untouched. Live-verified on
   fin-manga (frozen + freshly-regenerated copies). 276 tests green.
+- 2026-10-23 — Release: v1.4.1 — version 1.4.1+18. The frozen-date fix
+  as a patch release: browse/search card dates now anchor each site's
+  relative grid labels at the page's real cache-generation time instead
+  of fetch time, so fin/up-manga cards no longer sit at "4 วินาที" for
+  days, the update-date filter is accurate again, and genuinely fresh
+  drops (nekopost) rank on top as they should. Emulator-verified: card
+  ages tick in real time across two screenshots and the newest chapter
+  holds the top slot. 276 tests green.
