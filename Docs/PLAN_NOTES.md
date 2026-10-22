@@ -1125,3 +1125,16 @@ referer pairing, novel estimate. 165 tests green.
 - Consequence: the first browse/search refresh after ≥6 h fires one
   detail fetch per stale card (6 concurrent workers, host-paced). That
   is the intended freshness cost for a personal-use app.
+- Date PRECISION on the same day (emu-verified, commit ed219ab): ts
+  chapterdates are DATE-ONLY ("ตุลาคม 21, 2026" — all 364 slow-manga
+  rows probed live carry no clock time; the site's own "16 ชั่วโมงที่
+ แล้ว" grid label comes from internal timestamps). parseSiteDate
+  anchors date-only strings at LOCAL 20:00 (evening drop cluster — the
+  site's 16 h label back-solves to ≈19:16 posting; UTC-midnight's
+  07:00 anchor overstated every fresh chapter ~13 h into "1 วันที่
+ แล้ว") and parses relative Thai/English stamps ("16 ชั่วโมงที่แล้ว",
+  "3 days ago" — the trailing ที่แล้ว/ago marker is REQUIRED so date
+  fragments can't match; relative beats absolute in matcher order).
+  Bound: morning drops understate ≤~12 h but stay in the hours bucket.
+  Emu result: Fated Villain/High Martial Arts/Investors/Solo Max all
+  read 16 ชั่วโมงที่แล้ว, identical to the site grid.
