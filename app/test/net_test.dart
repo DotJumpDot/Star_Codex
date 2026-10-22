@@ -25,21 +25,23 @@ void main() {
     test('GIF', () {
       final b = Uint8List(10);
       b.setAll(0, [0x47, 0x49, 0x46, 0x38, 0x39, 0x61]);
-      b[6] = 0x64; b[7] = 0x00; // 100
-      b[8] = 0xC8; b[9] = 0x00; // 200
+      b[6] = 0x64;
+      b[7] = 0x00; // 100
+      b[8] = 0xC8;
+      b[9] = 0x00; // 200
       final d = imageDimensions(b);
       expect((d!.width, d.height), (100, 200));
     });
 
     test('JPEG SOF0', () {
       final b = Uint8List.fromList([
-        0xFF, 0xD8,             // SOI
+        0xFF, 0xD8, // SOI
         0xFF, 0xE0, 0x00, 0x04, // APP0, length 4 (2 length bytes + 2 payload)
-        0x41, 0x42,             // APP0 payload
+        0x41, 0x42, // APP0 payload
         0xFF, 0xC0, 0x00, 0x0B, // SOF0, length 11
-        0x08,                   // precision
-        0x05, 0x96,             // height 1430
-        0x03, 0xE8,             // width 1000
+        0x08, // precision
+        0x05, 0x96, // height 1430
+        0x03, 0xE8, // width 1000
       ]);
       final d = imageDimensions(b);
       expect((d!.width, d.height), (1000, 1430));
@@ -51,8 +53,12 @@ void main() {
       b.setAll(8, [0x57, 0x45, 0x42, 0x50]); // WEBP
       b.setAll(12, 'VP8X'.codeUnits);
       // canvas width-1 = 999 (0x03E7), height-1 = 1429 (0x0595), 24-bit LE
-      b[24] = 0xE7; b[25] = 0x03; b[26] = 0x00;
-      b[27] = 0x95; b[28] = 0x05; b[29] = 0x00;
+      b[24] = 0xE7;
+      b[25] = 0x03;
+      b[26] = 0x00;
+      b[27] = 0x95;
+      b[28] = 0x05;
+      b[29] = 0x00;
       final d = imageDimensions(b);
       expect((d!.width, d.height), (1000, 1430));
     });
@@ -66,10 +72,10 @@ void main() {
     // Loopback servers are forbidden by the security rule itself, so retry
     // behavior is tested through an injected fetcher.
     SafeHttp httpWith(SafeHttpFetcher fetcher) => SafeHttp(
-          rateLimiter: RateLimiter(seed: 1),
-          fetcher: fetcher,
-          delay: (_) async {}, // no real backoff sleeps in tests
-        );
+      rateLimiter: RateLimiter(seed: 1),
+      fetcher: fetcher,
+      delay: (_) async {}, // no real backoff sleeps in tests
+    );
 
     final okUri = Uri.parse('https://www.example.com/x');
 
@@ -115,8 +121,9 @@ void main() {
 
       await expectLater(
         () => http.getBytes(okUri),
-        throwsA(isA<NetException>()
-            .having((e) => e.statusCode, 'statusCode', 404)),
+        throwsA(
+          isA<NetException>().having((e) => e.statusCode, 'statusCode', 404),
+        ),
       );
       expect(calls, 1);
     });
@@ -137,8 +144,9 @@ void main() {
 
       await expectLater(
         () => http.getBytes(okUri),
-        throwsA(isA<NetException>()
-            .having((e) => e.statusCode, 'statusCode', 503)),
+        throwsA(
+          isA<NetException>().having((e) => e.statusCode, 'statusCode', 503),
+        ),
       );
       expect(calls, 3);
     });
@@ -187,8 +195,7 @@ void main() {
       // Regression: getHtml once decoded as Latin-1, mojibake-ing every
       // Thai string from the sites (titles, tags, ตอนที่ labels, dates).
       const thai = '<title>มังงะ ตอนที่ 155.5 มิถุนายน</title>';
-      final utf8Bytes = Uint8List.fromList(
-          const Utf8Encoder().convert(thai));
+      final utf8Bytes = Uint8List.fromList(const Utf8Encoder().convert(thai));
       final http = SafeHttp(
         rateLimiter: RateLimiter(seed: 1),
         fetcher: (uri, options) async => Response<List<int>>(
@@ -239,8 +246,11 @@ void main() {
       await Future.wait([task(), task(), task()]);
       final wall = sw.elapsedMilliseconds;
       expect(starts.length, 3);
-      expect(wall, greaterThanOrEqualTo(1300), reason:
-          '3 starts on a strict host need >= 2 gaps of 700ms');
+      expect(
+        wall,
+        greaterThanOrEqualTo(1300),
+        reason: '3 starts on a strict host need >= 2 gaps of 700ms',
+      );
     });
 
     test('image-class hosts get relaxed rules', () async {
@@ -265,8 +275,11 @@ void main() {
       }
 
       await Future.wait([task(), task(), task(), task()]);
-      expect(maxInFlight, greaterThanOrEqualTo(3), reason:
-          'image hosts allow 4 concurrent');
+      expect(
+        maxInFlight,
+        greaterThanOrEqualTo(3),
+        reason: 'image hosts allow 4 concurrent',
+      );
     });
 
     test('different hosts do not queue behind each other', () async {
@@ -302,17 +315,33 @@ void main() {
 
   group('parseSiteDate', () {
     test('Thai month names', () {
+      // Date-only strings anchor at LOCAL 20:00 (evening drop cluster —
+      // see parseSiteDate doc), so round-trip through the local zone.
       final ms = parseSiteDate('มิถุนายน 8, 2026');
-      final dt = DateTime.fromMillisecondsSinceEpoch(ms!, isUtc: true);
-      expect((dt.year, dt.month, dt.day), (2026, 6, 8));
+      final dt = DateTime.fromMillisecondsSinceEpoch(ms!);
+      expect((dt.year, dt.month, dt.day, dt.hour), (2026, 6, 8, 20));
     });
     test('English months and ISO', () {
       final dt = DateTime.fromMillisecondsSinceEpoch(
-          parseSiteDate('June 8, 2026')!, isUtc: true);
-      expect((dt.year, dt.month, dt.day), (2026, 6, 8));
+        parseSiteDate('June 8, 2026')!,
+      );
+      expect((dt.year, dt.month, dt.day, dt.hour), (2026, 6, 8, 20));
       final iso = DateTime.fromMillisecondsSinceEpoch(
-          parseSiteDate('2026-06-08')!, isUtc: true);
-      expect((iso.year, iso.month, iso.day), (2026, 6, 8));
+        parseSiteDate('2026-06-08')!,
+      );
+      expect((iso.year, iso.month, iso.day, iso.hour), (2026, 6, 8, 20));
+    });
+    test('relative Thai + English stamps (2026-10-22)', () {
+      const now = 1700000000000;
+      expect(
+        parseSiteDate('16 ชั่วโมงที่แล้ว', nowMs: now),
+        now - 16 * 3600000,
+      );
+      expect(parseSiteDate('3 วันที่แล้ว', nowMs: now), now - 3 * 86400000);
+      expect(parseSiteDate('45 นาทีที่แล้ว', nowMs: now), now - 45 * 60000);
+      expect(parseSiteDate('2 weeks ago', nowMs: now), now - 14 * 86400000);
+      // The absolute matchers must not misread a date string as relative.
+      expect(parseSiteDate('มิถุนายน 8, 2026', nowMs: now), isNotNull);
     });
     test('garbage → null', () {
       expect(parseSiteDate('3 วันก่อน'), isNull);

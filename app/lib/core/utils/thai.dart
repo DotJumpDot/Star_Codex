@@ -32,14 +32,34 @@ const _thaiMonths = {
 };
 
 /// Thai+English month date strings from ts theme chapter rows:
-/// `มิถุนายน 8, 2026`, `June 8, 2026`, `8 มิถุนายน 2026`, `2026-06-08`.
-int? parseSiteDate(String raw) {
+/// `มิถุนายน 8, 2026`, `June 8, 2026`, `8 มิถุนายน 2026`, `2026-06-08`
+/// — plus relative stamps some themes emit: `16 ชั่วโมงที่แล้ว`,
+/// `3 days ago` (probed 2026-10-22: slow-manga chapterdates are DATE-ONLY
+/// `ตุลาคม 21, 2026`; the site's own "16 ชั่วโมงที่แล้ว" grid label comes
+/// from internal timestamps the series page never exposes).
+///
+/// Date-only strings anchor at LOCAL 20:00: they carry no clock time and
+/// Thai scanlation drops cluster in the evening — the site's own grid
+/// said "16 ชั่วโมงที่แล้ว" at 11:16 (posted ≈19:16 the previous day,
+/// user report 2026-10-22). A 20:00 anchor reads that same chapter as
+/// ~15.5 h at the 11:30 check (noon would read 23 h and flip to
+/// "1 วันที่แล้ว" by midday; the old UTC-midnight anchor read ~29 h).
+/// Morning drops understate by up to ~12 h but stay in the hours bucket —
+/// optimism is never noticed, a phantom extra day is.
+int? parseSiteDate(String raw, {int? nowMs}) {
   final s = raw.trim();
+  // Relative first — the absolute matchers' digit patterns must never
+  // misread a relative stamp's fragments.
+  final rel = _relativeMs(s, nowMs);
+  if (rel != null) return rel;
   // ISO first
   final iso = RegExp(r'(\d{4})-(\d{2})-(\d{2})').firstMatch(s);
   if (iso != null) {
-    return _utcMs(int.parse(iso.group(1)!), int.parse(iso.group(2)!),
-        int.parse(iso.group(3)!));
+    return _dateOnlyMs(
+      int.parse(iso.group(1)!),
+      int.parse(iso.group(2)!),
+      int.parse(iso.group(3)!),
+    );
   }
   // Month-name day, year
   final monthName = RegExp(
@@ -48,39 +68,86 @@ int? parseSiteDate(String raw) {
   if (monthName != null) {
     final month = _monthFromName(monthName.group(1)!);
     if (month != null) {
-      return _utcMs(int.parse(monthName.group(3)!), month,
-          int.parse(monthName.group(2)!));
+      return _dateOnlyMs(
+        int.parse(monthName.group(3)!),
+        month,
+        int.parse(monthName.group(2)!),
+      );
     }
   }
   // Day month-name year (Thai order)
-  final dayFirst = RegExp(
-    r'(\d{1,2})\s+([A-Za-z\u0E00-\u0E7F]+\.?)\s+(\d{4})',
-  ).firstMatch(s);
+  final dayFirst = RegExp(r'(\d{1,2})\s+([A-Za-z\u0E00-\u0E7F]+\.?)\s+(\d{4})')
+      .firstMatch(s);
   if (dayFirst != null) {
     final month = _monthFromName(dayFirst.group(2)!);
     if (month != null) {
-      return _utcMs(int.parse(dayFirst.group(3)!), month,
-          int.parse(dayFirst.group(1)!));
+      return _dateOnlyMs(
+        int.parse(dayFirst.group(3)!),
+        month,
+        int.parse(dayFirst.group(1)!),
+      );
     }
   }
   return null;
 }
 
+/// `16 ชั่วโมงที่แล้ว` / `3 days ago` → now − N·unit. The trailing
+/// marker (ที่แล้ว / ago) is REQUIRED so absolute date fragments can
+/// never match. Month/year units use the same 30/365-day approximations
+/// as the display formatter.
+int? _relativeMs(String s, int? nowMs) {
+  final m = RegExp(
+    r'(\d+)\s*(นาที|ชั่วโมง|วัน|สัปดาห์|เดือน|ปี)\s*ที่แล้ว'
+    r'|(\d+)\s*(minute|hour|day|week|month|year)s?\s*ago',
+    caseSensitive: false,
+  ).firstMatch(s);
+  if (m == null) return null;
+  const units = {
+    'นาที': Duration(minutes: 1),
+    'ชั่วโมง': Duration(hours: 1),
+    'วัน': Duration(days: 1),
+    'สัปดาห์': Duration(days: 7),
+    'เดือน': Duration(days: 30),
+    'ปี': Duration(days: 365),
+    'minute': Duration(minutes: 1),
+    'hour': Duration(hours: 1),
+    'day': Duration(days: 1),
+    'week': Duration(days: 7),
+    'month': Duration(days: 30),
+    'year': Duration(days: 365),
+  };
+  final unitWord = (m.group(2) ?? m.group(4))!.toLowerCase();
+  final now = nowMs ?? DateTime.now().millisecondsSinceEpoch;
+  return now -
+      int.parse(m.group(1) ?? m.group(3)!) * units[unitWord]!.inMilliseconds;
+}
+
 int? _monthFromName(String name) {
   final n = name.trim().toLowerCase();
-  final thai = _thaiMonths.entries
-      .firstWhereOrNull((e) => e.key.toLowerCase() == n);
+  final thai = _thaiMonths.entries.firstWhereOrNull(
+    (e) => e.key.toLowerCase() == n,
+  );
   if (thai != null) return thai.value;
   const en = [
-    'january', 'february', 'march', 'april', 'may', 'june', 'july',
-    'august', 'september', 'october', 'november', 'december',
+    'january',
+    'february',
+    'march',
+    'april',
+    'may',
+    'june',
+    'july',
+    'august',
+    'september',
+    'october',
+    'november',
+    'december',
   ];
   final exact = en.indexWhere((m) => n == m || n == '${m.substring(0, 3)}.');
   return exact >= 0 ? exact + 1 : null;
 }
 
-int _utcMs(int year, int month, int day) =>
-    DateTime.utc(year, month, day).millisecondsSinceEpoch;
+int _dateOnlyMs(int year, int month, int day) =>
+    DateTime(year, month, day, 20).millisecondsSinceEpoch;
 
 // --- Thai collation (Plan/12 §3 — exact spec) ---
 
