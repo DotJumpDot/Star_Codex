@@ -34,6 +34,34 @@ abstract class Source {
 
   /// Series in one genre, filtered server-side, parse like listings.
   Future<List<SourceSeries>> browseGenre(String term, {int page = 1});
+
+  /// Stamps from the homepage recent-updates grid, when the theme renders
+  /// one server-side: the ONLY precise age signal in the ts family (their
+  /// series pages carry date-only chapter rows, the archives none — probed
+  /// 2026-10-22). Default: unsupported (empty). Best-effort — callers
+  /// treat it as a hint, never a dependency.
+  Future<List<SourceRecentStamp>> recentStamps() async => const [];
+}
+
+/// One recent-updates-grid entry: series title (+ series URL when the
+/// grid links one directly, else '') and the absolute stamp parsed from
+/// the grid's own relative label ("2 นาที", "6 ชั่วโมง"). Cover/chapter
+/// ride along when the tile shows them so a listing can inject the entry
+/// as a full feed item.
+class SourceRecentStamp {
+  const SourceRecentStamp(
+    this.title,
+    this.url,
+    this.stampMs, {
+    this.coverUrl,
+    this.chapterCountHint,
+  });
+
+  final String title;
+  final String url;
+  final int stampMs;
+  final String? coverUrl;
+  final int? chapterCountHint;
 }
 
 /// One browsable genre of a source (Plan/08 §2 long-press picker).
@@ -135,6 +163,7 @@ class SourceException implements Exception {
   final String? detail;
 
   @override
-  String toString() => 'SourceException($sourceId, $kind'
+  String toString() =>
+      'SourceException($sourceId, $kind'
       '${detail != null ? ': $detail' : ''})';
 }

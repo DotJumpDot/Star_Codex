@@ -35,12 +35,18 @@ class HentaiThaiSource implements Source {
 
   @override
   Future<List<SourceSeries>> search(String query, {int page = 1}) async {
-    throw SourceException(id, SourceErrorKind.notFound,
-        detail: 'hentaithai search is a Google CSE form — browse the feed');
+    throw SourceException(
+      id,
+      SourceErrorKind.notFound,
+      detail: 'hentaithai search is a Google CSE form — browse the feed',
+    );
   }
 
   @override
-  Future<List<SourceSeries>> latest({int page = 1, bool popular = false}) async {
+  Future<List<SourceSeries>> latest({
+    int page = 1,
+    bool popular = false,
+  }) async {
     if (page > 1) return const []; // single-page homepage feed (probed)
     final body = await _fetch(Uri.parse('$baseUrl/'));
     if (_looksLikeCloudflare(body)) throw SourceException.cloudflare(id);
@@ -61,8 +67,11 @@ class HentaiThaiSource implements Source {
     if (_looksLikeCloudflare(body)) throw SourceException.cloudflare(id);
     final detail = parseHentaiThaiDetail(body, sourceUrl);
     if (detail == null) {
-      throw SourceException(id, SourceErrorKind.parse,
-          detail: 'no hentaithai thread content on $sourceUrl');
+      throw SourceException(
+        id,
+        SourceErrorKind.parse,
+        detail: 'no hentaithai thread content on $sourceUrl',
+      );
     }
     return detail;
   }
@@ -72,14 +81,22 @@ class HentaiThaiSource implements Source {
     final body = await _fetch(Uri.parse(chapterUrl));
     final urls = parseHentaiThaiPages(body);
     if (urls.isEmpty) {
-      throw SourceException(id, SourceErrorKind.parse,
-          detail: 'no thread images on $chapterUrl');
+      throw SourceException(
+        id,
+        SourceErrorKind.parse,
+        detail: 'no thread images on $chapterUrl',
+      );
     }
     return ChapterPages(imageUrls: urls);
   }
 
   @override
   Future<String?> novelText(String chapterUrl) async => null;
+
+  /// No homepage recent-grid on this engine — [Source.recentStamps]
+  /// stays a no-op here.
+  @override
+  Future<List<SourceRecentStamp>> recentStamps() async => const [];
 
   /// Tag pages off the homepage nav (`/tag-<id>`) — same card grid.
   @override
@@ -93,12 +110,18 @@ class HentaiThaiSource implements Source {
       return await http.getHtml(uri, referer: referer);
     } on NetException catch (e) {
       if (e.statusCode == 403) {
-        throw SourceException(id, SourceErrorKind.cloudflare,
-            detail: 'HTTP 403 at $uri');
+        throw SourceException(
+          id,
+          SourceErrorKind.cloudflare,
+          detail: 'HTTP 403 at $uri',
+        );
       }
       if (e.statusCode == 404) {
-        throw SourceException(id, SourceErrorKind.notFound,
-            detail: 'HTTP 404 at $uri');
+        throw SourceException(
+          id,
+          SourceErrorKind.notFound,
+          detail: 'HTTP 404 at $uri',
+        );
       }
       throw SourceException(id, SourceErrorKind.network, detail: e.toString());
     }
@@ -119,7 +142,8 @@ List<SourceSeries> parseHentaiThaiListing(String body) {
     if (href.isEmpty || title.isEmpty) continue;
     // //HentaiThai.net/t51996 → canonical lowercase-host https URL (the
     // site mixes host cases; Uri normalizes the host for identity).
-    final url = Uri.tryParse(href.startsWith('//') ? 'https:$href' : href)
+    final url =
+        Uri.tryParse(href.startsWith('//') ? 'https:$href' : href)
             ?.toString() ??
         href;
     final img = a.querySelector('img');
@@ -133,12 +157,14 @@ List<SourceSeries> parseHentaiThaiListing(String body) {
       cover = bg;
     }
     final stampUrl = cover ?? _cardBackgroundUrl(a);
-    out.add(SourceSeries(
-      url: url,
-      title: title,
-      coverUrl: cover,
-      lastUpdatedMs: hentaiThaiUploadDate(stampUrl),
-    ));
+    out.add(
+      SourceSeries(
+        url: url,
+        title: title,
+        coverUrl: cover,
+        lastUpdatedMs: hentaiThaiUploadDate(stampUrl),
+      ),
+    );
   }
   return out;
 }
@@ -148,8 +174,7 @@ List<SourceSeries> parseHentaiThaiListing(String body) {
 String? _cardBackgroundUrl(html_dom.Element a) {
   var node = a.previousElementSibling;
   while (node != null) {
-    final m = RegExp(r'''url\(['"]?([^'")]+)['"]?\)''')
-        .firstMatch(node.text);
+    final m = RegExp(r'''url\(['"]?([^'")]+)['"]?\)''').firstMatch(node.text);
     if (m != null) {
       final raw = m.group(1)!.trim();
       if (raw.isEmpty) break;
@@ -225,11 +250,12 @@ List<String> parseHentaiThaiImages(html_dom.Document doc) {
 /// (`s1.hentaithai.net/thai/...`); avatars/banners/icons live elsewhere.
 String? _imgUrl(html_dom.Element? img) {
   if (img == null) return null;
-  final raw = (img.attributes['data-src'] ??
-          img.attributes['data-original'] ??
-          img.attributes['src'] ??
-          '')
-      .trim();
+  final raw =
+      (img.attributes['data-src'] ??
+              img.attributes['data-original'] ??
+              img.attributes['src'] ??
+              '')
+          .trim();
   if (raw.isEmpty || raw.startsWith('data:')) return null;
   final uri = Uri.tryParse(raw);
   if (uri == null || !uri.hasScheme || uri.host.isEmpty) return null;

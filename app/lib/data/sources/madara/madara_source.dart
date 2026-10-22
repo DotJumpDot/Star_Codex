@@ -5,6 +5,7 @@ import 'package:html/parser.dart' as html_parser;
 import '../../../core/net/net_exception.dart';
 import '../../../core/net/safe_http.dart';
 import '../../../core/utils/thai.dart';
+import '../../../core/utils/title_norm.dart';
 import '../source_api.dart';
 import 'configs.dart';
 
@@ -30,27 +31,104 @@ class MadaraSource implements Source {
   @override
   bool get supportsNovels => false; // §7.6: novels are nekopost-only
 
+  /// Page 1 of the update-order feed LEADS with the homepage recent grid
+  /// (probed 2026-10-22): the grid is the site's own "updated recently"
+  /// view with server-rendered order + precise relative stamps, while the
+  /// archive's `order=update` diverges from it — fin intermittently
+  /// serves plain A-Z, up/dark sort by the lagging chapterdate, so the
+  /// feed order and dates the user cross-checks against the site must
+  /// come from the grid. Grid entries that link the series directly are
+  /// injected as full items; the archive tail follows (deduped). Chapter
+  /// -linked grids (slow-manga) can't inject URLs — their archive order
+  /// already matches the grid (probed), so only the precise stamps are
+  /// borrowed onto the archive tiles. A grid that fails to load or parses
+  /// empty degrades to today's archive-only behavior; popular/page>1 are
+  /// archive-only (the grid has no such ordering/pagination).
   @override
-  Future<List<SourceSeries>> latest({int page = 1, bool popular = false}) =>
-      _parseTiles(Uri.parse('$baseUrl/${config.archivePath}/')
-          .replace(queryParameters: {
-        // order=popular is server-side (probed 2026-10-20: the ts archive
-        // returns a genuinely different list; search ignores the param).
-        'order': popular ? 'popular' : 'update',
-        'page': '$page',
-      }));
+  Future<List<SourceSeries>> latest({
+    int page = 1,
+    bool popular = false,
+  }) async {
+    Future<List<SourceSeries>> archive() => _parseTiles(
+      Uri.parse('$baseUrl/${config.archivePath}/').replace(
+        queryParameters: {
+          'order': popular ? 'popular' : 'update',
+          'page': '$page',
+        },
+      ),
+    );
+    if (popular || page > 1) return archive();
+    List<SourceRecentStamp> home;
+    try {
+      home = await recentStamps();
+    } catch (_) {
+      home = const []; // grid is a garnish — never fail the feed over it
+    }
+    final archiveItems = await archive();
+    if (home.isEmpty) return archiveItems;
+    final stampByNorm = {
+      for (final e in home) normalizeTitle(e.title): e.stampMs,
+    };
+    final linked = [
+      for (final e in home)
+        if (e.url.isNotEmpty)
+          SourceSeries(
+            url: e.url,
+            title: e.title,
+            coverUrl: e.coverUrl,
+            chapterCountHint: e.chapterCountHint,
+            lastUpdatedMs: e.stampMs,
+          ),
+    ];
+    if (linked.isEmpty) {
+      // Chapter-linked grids (slow-manga): nothing to inject — the
+      // archive keeps its order and only borrows the precise stamps.
+      return [for (final s in archiveItems) _withBorrowedStamp(s, stampByNorm)];
+    }
+    final seen = linked.map((s) => s.url).toSet();
+    return [
+      ...linked,
+      for (final s in archiveItems)
+        if (!seen.contains(s.url)) _withBorrowedStamp(s, stampByNorm),
+    ];
+  }
+
+  /// Archive tile with the grid's precise stamp when the titles match.
+  SourceSeries _withBorrowedStamp(
+    SourceSeries s,
+    Map<String, int> stampByNorm,
+  ) {
+    final stamp = stampByNorm[normalizeTitle(s.title)];
+    return stamp == null
+        ? s
+        : SourceSeries(
+            url: s.url,
+            title: s.title,
+            coverUrl: s.coverUrl,
+            chapterCountHint: s.chapterCountHint,
+            type: s.type,
+            lastUpdatedMs: stamp,
+          );
+  }
 
   @override
   Future<List<SourceSeries>> search(String query, {int page = 1}) async {
     if (!config.searchSupported) {
-      throw SourceException(id, SourceErrorKind.cloudflare,
-          detail: 'search endpoint blocked (Cloudflare) — use latest()');
+      throw SourceException(
+        id,
+        SourceErrorKind.cloudflare,
+        detail: 'search endpoint blocked (Cloudflare) — use latest()',
+      );
     }
-    return _parseTiles(Uri.parse('$baseUrl/').replace(queryParameters: {
-      's': query,
-      'post_type': 'wp-manga',
-      if (page > 1) 'page': '$page',
-    }));
+    return _parseTiles(
+      Uri.parse('$baseUrl/').replace(
+        queryParameters: {
+          's': query,
+          'post_type': 'wp-manga',
+          if (page > 1) 'page': '$page',
+        },
+      ),
+    );
   }
 
   Future<List<SourceSeries>> _parseTiles(Uri uri) async {
@@ -71,26 +149,30 @@ class MadaraSource implements Source {
       }
       return const [];
     }
-    return tiles.map((tile) {
-      final a = tile.querySelector('a');
-      final href = a?.attributes['href'] ?? '';
-      final title = (a?.attributes['title'] ?? a?.text ?? '').trim();
-      final img = tile.querySelector('img');
-      final cover = _bestCoverUrl(img);
-      final type = tile.querySelector('.typename')?.text.trim();
-      // `.epxs` = latest-chapter label on listing tiles ("ตอนที่ 280",
-      // drift-verified 2026-10-17) — the only chapter-count signal in
-      // listings/search; used for merge primary-pick + min-chapters filter.
-      final latestChapter = parseChapterNumber(
-          tile.querySelector('.epxs')?.text.trim() ?? '');
-      return SourceSeries(
-        url: href,
-        title: title,
-        coverUrl: _absolutize(cover),
-        chapterCountHint: latestChapter?.toInt(),
-        type: _normalizeType(type),
-      );
-    }).where((s) => s.url.isNotEmpty && s.title.isNotEmpty).toList();
+    return tiles
+        .map((tile) {
+          final a = tile.querySelector('a');
+          final href = a?.attributes['href'] ?? '';
+          final title = (a?.attributes['title'] ?? a?.text ?? '').trim();
+          final img = tile.querySelector('img');
+          final cover = _bestCoverUrl(img);
+          final type = tile.querySelector('.typename')?.text.trim();
+          // `.epxs` = latest-chapter label on listing tiles ("ตอนที่ 280",
+          // drift-verified 2026-10-17) — the only chapter-count signal in
+          // listings/search; used for merge primary-pick + min-chapters filter.
+          final latestChapter = parseChapterNumber(
+            tile.querySelector('.epxs')?.text.trim() ?? '',
+          );
+          return SourceSeries(
+            url: href,
+            title: title,
+            coverUrl: _absolutize(cover),
+            chapterCountHint: latestChapter?.toInt(),
+            type: _normalizeType(type),
+          );
+        })
+        .where((s) => s.url.isNotEmpty && s.title.isNotEmpty)
+        .toList();
   }
 
   /// CLASSIC Madara rows (doujin-lc, config.classicLayout): search rows
@@ -102,8 +184,9 @@ class MadaraSource implements Source {
   @visibleForTesting
   List<SourceSeries> parseClassicRows(String body) {
     final doc = html_parser.parse(body);
-    final rows =
-        doc.querySelectorAll('.page-item-detail, .c-tabs-item__content');
+    final rows = doc.querySelectorAll(
+      '.page-item-detail, .c-tabs-item__content',
+    );
     if (rows.isEmpty) {
       if (_looksLikeCloudflare(body)) throw SourceException.cloudflare(id);
       return const [];
@@ -111,7 +194,8 @@ class MadaraSource implements Source {
     final seen = <String>{};
     final out = <SourceSeries>[];
     for (final row in rows) {
-      final a = row.querySelector('.post-title a') ??
+      final a =
+          row.querySelector('.post-title a') ??
           row.querySelector('.item-thumb a[href]') ??
           row.querySelector('h3 a') ??
           row.querySelector('h5 a');
@@ -120,18 +204,19 @@ class MadaraSource implements Source {
       if (href.isEmpty || title.isEmpty || !seen.add(href)) continue;
       final cover = _bestCoverUrl(row.querySelector('img'));
       final chap = row
-          .querySelector(
-              '.quick-chapter-link, .chapter-item a, .latest-chap a')
+          .querySelector('.quick-chapter-link, .chapter-item a, .latest-chap a')
           ?.text
           .trim();
       final type = row.querySelector('.manga-title-badges')?.text.trim();
-      out.add(SourceSeries(
-        url: href,
-        title: title,
-        coverUrl: _absolutize(cover),
-        chapterCountHint: parseChapterNumber(chap ?? '')?.toInt(),
-        type: _normalizeType(type),
-      ));
+      out.add(
+        SourceSeries(
+          url: href,
+          title: title,
+          coverUrl: _absolutize(cover),
+          chapterCountHint: parseChapterNumber(chap ?? '')?.toInt(),
+          type: _normalizeType(type),
+        ),
+      );
     }
     return out;
   }
@@ -142,20 +227,21 @@ class MadaraSource implements Source {
   SourceSeriesDetail parseClassicDetail(String body, String sourceUrl) {
     final doc = html_parser.parse(body);
     final title =
-        (doc.querySelector('.post-title h1') ?? doc.querySelector('h1'))
-                ?.text
-                .trim() ??
-            '';
+        (doc.querySelector('.post-title h1') ?? doc.querySelector('h1'))?.text
+            .trim() ??
+        '';
     if (title.isEmpty) {
-      throw SourceException(id, SourceErrorKind.parse,
-          detail: 'no post-title on $sourceUrl');
+      throw SourceException(
+        id,
+        SourceErrorKind.parse,
+        detail: 'no post-title on $sourceUrl',
+      );
     }
 
     String? status;
     String? type;
     for (final item in doc.querySelectorAll('.post-content_item')) {
-      final label =
-          item.querySelector('.summary-heading')?.text.trim() ?? '';
+      final label = item.querySelector('.summary-heading')?.text.trim() ?? '';
       final value = item.querySelector('.summary-content')?.text.trim() ?? '';
       if (value.isEmpty) continue;
       if (label.startsWith('Status')) status = _normalizeStatus(value);
@@ -167,14 +253,14 @@ class MadaraSource implements Source {
         if (a.text.trim().isNotEmpty) a.text.trim(),
     }.toList();
 
-    final description = (doc
-                .querySelector('.description-summary .summary__content')
-                ?.text ??
-            doc.querySelector('.manga-excerpt')?.text ??
-            '')
-        .trim();
+    final description =
+        (doc.querySelector('.description-summary .summary__content')?.text ??
+                doc.querySelector('.manga-excerpt')?.text ??
+                '')
+            .trim();
 
-    final coverImg = doc.querySelector('.summary_image img') ??
+    final coverImg =
+        doc.querySelector('.summary_image img') ??
         doc.querySelector('img.wp-post-image');
     final cover = _absolutize(_bestCoverUrl(coverImg));
 
@@ -209,14 +295,16 @@ class MadaraSource implements Source {
           (dateEl ?? a.parent?.querySelector('.chapter-date, .chapter-format'))
               ?.text
               .trim();
-      chapters.add(SourceChapter(
-        url: url.toString(),
-        title: label,
-        number: number,
-        uploadedAt: dateText == null || dateText.isEmpty
-            ? null
-            : parseSiteDate(dateText),
-      ));
+      chapters.add(
+        SourceChapter(
+          url: url.toString(),
+          title: label,
+          number: number,
+          uploadedAt: dateText == null || dateText.isEmpty
+              ? null
+              : parseSiteDate(dateText),
+        ),
+      );
     }
     chapters.sort((a, b) => a.number.compareTo(b.number));
 
@@ -241,11 +329,13 @@ class MadaraSource implements Source {
       return parseClassicDetail(body, sourceUrl);
     }
 
-    final title =
-        doc.querySelector('h1.entry-title')?.text.trim() ?? '';
+    final title = doc.querySelector('h1.entry-title')?.text.trim() ?? '';
     if (title.isEmpty) {
-      throw SourceException(id, SourceErrorKind.parse,
-          detail: 'no h1.entry-title on $sourceUrl');
+      throw SourceException(
+        id,
+        SourceErrorKind.parse,
+        detail: 'no h1.entry-title on $sourceUrl',
+      );
     }
 
     // Status/Type rows: `<div class="imptdt">Status <i>Ongoing</i></div>`
@@ -265,9 +355,9 @@ class MadaraSource implements Source {
         .where((t) => t.isNotEmpty)
         .toList();
 
-    final description =
-        doc.querySelector('.entry-content-single')?.text.trim();
-    final coverImg = doc.querySelector('.thumb img') ??
+    final description = doc.querySelector('.entry-content-single')?.text.trim();
+    final coverImg =
+        doc.querySelector('.thumb img') ??
         doc.querySelector('.summary_image img') ??
         doc.querySelector('img.wp-post-image');
     final cover = _absolutize(_bestCoverUrl(coverImg));
@@ -299,16 +389,18 @@ class MadaraSource implements Source {
       final label =
           a.querySelector('.chapternum')?.text.trim() ?? a.text.trim();
       if (label.isEmpty) continue;
-      final number = parseChapterNumber(label) ??
+      final number =
+          parseChapterNumber(label) ??
           (chapterRows.length - i).toDouble(); // fallback: list index
-      final dateText =
-          a.querySelector('.chapterdate')?.text.trim();
-      chapters.add(SourceChapter(
-        url: url.toString(),
-        title: label,
-        number: number,
-        uploadedAt: dateText != null ? parseSiteDate(dateText) : null,
-      ));
+      final dateText = a.querySelector('.chapterdate')?.text.trim();
+      chapters.add(
+        SourceChapter(
+          url: url.toString(),
+          title: label,
+          number: number,
+          uploadedAt: dateText != null ? parseSiteDate(dateText) : null,
+        ),
+      );
     }
     chapters.sort((a, b) => a.number.compareTo(b.number));
 
@@ -346,15 +438,21 @@ class MadaraSource implements Source {
     final doc = html_parser.parse(body);
     final imgs = doc
         .querySelectorAll('.reading-content img')
-        .map((img) =>
-            _absolutize(img.attributes['data-src'] ?? img.attributes['src']))
+        .map(
+          (img) =>
+              _absolutize(img.attributes['data-src'] ?? img.attributes['src']),
+        )
         .where((u) => u != null && u.isNotEmpty && !u.startsWith('data:'))
         .cast<String>()
         .toList();
     if (imgs.isEmpty) {
-      throw SourceException(id, SourceErrorKind.parse,
-          detail: 'no ts_reader images and no .reading-content img '
-              'on $chapterUrl');
+      throw SourceException(
+        id,
+        SourceErrorKind.parse,
+        detail:
+            'no ts_reader images and no .reading-content img '
+            'on $chapterUrl',
+      );
     }
     return ChapterPages(imageUrls: imgs);
   }
@@ -388,12 +486,11 @@ class MadaraSource implements Source {
   /// [latest], so pagination uses the same `page` query parameter.
   @override
   Future<List<SourceSeries>> browseGenre(String term, {int page = 1}) =>
-      _parseTiles(Uri.parse('$baseUrl/${config.archivePath}/').replace(
-        queryParameters: {
-          'genres': term,
-          if (page > 1) 'page': '$page',
-        },
-      ));
+      _parseTiles(
+        Uri.parse('$baseUrl/${config.archivePath}/').replace(
+          queryParameters: {'genres': term, if (page > 1) 'page': '$page'},
+        ),
+      );
 
   /// `/genres/{term}/` → percent-decoded term. Sites emit occasional
   /// malformed hrefs (raw Thai, broken `%` sequences) — skip them; Uri
@@ -409,6 +506,75 @@ class MadaraSource implements Source {
     }
   }
 
+  /// Homepage recent-updates grid stamps — the only PRECISE age signal in
+  /// the ts family (probed 2026-10-22: chapterdate rows are date-only and
+  /// render in a lagging site timezone, while these grids carry live
+  /// relative labels). Two tile shapes share `.listupd .bsx`:
+  ///  - go/dark/fin: `.tt a[title]` series link + `.chfiv` pills whose
+  ///    `.fivtime` holds the bare label ("6 ชั่วโมง", "2 นาที").
+  ///  - slow-manga: a chapter link whose title suffixes the chapter +
+  ///    `.epxdate` ("38 วินาที ที่แล้ว"); the clean series title sits in
+  ///    `.bigor .tt` text.
+  /// Popularity sliders share `.listupd .bsx` but carry no time label, so
+  /// the stamp-null check skips them naturally.
+  @override
+  Future<List<SourceRecentStamp>> recentStamps() async {
+    final body = await _fetch(Uri.parse('$baseUrl/'));
+    if (_looksLikeCloudflare(body)) throw SourceException.cloudflare(id);
+    final doc = html_parser.parse(body);
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final out = <SourceRecentStamp>[];
+    for (final tile in doc.querySelectorAll('.listupd .bsx')) {
+      final fiv = tile.querySelector('.fivtime')?.text.trim();
+      final seriesA = tile.querySelector('.tt a');
+      if (seriesA != null && fiv != null && fiv.isNotEmpty) {
+        final stamp = parseRelativeStamp(fiv, nowMs: nowMs);
+        if (stamp != null) {
+          final img = tile.querySelector('img');
+          out.add(
+            SourceRecentStamp(
+              seriesA.attributes['title']?.trim() ?? seriesA.text.trim(),
+              _absolutize(seriesA.attributes['href'] ?? '') ?? '',
+              stamp,
+              coverUrl: _absolutize(_bestCoverUrl(img)),
+              chapterCountHint: parseChapterNumber(
+                tile.querySelector('.fivchap')?.text.trim() ?? '',
+              )?.toInt(),
+            ),
+          );
+          continue;
+        }
+      }
+      final epx = tile.querySelector('.epxdate')?.text.trim();
+      if (epx == null || epx.isEmpty) continue;
+      final stamp = parseRelativeStamp(epx, nowMs: nowMs);
+      if (stamp == null) continue;
+      // Chapter-titled link: prefer the clean series title from `.tt`.
+      final a = tile.querySelector('a[title]');
+      if (a == null) continue;
+      final tt = tile.querySelector('.tt')?.text.trim();
+      var title = (tt != null && tt.isNotEmpty)
+          ? tt
+          : (a.attributes['title']?.trim() ?? '')
+                .replaceFirst(RegExp(r'\s+\S+$'), '')
+                .trim();
+      if (title.isEmpty) continue;
+      final img = tile.querySelector('img');
+      out.add(
+        SourceRecentStamp(
+          title,
+          '',
+          stamp,
+          coverUrl: _absolutize(_bestCoverUrl(img)),
+          chapterCountHint: parseChapterNumber(
+            tile.querySelector('.epxs')?.text.trim() ?? '',
+          )?.toInt(),
+        ),
+      );
+    }
+    return out;
+  }
+
   Future<String> _fetch(Uri uri) async {
     try {
       return await http.getHtml(uri, referer: referer);
@@ -416,15 +582,20 @@ class MadaraSource implements Source {
       if (e.statusCode == 403) {
         // Distinguish Cloudflare later via body sniff in callers; the 403
         // itself may already be a challenge page (up/dark-manga search).
-        throw SourceException(id, SourceErrorKind.cloudflare,
-            detail: 'HTTP 403 at $uri');
+        throw SourceException(
+          id,
+          SourceErrorKind.cloudflare,
+          detail: 'HTTP 403 at $uri',
+        );
       }
       if (e.statusCode == 404) {
-        throw SourceException(id, SourceErrorKind.notFound,
-            detail: 'HTTP 404 at $uri');
+        throw SourceException(
+          id,
+          SourceErrorKind.notFound,
+          detail: 'HTTP 404 at $uri',
+        );
       }
-      throw SourceException(id, SourceErrorKind.network,
-          detail: e.toString());
+      throw SourceException(id, SourceErrorKind.network, detail: e.toString());
     }
   }
 

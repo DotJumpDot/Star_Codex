@@ -13,14 +13,14 @@ class FakeSource implements Source {
     Map<String, List<String>>? pagesResults,
     Map<String, String>? novelTexts,
     this.error,
-  })  : searchResults = searchResults ?? {},
-        latestResults = latestResults ?? const [],
-        genreResults = genreResults ?? {},
-        genreList = genreList ?? const [],
-        details = details ?? {},
-        // Mutable copies so tests can seed maps after construction.
-        pagesResults = Map.of(pagesResults ?? const {}),
-        novelTexts = Map.of(novelTexts ?? const {});
+  }) : searchResults = searchResults ?? {},
+       latestResults = latestResults ?? const [],
+       genreResults = genreResults ?? {},
+       genreList = genreList ?? const [],
+       details = details ?? {},
+       // Mutable copies so tests can seed maps after construction.
+       pagesResults = Map.of(pagesResults ?? const {}),
+       novelTexts = Map.of(novelTexts ?? const {});
 
   @override
   final String id;
@@ -67,7 +67,10 @@ class FakeSource implements Source {
   }
 
   @override
-  Future<List<SourceSeries>> latest({int page = 1, bool popular = false}) async {
+  Future<List<SourceSeries>> latest({
+    int page = 1,
+    bool popular = false,
+  }) async {
     latestPopular = popular;
     if (error != null) throw error!;
     return page == 1 ? latestResults : const [];
@@ -110,4 +113,12 @@ class FakeSource implements Source {
     if (error != null) throw error!;
     return novelTexts[chapterUrl];
   }
+
+  /// Optional homepage-grid stamps — null (default) = no-op like the
+  /// production engines without a grid.
+  List<SourceRecentStamp>? recentStampsResult;
+
+  @override
+  Future<List<SourceRecentStamp>> recentStamps() async =>
+      recentStampsResult ?? const [];
 }

@@ -39,8 +39,7 @@ class NekopostSource implements Source {
   @override
   bool get supportsNovels => true;
 
-  String _fileHost(int pid) =>
-      pid > _fileHostThreshold ? _fsFiles : _wwwFiles;
+  String _fileHost(int pid) => pid > _fileHostThreshold ? _fsFiles : _wwwFiles;
 
   String? _coverUrl(int pid, Object? coverVersion) {
     final v = (coverVersion as num?)?.toInt() ?? 0;
@@ -52,17 +51,17 @@ class NekopostSource implements Source {
   /// type 'manga' (Plan/06 §3); translated (f) + original (n) novels →
   /// 'novel'.
   static String? _typeFor(Object? projectType) => switch (projectType) {
-        'm' || 'c' || 'd' => 'manga',
-        'f' || 'n' => 'novel',
-        _ => null,
-      };
+    'm' || 'c' || 'd' => 'manga',
+    'f' || 'n' => 'novel',
+    _ => null,
+  };
 
   /// Status ints: 1 ongoing, 2 completed, 3 licensed (skipped in detail).
   static String? _statusFor(Object? raw) => switch ((raw as num?)?.toInt()) {
-        1 => 'ongoing',
-        2 => 'completed',
-        _ => null,
-      };
+    1 => 'ongoing',
+    2 => 'completed',
+    _ => null,
+  };
 
   Future<Object?> _post(String path, Map<String, Object?> body) async {
     final bytes = await http.postJson(Uri.parse('$_api$path'), body);
@@ -73,25 +72,34 @@ class NekopostSource implements Source {
   /// "Salted__" AES payload, not JSON.
   Future<Map<String, Object?>> _cinfo(int pid, int chapterId) async {
     if (kDebugMode) debugPrint('NEKO cinfo START p=$pid c=$chapterId');
-    final bytes = await http.postJson(
-        Uri.parse('$_base/handler/cinfo'), {'p': pid, 'c': chapterId});
+    final bytes = await http.postJson(Uri.parse('$_base/handler/cinfo'), {
+      'p': pid,
+      'c': chapterId,
+    });
     if (kDebugMode) debugPrint('NEKO cinfo BYTES ${bytes.length}');
-    final decrypted =
-        decryptCryptoJs(utf8.decode(bytes, allowMalformed: true));
+    final decrypted = decryptCryptoJs(utf8.decode(bytes, allowMalformed: true));
     final decoded = jsonDecode(decrypted);
     if (kDebugMode) debugPrint('NEKO cinfo DECODED ok');
+
     if (decoded is! Map<String, Object?>) {
-      throw SourceException(id, SourceErrorKind.parse,
-          detail: 'cinfo payload is not a map');
+      throw SourceException(
+        id,
+        SourceErrorKind.parse,
+        detail: 'cinfo payload is not a map',
+      );
     }
     return decoded;
   }
 
   static Never _notMap(Object? response) {
     final text = response.toString();
-    throw SourceException('nekopost', SourceErrorKind.parse,
-        detail: 'API error body: '
-            '${text.substring(0, text.length > 80 ? 80 : text.length)}');
+    throw SourceException(
+      'nekopost',
+      SourceErrorKind.parse,
+      detail:
+          'API error body: '
+          '${text.substring(0, text.length > 80 ? 80 : text.length)}',
+    );
   }
 
   @override
@@ -113,7 +121,10 @@ class NekopostSource implements Source {
   /// (each listing is already newest-first; novels must not vanish from
   /// Browse — decision D3). Original novels (n) surface via search.
   @override
-  Future<List<SourceSeries>> latest({int page = 1, bool popular = false}) async {
+  Future<List<SourceSeries>> latest({
+    int page = 1,
+    bool popular = false,
+  }) async {
     final results = await Future.wait([
       _latestType('m', page),
       _latestType('f', page),
@@ -139,14 +150,17 @@ class NekopostSource implements Source {
           SourceSeries(
             url: _projectUrl((raw['pid'] as num).toInt()),
             title: raw['projectName'] as String? ?? '',
-            coverUrl:
-                _coverUrl((raw['pid'] as num).toInt(), raw['coverVersion']),
+            coverUrl: _coverUrl(
+              (raw['pid'] as num).toInt(),
+              raw['coverVersion'],
+            ),
             // listChapter rows are newest-chapter records: chapterNo is a
             // STRING ("37") and releaseDate the chapter's ISO stamp —
             // without these the latest feed showed neither count nor
             // update time (user QA 2026-10-18).
-            chapterCountHint:
-                parseChapterNumber(raw['chapterNo'] as String? ?? '')?.toInt(),
+            chapterCountHint: parseChapterNumber(
+              raw['chapterNo'] as String? ?? '',
+            )?.toInt(),
             lastUpdatedMs: _isoToMs(raw['releaseDate'] as String?),
             type: _typeFor(raw['projectType']),
           ),
@@ -185,8 +199,11 @@ class NekopostSource implements Source {
     final response = await _post('project/detail2', {'pid': pid});
     if (response is! Map<String, Object?>) {
       // Dead/deleted ids answer 200 with `"sql: no rows in result set"`.
-      throw SourceException(id, SourceErrorKind.notFound,
-          detail: response.toString());
+      throw SourceException(
+        id,
+        SourceErrorKind.notFound,
+        detail: response.toString(),
+      );
     }
     final info = response['projectInfo'];
     if (info is! Map<String, Object?>) {
@@ -195,13 +212,15 @@ class NekopostSource implements Source {
     final project = info['Project'] as Map<String, Object?>? ?? const {};
     final statusInt = (project['status'] as num?)?.toInt();
     if (statusInt == 3) {
-      throw SourceException(id, SourceErrorKind.notFound,
-          detail: 'licensed — not readable (decision D5: public only)');
+      throw SourceException(
+        id,
+        SourceErrorKind.notFound,
+        detail: 'licensed — not readable (decision D5: public only)',
+      );
     }
     final title = project['projectName'] as String? ?? '';
     final alias = (project['aliasName'] as String?)?.trim() ?? '';
-    final categories =
-        info['ListCate'] as List<Object?>? ?? const <Object?>[];
+    final categories = info['ListCate'] as List<Object?>? ?? const <Object?>[];
 
     final chapters = [
       for (final raw in info['ListChapter'] as List<Object?>? ?? const [])
@@ -210,9 +229,7 @@ class NekopostSource implements Source {
 
     return SourceSeriesDetail(
       title: title,
-      altTitles: [
-        if (alias.isNotEmpty && alias != title) alias,
-      ],
+      altTitles: [if (alias.isNotEmpty && alias != title) alias],
       description: (project['info'] as String?)?.trim(),
       tags: [
         for (final c in categories)
@@ -232,8 +249,7 @@ class NekopostSource implements Source {
     final chapterId = (raw['ChapterID'] as num).toInt();
     final no = raw['ChapterNo'] as String? ?? '';
     final name = raw['ChapterName'] as String? ?? no;
-    final number =
-        double.tryParse(no) ?? parseChapterNumber(name) ?? 0.0;
+    final number = double.tryParse(no) ?? parseChapterNumber(name) ?? 0.0;
     final published =
         ((raw['PublishDate'] as Map<String, Object?>?)?['String'] as String?);
     return SourceChapter(
@@ -246,17 +262,21 @@ class NekopostSource implements Source {
 
   (int, int) _chapterIds(String chapterUrl) {
     final parts = chapterUrl.split(':');
-    if (parts.length != 4 ||
-        parts[0] != 'nekopost' ||
-        parts[1] != 'chapter') {
-      throw SourceException(id, SourceErrorKind.parse,
-          detail: 'bad chapter url: $chapterUrl');
+    if (parts.length != 4 || parts[0] != 'nekopost' || parts[1] != 'chapter') {
+      throw SourceException(
+        id,
+        SourceErrorKind.parse,
+        detail: 'bad chapter url: $chapterUrl',
+      );
     }
     final pid = int.tryParse(parts[2]);
     final cid = int.tryParse(parts[3]);
     if (pid == null || cid == null) {
-      throw SourceException(id, SourceErrorKind.parse,
-          detail: 'bad chapter ids: $chapterUrl');
+      throw SourceException(
+        id,
+        SourceErrorKind.parse,
+        detail: 'bad chapter ids: $chapterUrl',
+      );
     }
     return (pid, cid);
   }
@@ -267,8 +287,11 @@ class NekopostSource implements Source {
         ? int.tryParse(parts[2])
         : null;
     if (pid == null) {
-      throw SourceException(id, SourceErrorKind.parse,
-          detail: 'bad project url: $sourceUrl');
+      throw SourceException(
+        id,
+        SourceErrorKind.parse,
+        detail: 'bad project url: $sourceUrl',
+      );
     }
     return pid;
   }
@@ -284,15 +307,15 @@ class NekopostSource implements Source {
         if (raw is Map<String, Object?>) raw,
     ]..sort((a, b) => _pageNo(a).compareTo(_pageNo(b)));
     final base = '${_fileHost(pid)}$pid/$cid/';
-    final urls = <String>[
-      for (final page in sorted)
-        '$base${_fileName(page)}',
-    ];
+    final urls = <String>[for (final page in sorted) '$base${_fileName(page)}'];
     if (kDebugMode) debugPrint('NEKO pages mapped n=${urls.length}');
     if (urls.isEmpty || urls.any((u) => u.endsWith('/'))) {
       if (kDebugMode) debugPrint('NEKO pages THROW bad names');
-      throw SourceException(id, SourceErrorKind.parse,
-          detail: 'pageItem missing file names');
+      throw SourceException(
+        id,
+        SourceErrorKind.parse,
+        detail: 'pageItem missing file names',
+      );
     }
     return ChapterPages(imageUrls: urls);
   }
@@ -317,11 +340,14 @@ class NekopostSource implements Source {
     final (pid, cid) = _chapterIds(chapterUrl);
     final info = await _cinfo(pid, cid);
     if (kDebugMode) {
-      debugPrint('NEKO novelText keys=${info.keys.toList()} '
-          'pageTextLen=${(info['pageText'] as String?)?.length} '
-          'novelLen=${(info['novelContent'] as String?)?.length}');
+      debugPrint(
+        'NEKO novelText keys=${info.keys.toList()} '
+        'pageTextLen=${(info['pageText'] as String?)?.length} '
+        'novelLen=${(info['novelContent'] as String?)?.length}',
+      );
     }
-    var html = (info['pageText'] as String?) ??
+    var html =
+        (info['pageText'] as String?) ??
         (info['novelContent'] as String?) ??
         '';
     if (html.isEmpty) return null;
@@ -335,6 +361,10 @@ class NekopostSource implements Source {
 
     return _htmlToParagraphs(html);
   }
+
+  /// Stamps already ride the listings/API — no homepage grid needed.
+  @override
+  Future<List<SourceRecentStamp>> recentStamps() async => const [];
 
   /// Plan/06 §3: plain-text paragraphs separated by `\n\n`; Thai kept
   /// as-is, inline images dropped (text reader renders text only).

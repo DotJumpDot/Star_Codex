@@ -572,6 +572,92 @@ void main() {
       },
     );
 
+    test('stale re-check prefers the homepage-grid stamp (precise)', () async {
+      // User reports 2026-10-22: chapterdate rows are date-only in a
+      // lagging site timezone (go-manga read 16 h for a 6 h chapter,
+      // dark-manga สักครู่ for a 2-minute one) — the grids carry the real
+      // relative labels, so a grid hit must replace the detail re-fetch
+      // AND write the precise stamp into the link row.
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      const gridStampMs = 1700000009999; // fixed point for exact compare
+      final src = FakeSource(
+        'slow-manga',
+        details: {
+          'https://s/myst/': SourceSeriesDetail(
+            title: 'Myst Might Mayhem',
+            chapters: [
+              SourceChapter(
+                url: 'https://s/myst/c1/',
+                title: 'ตอนที่ 1',
+                number: 1,
+                uploadedAt: 1700000000000,
+              ),
+            ],
+          ),
+          'https://s/nogrid/': SourceSeriesDetail(
+            title: 'No Grid Hit',
+            chapters: [
+              SourceChapter(
+                url: 'https://s/nogrid/c1/',
+                title: 'ตอนที่ 1',
+                number: 1,
+                uploadedAt: 1700000000001,
+              ),
+            ],
+          ),
+        },
+      );
+      src.recentStampsResult = [
+        SourceRecentStamp('Myst Might Mayhem', 'https://s/myst/', gridStampMs),
+      ];
+      final repo = repoWith([src]);
+      SearchGroup card(String url, String title) => SearchGroup([
+        BrowseCandidate(
+          sourceId: 'slow-manga',
+          referer: 'https://r/',
+          url: url,
+          title: title,
+          coverUrl: 'https://s/c.jpg',
+          lastUpdatedMs: nowMs - const Duration(days: 7).inMilliseconds,
+        ),
+      ]);
+      final myst = card('https://s/myst/', 'Myst Might Mayhem');
+      final nogrid = card('https://s/nogrid/', 'No Grid Hit');
+      await repo.materializeIncompleteGroups([myst, nogrid], budget: 0);
+      expect(src.detailCalls, 2); // first pass materializes both rows
+      await repo.materializeIncompleteGroups(
+        [myst, nogrid],
+        budget: 0,
+        staleAfter: Duration.zero,
+      );
+      expect(
+        src.detailCalls,
+        3,
+        reason: 'only the no-grid-hit card re-fetches the detail',
+      );
+      expect(
+        myst.dbLastUpdatedMs,
+        gridStampMs,
+        reason: 'grid stamp lands on the card via the row',
+      );
+      expect(nogrid.dbLastUpdatedMs, 1700000000001);
+      final seriesId = await seriesDao.findSeriesIdBySourceLink(
+        'slow-manga',
+        'https://s/myst/',
+      );
+      final link = await seriesDao.sourceLinkByUrl(
+        seriesId!,
+        'slow-manga',
+        'https://s/myst/',
+      );
+      expect(link, isNotNull);
+      expect(
+        link!.lastUpdatedAt,
+        gridStampMs,
+        reason: 'grid stamp persists into series_sources',
+      );
+    });
+
     test(
       'merges carry db enrichment to the rebuilt groups (2026-10-20)',
       () async {

@@ -15,8 +15,8 @@ import 'package:star_codex/data/sources/madara/madara_source.dart';
 /// (on-device QA: "Poison Master of Sacheon Tang Clan" rendered blank).
 Future<void> main() async {
   final dir = '${Directory.current.path}\\test\\fixtures';
-  final tiles =
-      await File('$dir\\slow_tiles.html').readAsString(encoding: utf8);
+  final tiles = await File('$dir\\slow_tiles.html')
+      .readAsString(encoding: utf8);
 
   MadaraSource slowMangaServing(String body) {
     return MadaraSource(
@@ -34,12 +34,14 @@ Future<void> main() async {
   }
 
   group('MadaraSource tiles — cover selection', () {
-    test('AVIF-only covers are dropped (no decoder ⇒ never renderable)',
-        () async {
-      final items = await slowMangaServing(tiles).latest();
-      final poison = items.firstWhere((s) => s.title.contains('Poison'));
-      expect(poison.coverUrl, isNull);
-    });
+    test(
+      'AVIF-only covers are dropped (no decoder ⇒ never renderable)',
+      () async {
+        final items = await slowMangaServing(tiles).latest();
+        final poison = items.firstWhere((s) => s.title.contains('Poison'));
+        expect(poison.coverUrl, isNull);
+      },
+    );
 
     test('lazy data-src preferred over placeholder src', () async {
       final items = await slowMangaServing(tiles).latest();
@@ -53,6 +55,90 @@ Future<void> main() async {
       final items = await slowMangaServing(tiles).latest();
       final mixed = items.firstWhere((s) => s.title.contains('Mixed'));
       expect(mixed.coverUrl, endsWith('mixed-cover-197x300.jpg'));
+    });
+  });
+
+  group('latest() leads with the homepage grid (2026-10-22)', () {
+    // Homepage: one go/dark-style .chfiv tile (series link + stamp), one
+    // slow-manga-style .epxdate tile (chapter link only), and a popularity
+    // slider tile with NO time label (must never inject).
+    const home = '''
+<div class="listupd">
+ <div class="bs"><div class="bsx">
+  <a href="https://www.slow-manga.net/manga/myst/" title="Myst Might Mayhem">
+   <div class="limit"><img src="https://www.slow-manga.net/myst.jpg"/></div>
+   <div class="bigor">
+    <div class="tt"><a href="https://www.slow-manga.net/manga/myst/" title="Myst Might Mayhem">Myst Might Mayhem</a></div>
+    <ul class="chfiv"><li><a href="x"><span class="fivchap">ตอนที่ 121</span><span class="fivtime">6 ชั่วโมง</span></a></li></ul>
+   </div></a>
+ </div></div>
+ <div class="bs"><div class="bsx">
+  <a href="https://www.slow-manga.com/heal-10/" title="Academy Store 10">
+   <div class="limit"><img src="https://www.slow-manga.net/heal.jpg"/></div>
+   <div class="bigor"><div class="tt">Academy Store</div><div class="epxs">ตอนที่ 10</div></div>
+   <div class="epxdate text-center">38 วินาที ที่แล้ว</div>
+ </a></div></div>
+</div>
+<div class="listupd popularslider"><div class="bs"><div class="bsx">
+  <a href="https://www.slow-manga.net/manga/pop/" title="Pop Series"><div class="bigor"><div class="tt">Pop Series</div></div></a>
+</div></div></div>''';
+    // Archive page: Myst (same URL — deduped), Academy Store (stamp
+    // BORROWED from the grid by title), Other (kept as-is, in order).
+    const archive = '''
+<div class="listupd">
+ <div class="bs"><div class="bsx"><a href="https://www.slow-manga.net/manga/myst/" title="Myst Might Mayhem"><img src="https://www.slow-manga.net/myst.jpg"/><div class="epxs">ตอนที่ 121</div></a></div></div>
+ <div class="bs"><div class="bsx"><a href="https://www.slow-manga.net/manga/academy-store/" title="Academy Store"><img src="https://www.slow-manga.net/heal.jpg"/><div class="epxs">ตอนที่ 10</div></a></div></div>
+ <div class="bs"><div class="bsx"><a href="https://www.slow-manga.net/manga/other/" title="Other Series"><img src="https://www.slow-manga.net/other.jpg"/><div class="epxs">ตอนที่ 5</div></a></div></div>
+</div>''';
+
+    MadaraSource servingTwo() => MadaraSource(
+      madaraConfigs.firstWhere((c) => c.id == 'slow-manga'),
+      SafeHttp(
+        rateLimiter: RateLimiter(seed: 1),
+        fetcher: (uri, options) async => Response<List<int>>(
+          requestOptions: RequestOptions(path: uri.toString()),
+          statusCode: 200,
+          data: Uint8List.fromList(
+            const Utf8Encoder().convert(uri.path == '/' ? home : archive),
+          ),
+        ),
+        delay: (_) async {},
+      ),
+    );
+
+    test(
+      'grid entries inject first with stamps; archive tail dedupes',
+      () async {
+        final items = await servingTwo().latest();
+        expect(items, hasLength(3)); // Myst (grid), Academy, Other
+        expect(items[0].url, 'https://www.slow-manga.net/manga/myst/');
+        expect(items[0].lastUpdatedMs, isNotNull);
+        expect(items[0].chapterCountHint, 121);
+        expect(items[0].coverUrl, endsWith('myst.jpg'));
+        // Chapter-link grid entry can't inject — its ARCHIVE twin borrows
+        // the precise stamp by title instead.
+        expect(items[1].url, endsWith('/manga/academy-store/'));
+        expect(items[1].lastUpdatedMs, isNotNull);
+        expect(items[2].url, endsWith('/manga/other/')); // no grid hit
+        expect(items[2].lastUpdatedMs, isNull);
+      },
+    );
+
+    test('grid parse failure degrades to archive-only', () async {
+      final src = MadaraSource(
+        madaraConfigs.firstWhere((c) => c.id == 'slow-manga'),
+        SafeHttp(
+          rateLimiter: RateLimiter(seed: 1),
+          fetcher: (uri, options) async => Response<List<int>>(
+            requestOptions: RequestOptions(path: uri.toString()),
+            statusCode: uri.path == '/' ? 403 : 200,
+            data: Uint8List.fromList(const Utf8Encoder().convert(archive)),
+          ),
+          delay: (_) async {},
+        ),
+      );
+      final items = await src.latest();
+      expect(items.map((s) => s.title), contains('Myst Might Mayhem'));
     });
   });
 }

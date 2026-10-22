@@ -272,7 +272,7 @@ class BrowseRepo {
           if (source == null) continue;
           final seriesId = rec.crossProbe
               ? await seriesRepo.ensureSeries(g)
-              : await seriesRepo.refreshDetail(g);
+              : await _refreshStale(g, source);
           final row = await seriesDao.byId(seriesId);
           if (row != null) {
             // EXACT row → card (no title-norm guessing): this is what puts
@@ -320,6 +320,76 @@ class BrowseRepo {
   /// the timestamp (not a set) lets a card re-attempt after
   /// [dateStaleAfter].
   final _materializedAt = <String, int>{};
+
+  /// STALE re-check for one card: prefer the source's homepage-grid stamp
+  /// (precise to the minute — chapterdate rows are date-only in a lagging
+  /// site timezone, user reports 2026-10-22: slow-manga read exact at a
+  /// 20:00 anchor while go-manga read 16 h for a 6 h chapter and
+  /// dark-manga "สักครู่" for a 2-minute one). No grid hit (or no existing
+  /// row to stamp) → the detail re-fetch as before. Returns the series id.
+  Future<int> _refreshStale(SearchGroup g, Source source) async {
+    final primary = g.primary;
+    final stamps = await _recentStamps(source);
+    final hit =
+        stamps[normalizeTitle(primary.title)] ??
+        stamps[normalizeTitle(g.displayTitle)];
+    if (hit != null) {
+      final seriesId = await seriesDao.findSeriesIdBySourceLink(
+        source.id,
+        primary.url,
+      );
+      if (seriesId != null) {
+        final link = await seriesDao.sourceLinkByUrl(
+          seriesId,
+          source.id,
+          primary.url,
+        );
+        // Never regress a link to an older stamp than it already holds.
+        if (link != null &&
+            (link.lastUpdatedAt == null || hit > link.lastUpdatedAt!)) {
+          await seriesDao.upsertSource(
+            SeriesSource(
+              seriesId: seriesId,
+              sourceId: link.sourceId,
+              sourceUrl: link.sourceUrl,
+              sourceTitle: link.sourceTitle,
+              altTitles: link.altTitles,
+              coverUrl: link.coverUrl,
+              lastChapterNumber: link.lastChapterNumber,
+              lastUpdatedAt: hit,
+              fetchedAt: DateTime.now().millisecondsSinceEpoch,
+            ),
+          );
+        }
+        return seriesId;
+      }
+    }
+    return seriesRepo.refreshDetail(g);
+  }
+
+  /// Homepage-grid stamps per source, keyed by title norm. One fetch per
+  /// source per [dateStaleAfter] window; best-effort (an unreachable grid
+  /// just leaves the map empty and the detail re-fetch takes over).
+  final _stamps = <String, Map<String, int>>{};
+  final _stampsAt = <String, int>{};
+
+  Future<Map<String, int>> _recentStamps(Source source) async {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final at = _stampsAt[source.id];
+    if (at != null && nowMs - at < dateStaleAfter.inMilliseconds) {
+      return _stamps[source.id] ?? const {};
+    }
+    final map = <String, int>{};
+    try {
+      for (final e in await source.recentStamps()) {
+        final norm = normalizeTitle(e.title);
+        if (norm.isNotEmpty) map[norm] = e.stampMs;
+      }
+    } catch (_) {}
+    _stamps[source.id] = map;
+    _stampsAt[source.id] = nowMs;
+    return map;
+  }
 
   Future<List<SourceGenre>> genres(Source source) => source.genres();
 

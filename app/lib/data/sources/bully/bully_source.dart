@@ -46,12 +46,10 @@ class BullyMangaSource implements Source {
 
   @override
   Future<List<SourceSeries>> search(String query, {int page = 1}) async {
-    final items = await _listing(Uri.parse('$baseUrl/search').replace(
-      queryParameters: {
-        'keyword': query,
-        'page': '$page',
-      },
-    ));
+    final items = await _listing(
+      Uri.parse('$baseUrl/search')
+          .replace(queryParameters: {'keyword': query, 'page': '$page'}),
+    );
     // The site's search index includes chapter pages — keep series only.
     final seriesRe = RegExp(r'-ep\d+$');
     String? lastSegment(String url) {
@@ -88,8 +86,11 @@ class BullyMangaSource implements Source {
     if (_looksLikeCloudflare(body)) throw SourceException.cloudflare(id);
     final detail = parseBullyDetail(body, sourceUrl, baseUrl);
     if (detail == null) {
-      throw SourceException(id, SourceErrorKind.parse,
-          detail: 'no bully series data on $sourceUrl');
+      throw SourceException(
+        id,
+        SourceErrorKind.parse,
+        detail: 'no bully series data on $sourceUrl',
+      );
     }
     return detail;
   }
@@ -99,14 +100,22 @@ class BullyMangaSource implements Source {
     final body = await _fetch(Uri.parse(chapterUrl));
     final urls = parseBullyImageMap(body, baseUrl);
     if (urls.isEmpty) {
-      throw SourceException(id, SourceErrorKind.parse,
-          detail: 'no IMAGE_MAP on $chapterUrl');
+      throw SourceException(
+        id,
+        SourceErrorKind.parse,
+        detail: 'no IMAGE_MAP on $chapterUrl',
+      );
     }
     return ChapterPages(imageUrls: urls);
   }
 
   @override
   Future<String?> novelText(String chapterUrl) async => null;
+
+  /// No homepage recent-grid on this engine (or stamps already ride the
+  /// listings) — [Source.recentStamps] stays a no-op here.
+  @override
+  Future<List<SourceRecentStamp>> recentStamps() async => const [];
 
   /// Genre links scraped off a listing page (English terms, e.g. Action).
   @override
@@ -120,12 +129,18 @@ class BullyMangaSource implements Source {
       return await http.getHtml(uri, referer: referer);
     } on NetException catch (e) {
       if (e.statusCode == 403) {
-        throw SourceException(id, SourceErrorKind.cloudflare,
-            detail: 'HTTP 403 at $uri');
+        throw SourceException(
+          id,
+          SourceErrorKind.cloudflare,
+          detail: 'HTTP 403 at $uri',
+        );
       }
       if (e.statusCode == 404) {
-        throw SourceException(id, SourceErrorKind.notFound,
-            detail: 'HTTP 404 at $uri');
+        throw SourceException(
+          id,
+          SourceErrorKind.notFound,
+          detail: 'HTTP 404 at $uri',
+        );
       }
       throw SourceException(id, SourceErrorKind.network, detail: e.toString());
     }
@@ -150,19 +165,23 @@ List<SourceSeries> parseBullyListing(String body, String baseUrl) {
             .trim();
     if (title.isEmpty) continue;
     // Real cover rides in data-src behind a default placeholder in src.
-    final cover = _cleanUrl(img?.attributes['data-src'], baseUrl) ??
+    final cover =
+        _cleanUrl(img?.attributes['data-src'], baseUrl) ??
         _cleanUrl(img?.attributes['src'], baseUrl);
     final type = _typeFromBadge(
-        card.querySelector('.mc-badge img')?.attributes['src']);
+      card.querySelector('.mc-badge img')?.attributes['src'],
+    );
     final epText = card.querySelector('.mc-ep-num')?.text.trim();
     final hint = epText == null ? null : parseChapterNumber(epText);
-    out.add(SourceSeries(
-      url: url,
-      title: title,
-      coverUrl: cover,
-      chapterCountHint: hint?.toInt(),
-      type: type,
-    ));
+    out.add(
+      SourceSeries(
+        url: url,
+        title: title,
+        coverUrl: cover,
+        chapterCountHint: hint?.toInt(),
+        type: type,
+      ),
+    );
   }
   return out;
 }
@@ -187,7 +206,10 @@ List<SourceGenre> parseBullyGenres(String body) {
 
 @visibleForTesting
 SourceSeriesDetail? parseBullyDetail(
-    String body, String sourceUrl, String baseUrl) {
+  String body,
+  String sourceUrl,
+  String baseUrl,
+) {
   final doc = html_parser.parse(body);
 
   // JSON-LD block carries the cleanest name/description/cover.
@@ -204,9 +226,7 @@ SourceSeriesDetail? parseBullyDetail(
       final ld = jsonDecode(ldRaw.group(1)!) as Map<String, dynamic>;
       title = (ld['name'] as String?)?.trim();
       // The site embeds literal markdown bold markers — strip them.
-      description = (ld['description'] as String?)
-          ?.trim()
-          .replaceAll('**', '');
+      description = (ld['description'] as String?)?.trim().replaceAll('**', '');
       cover = _cleanUrl(ld['image'] as String?, baseUrl);
     } on Exception {
       // fall through to DOM fallbacks below
@@ -220,8 +240,9 @@ SourceSeriesDetail? parseBullyDetail(
       .trim();
   if (title == null || title.isEmpty) return null;
   cover ??= _cleanUrl(
-      doc.querySelector('img.mc-img, .sh-cover img')?.attributes['data-src'],
-      baseUrl);
+    doc.querySelector('img.mc-img, .sh-cover img')?.attributes['data-src'],
+    baseUrl,
+  );
 
   final tags = [
     for (final a in doc.querySelectorAll('a.sh-genre'))
@@ -236,29 +257,38 @@ SourceSeriesDetail? parseBullyDetail(
     type = _typeFromBadge(badgeType.toLowerCase());
   }
   type ??= _typeFromBadge(
-      doc.querySelector('img[src*="/static/images/"]')?.attributes['src']);
+    doc.querySelector('img[src*="/static/images/"]')?.attributes['src'],
+  );
 
-  final statusText =
-      doc.querySelector('.sh-badge-status')?.text.trim().toLowerCase();
+  final statusText = doc
+      .querySelector('.sh-badge-status')
+      ?.text
+      .trim()
+      .toLowerCase();
   final status = _normalizeStatus(statusText);
 
   final chapters = <SourceChapter>[];
   for (final a in doc.querySelectorAll('a.sh-ep')) {
     final url = _resolveUrl(sourceUrl, a.attributes['href'] ?? '');
     if (url == null) continue;
-    final number = double.tryParse(a.attributes['data-title'] ?? '') ??
+    final number =
+        double.tryParse(a.attributes['data-title'] ?? '') ??
         parseChapterNumber(a.querySelector('.sh-ep-label')?.text ?? '') ??
         parseChapterNumber(a.attributes['data-ep'] ?? '');
     if (number == null) continue;
     final label =
-        a.querySelector('.sh-ep-label')?.text.trim() ?? 'ตอนที่ ${number.toInt()}';
-    chapters.add(SourceChapter(
-      url: url,
-      title: label,
-      number: number,
-      uploadedAt: parseRelativeThaiDate(
-          a.querySelector('.sh-ep-date')?.text.trim() ?? ''),
-    ));
+        a.querySelector('.sh-ep-label')?.text.trim() ??
+        'ตอนที่ ${number.toInt()}';
+    chapters.add(
+      SourceChapter(
+        url: url,
+        title: label,
+        number: number,
+        uploadedAt: parseRelativeThaiDate(
+          a.querySelector('.sh-ep-date')?.text.trim() ?? '',
+        ),
+      ),
+    );
   }
   chapters.sort((a, b) => a.number.compareTo(b.number));
 
@@ -278,9 +308,11 @@ SourceSeriesDetail? parseBullyDetail(
 
 @visibleForTesting
 List<String> parseBullyImageMap(String body, String baseUrl) {
-  final m =
-      RegExp(r'IMAGE_MAP\s*=\s*\[(.*?)\]', multiLine: true, dotAll: true)
-          .firstMatch(body);
+  final m = RegExp(
+    r'IMAGE_MAP\s*=\s*\[(.*?)\]',
+    multiLine: true,
+    dotAll: true,
+  ).firstMatch(body);
   if (m == null) return const [];
   final urls = RegExp(r'"([^"]+)"')
       .allMatches(m.group(1)!)
@@ -351,7 +383,8 @@ String? _normalizeStatus(String? raw) {
 /// stamps) → approximate epoch ms. Empty/unparseable → null.
 @visibleForTesting
 int? parseRelativeThaiDate(String text) {
-  final m = RegExp(r'^(\d+)\s*(นาที|ชั่วโมง|วัน|สัปดาห์|เดือน|ปี)').firstMatch(text.trim());
+  final m = RegExp(r'^(\d+)\s*(นาที|ชั่วโมง|วัน|สัปดาห์|เดือน|ปี)')
+      .firstMatch(text.trim());
   if (m == null) return null;
   final n = int.parse(m.group(1)!);
   final unitMs = switch (m.group(2)) {

@@ -41,19 +41,26 @@ class MikuDoujinSource implements Source {
   @override
   Future<List<SourceSeries>> search(String query, {int page = 1}) async {
     // The theme ignores ?s= entirely (probed 2026-10-19).
-    throw SourceException(id, SourceErrorKind.notFound,
-        detail: 'miku-doujin has no working search — browse the feed');
+    throw SourceException(
+      id,
+      SourceErrorKind.notFound,
+      detail: 'miku-doujin has no working search — browse the feed',
+    );
   }
 
   @override
-  Future<List<SourceSeries>> latest({int page = 1, bool popular = false}) => _listing(
-      Uri.parse(page > 1 ? '$baseUrl/?paged=$page' : '$baseUrl/'));
+  Future<List<SourceSeries>> latest({int page = 1, bool popular = false}) =>
+      _listing(Uri.parse(page > 1 ? '$baseUrl/?paged=$page' : '$baseUrl/'));
 
   @override
   Future<List<SourceSeries>> browseGenre(String term, {int page = 1}) =>
-      _listing(Uri.parse(page > 1
-          ? '$baseUrl/category/${Uri.encodeComponent(term)}/?paged=$page'
-          : '$baseUrl/category/${Uri.encodeComponent(term)}/'));
+      _listing(
+        Uri.parse(
+          page > 1
+              ? '$baseUrl/category/${Uri.encodeComponent(term)}/?paged=$page'
+              : '$baseUrl/category/${Uri.encodeComponent(term)}/',
+        ),
+      );
 
   Future<List<SourceSeries>> _listing(Uri uri) async {
     final body = await _fetch(uri);
@@ -67,8 +74,11 @@ class MikuDoujinSource implements Source {
     if (_looksLikeCloudflare(body)) throw SourceException.cloudflare(id);
     final detail = parseMikuDetail(body, sourceUrl, baseUrl);
     if (detail == null) {
-      throw SourceException(id, SourceErrorKind.parse,
-          detail: 'no miku series content on $sourceUrl');
+      throw SourceException(
+        id,
+        SourceErrorKind.parse,
+        detail: 'no miku series content on $sourceUrl',
+      );
     }
     return detail;
   }
@@ -78,14 +88,22 @@ class MikuDoujinSource implements Source {
     final body = await _fetch(Uri.parse(chapterUrl));
     final urls = parseMikuPages(body);
     if (urls.isEmpty) {
-      throw SourceException(id, SourceErrorKind.parse,
-          detail: 'no #manga-content images on $chapterUrl');
+      throw SourceException(
+        id,
+        SourceErrorKind.parse,
+        detail: 'no #manga-content images on $chapterUrl',
+      );
     }
     return ChapterPages(imageUrls: urls);
   }
 
   @override
   Future<String?> novelText(String chapterUrl) async => null;
+
+  /// No homepage recent-grid on this engine — [Source.recentStamps]
+  /// stays a no-op here.
+  @override
+  Future<List<SourceRecentStamp>> recentStamps() async => const [];
 
   /// Category cloud off the homepage (Thai category names; the term is the
   /// raw path segment, percent-encoded back into the browse URL).
@@ -100,12 +118,18 @@ class MikuDoujinSource implements Source {
       return await http.getHtml(uri, referer: referer);
     } on NetException catch (e) {
       if (e.statusCode == 403) {
-        throw SourceException(id, SourceErrorKind.cloudflare,
-            detail: 'HTTP 403 at $uri');
+        throw SourceException(
+          id,
+          SourceErrorKind.cloudflare,
+          detail: 'HTTP 403 at $uri',
+        );
       }
       if (e.statusCode == 404) {
-        throw SourceException(id, SourceErrorKind.notFound,
-            detail: 'HTTP 404 at $uri');
+        throw SourceException(
+          id,
+          SourceErrorKind.notFound,
+          detail: 'HTTP 404 at $uri',
+        );
       }
       throw SourceException(id, SourceErrorKind.network, detail: e.toString());
     }
@@ -122,26 +146,27 @@ List<SourceSeries> parseMikuListing(String body, String baseUrl) {
   final out = <SourceSeries>[];
   for (final a in doc.querySelectorAll('a.inz-a')) {
     final href = a.attributes['href'] ?? '';
-    final title = (a.querySelector('.inz-title') ??
-            a.querySelector('.inz-title-sm'))
+    final title =
+        (a.querySelector('.inz-title') ?? a.querySelector('.inz-title-sm'))
             ?.text
             .trim() ??
         a.attributes['title']?.trim() ??
         '';
     if (href.isEmpty || title.isEmpty) continue;
     final img = a.querySelector('img');
-    out.add(SourceSeries(
-      url: href,
-      title: title,
-      coverUrl: _imgUrl(img, baseUrl),
-    ));
+    out.add(
+      SourceSeries(url: href, title: title, coverUrl: _imgUrl(img, baseUrl)),
+    );
   }
   return out;
 }
 
 @visibleForTesting
 SourceSeriesDetail? parseMikuDetail(
-    String body, String sourceUrl, String baseUrl) {
+  String body,
+  String sourceUrl,
+  String baseUrl,
+) {
   final doc = html_parser.parse(body);
   final content = doc.querySelector('#manga-content');
   if (content == null) return null;
@@ -173,13 +198,7 @@ SourceSeriesDetail? parseMikuDetail(
     description: null,
     tags: tags,
     coverUrl: cover,
-    chapters: [
-      SourceChapter(
-        url: sourceUrl,
-        title: 'ตอนที่ 1',
-        number: 1,
-      ),
-    ],
+    chapters: [SourceChapter(url: sourceUrl, title: 'ตอนที่ 1', number: 1)],
   );
 }
 

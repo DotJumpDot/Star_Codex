@@ -95,20 +95,36 @@ int? parseSiteDate(String raw, {int? nowMs}) {
 /// marker (ที่แล้ว / ago) is REQUIRED so absolute date fragments can
 /// never match. Month/year units use the same 30/365-day approximations
 /// as the display formatter.
-int? _relativeMs(String s, int? nowMs) {
+int? _relativeMs(String s, int? nowMs) =>
+    _relativeDelta(s, requireMarker: true, nowMs: nowMs);
+
+/// Bare relative labels from ts homepage recent-grids: `6 ชั่วโมง`,
+/// `2 นาที`, `38 วินาที ที่แล้ว` (probed 2026-10-22: go/dark render
+/// `.fivtime` pills with NO trailing marker, slow-manga `.epxdate` keeps
+/// it). The text node IS a time label, so no marker requirement — never
+/// feed arbitrary text here. Seconds included (slow-manga shows them).
+int? parseRelativeStamp(String raw, {int? nowMs}) =>
+    _relativeDelta(raw.trim(), requireMarker: false, nowMs: nowMs);
+
+int? _relativeDelta(String s, {required bool requireMarker, int? nowMs}) {
+  final tail = requireMarker ? r'\s*(?:ที่แล้ว|ago)' : '';
   final m = RegExp(
-    r'(\d+)\s*(นาที|ชั่วโมง|วัน|สัปดาห์|เดือน|ปี)\s*ที่แล้ว'
-    r'|(\d+)\s*(minute|hour|day|week|month|year)s?\s*ago',
+    r'(\d+)\s*(วินาที|นาที|ชั่วโมง|วัน|สัปดาห์|เดือน|ปี)'
+    '$tail'
+    r'|(\d+)\s*(second|minute|hour|day|week|month|year)s?'
+    '$tail',
     caseSensitive: false,
   ).firstMatch(s);
   if (m == null) return null;
   const units = {
+    'วินาที': Duration(seconds: 1),
     'นาที': Duration(minutes: 1),
     'ชั่วโมง': Duration(hours: 1),
     'วัน': Duration(days: 1),
     'สัปดาห์': Duration(days: 7),
     'เดือน': Duration(days: 30),
     'ปี': Duration(days: 365),
+    'second': Duration(seconds: 1),
     'minute': Duration(minutes: 1),
     'hour': Duration(hours: 1),
     'day': Duration(days: 1),

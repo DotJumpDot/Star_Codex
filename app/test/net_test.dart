@@ -348,4 +348,23 @@ void main() {
       expect(parseSiteDate(''), isNull);
     });
   });
+
+  group('parseRelativeStamp (homepage grid labels, 2026-10-22)', () {
+    test('bare Thai labels with and without the marker', () {
+      const now = 1700000000000;
+      expect(parseRelativeStamp('6 ชั่วโมง', nowMs: now), now - 6 * 3600000);
+      expect(parseRelativeStamp('2 นาที', nowMs: now), now - 2 * 60000);
+      expect(
+        parseRelativeStamp('38 วินาที ที่แล้ว', nowMs: now),
+        now - 38 * 1000,
+      );
+      expect(parseRelativeStamp('5 วัน', nowMs: now), now - 5 * 86400000);
+      expect(parseRelativeStamp('garbage'), isNull);
+    });
+
+    test('parseSiteDate still demands the marker (never misreads dates)', () {
+      const now = 1700000000000;
+      expect(parseSiteDate('6 ชั่วโมง', nowMs: now), isNull);
+    });
+  });
 }
