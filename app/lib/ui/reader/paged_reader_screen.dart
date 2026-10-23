@@ -82,9 +82,10 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   /// Drag-past-the-edge state (horizontal pull, rtl-aware arrow). The
   /// pull is signed: past the LAST page → next chapter, past the FIRST
   /// page → previous (user request 2026-10-23).
-  // 200 (halved from 400 on 2026-10-23 — user: the overscroll deltas are
-  // friction-damped, so 400 needed far too much finger travel to arm).
-  final _pull = PullChapterTracker(threshold: 200);
+  // 160 (2026-10-23: user tuned 400 → 200 → 160 against the shipped
+  // build — with the slide + visible trail a shallow arm is safe now,
+  // unlike the pre-rework 160 that tripped blind).
+  final _pull = PullChapterTracker(threshold: 160);
 
   /// Scroll offset sampled during an active pull — the delta between
   /// samples shrinks the pull once the finger reverses back into
