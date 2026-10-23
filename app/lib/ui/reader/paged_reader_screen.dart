@@ -82,7 +82,9 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   /// Drag-past-the-edge state (horizontal pull, rtl-aware arrow). The
   /// pull is signed: past the LAST page → next chapter, past the FIRST
   /// page → previous (user request 2026-10-23).
-  final _pull = PullChapterTracker(threshold: 400);
+  // 200 (halved from 400 on 2026-10-23 — user: the overscroll deltas are
+  // friction-damped, so 400 needed far too much finger travel to arm).
+  final _pull = PullChapterTracker(threshold: 200);
 
   /// Scroll offset sampled during an active pull — the delta between
   /// samples shrinks the pull once the finger reverses back into
@@ -639,18 +641,19 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
               ),
               if (_pull.dragging)
                 Positioned(
-                  // The trail sits INSIDE the space the slide opens: on
-                  // the side the next/prev chapter comes FROM. Fades in
-                  // with progress so a shallow pull doesn't overlap the
-                  // artwork underneath.
+                  // The trail sits INSIDE the space the slide opens — the
+                  // side the next/prev chapter comes FROM (LTR next = the
+                  // page slides left, so the space opens on the RIGHT;
+                  // flipped for RTL). Fixed 2026-10-23: it was pinned to
+                  // the opposite side and drew over the artwork.
                   top: 0,
                   bottom: 0,
-                  left: _pull.direction < 0
+                  left: _pull.direction > 0
                       ? (_rtl ? 0 : null)
                       : (_rtl ? null : 0),
                   right: _pull.direction > 0
-                      ? (_rtl ? 0 : null)
-                      : (_rtl ? null : 0),
+                      ? (_rtl ? null : 0)
+                      : (_rtl ? 0 : null),
                   child: Center(
                     child: Opacity(
                       opacity: (_pull.progress * 1.8).clamp(0.0, 1.0),

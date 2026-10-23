@@ -752,3 +752,10 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   drops (nekopost) rank on top as they should. Emulator-verified: card
   ages tick in real time across two screenshots and the newest chapter
   holds the top slot. 276 tests green.
+- 2026-10-23 — UX: paged-reader (หน้าต่อหน้า) pull polish. The dot-trail
+  indicator was pinned to the opposite side from where the page slide
+  opens space (it drew over the artwork instead of the black gap) — it
+  now sits on the side the next/prev chapter comes from, in both LTR
+  and RTL. The arm threshold is halved (400 → 200 px): overscroll
+  deltas are friction-damped, so arming needed far too much finger
+  travel. 276 tests green.
