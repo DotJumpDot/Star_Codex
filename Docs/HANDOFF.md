@@ -20,15 +20,17 @@
   green, analyze clean. Invariants: PLAN_NOTES 2026-10-23 (four
   sections: WAF ladder, hentaithai /page-N, tooling note, grid-label
   generation-time anchor).
-- **v1.4.2 (657dd74/a00ef55)**: paged-reader (หน้าต่อหน้า) pull polish —
-  the dot-trail indicator now sits in the space the page slide opens
-  (the side the next/prev chapter enters from, LTR and RTL; it used to
-  draw over the artwork on the opposite edge), and the arm threshold
-  is halved (400 → 200 px) because friction-damped overscroll made
-  400 need far too much finger travel. Webtoon/novel thresholds
-  (420/300) untouched — the user asked for the paged reader only.
-  Review pass skipped by user request ("u change just little if test
-  pass that ok").
+- **v1.4.2 (657dd74/ac98007/a00ef55)**: reader pull polish — the
+  dot-trail indicator now sits in the space the page slide opens (the
+  side the next/prev chapter enters from, LTR and RTL; it used to draw
+  over the artwork on the opposite edge), and the arm threshold is
+  unified at 200 px in EVERY reader (paged was 400, webtoon 420,
+  novel 300 — friction-damped overscroll made the old values need far
+  too much finger travel). The webtoon/novel halving arrived in a
+  same-session follow-up (ac98007) and the v1.4.2 asset was REPLACED
+  in place (same tag/versionCode — uninstall-once caveat in the
+  notes). Review pass skipped by user request for both batches ("u
+  change just little if test pass that ok").
 - **v1.4.1 (a780836/d0f4282)**: browse/search card dates froze at the
   site's cache-generation labels ("4 วินาที" for days on fin/up) — the
   ts homepages ride WP Fastest Cache behind the Cloudflare edge

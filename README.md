@@ -203,11 +203,11 @@ Star_Codex/
 
 ## 📜 Status
 
-**v1.4.2 (2026-10-23)** — paged-reader (หน้าต่อหน้า) pull polish. The
-drag-to-switch-chapter indicator now sits in the space the page slide
-opens (the side the next/previous chapter comes from) instead of over
-the artwork, and the swipe distance to trigger the switch is halved
-(400 → 200 px). All 11 build phases are complete; every batch landed
+**v1.4.2 (2026-10-23)** — reader pull polish. The drag-to-switch-chapter
+indicator now sits in the space the page slide opens (the side the
+next/previous chapter comes from) instead of over the artwork, and the
+swipe distance to trigger the switch drops to 200 px in every reader
+(was 420/400/300). All 11 build phases are complete; every batch landed
 as a commit with a `- [x] item complete` checklist (see
 [CHANGELOG.md](./CHANGELOG.md) for the full history).
 
