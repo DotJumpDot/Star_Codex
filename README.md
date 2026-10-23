@@ -146,7 +146,7 @@ Requires Android 7.0+ (API 24).
 > **Upgrading from a debug/test build?** Uninstall it first — release
 > builds are signed with a different key.
 
-See [what changed in v1.4.1](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.4.1).
+See [what changed in v1.4.2](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.4.2).
 
 ## 🛠️ Tech stack
 
@@ -202,6 +202,14 @@ Star_Codex/
 ```
 
 ## 📜 Status
+
+**v1.4.2 (2026-10-23)** — paged-reader (หน้าต่อหน้า) pull polish. The
+drag-to-switch-chapter indicator now sits in the space the page slide
+opens (the side the next/previous chapter comes from) instead of over
+the artwork, and the swipe distance to trigger the switch is halved
+(400 → 200 px). All 11 build phases are complete; every batch landed
+as a commit with a `- [x] item complete` checklist (see
+[CHANGELOG.md](./CHANGELOG.md) for the full history).
 
 **v1.4.1 (2026-10-23)** — patch: real update dates. The sites' homepages
 are served from long-lived caches, so their relative labels ("4 วินาที")
