@@ -20,17 +20,20 @@
   green, analyze clean. Invariants: PLAN_NOTES 2026-10-23 (four
   sections: WAF ladder, hentaithai /page-N, tooling note, grid-label
   generation-time anchor).
-- **v1.4.2 (657dd74/ac98007/a00ef55)**: reader pull polish — the
-  dot-trail indicator now sits in the space the page slide opens (the
-  side the next/prev chapter enters from, LTR and RTL; it used to draw
-  over the artwork on the opposite edge), and the arm threshold is
-  unified at 200 px in EVERY reader (paged was 400, webtoon 420,
-  novel 300 — friction-damped overscroll made the old values need far
-  too much finger travel). The webtoon/novel halving arrived in a
-  same-session follow-up (ac98007) and the v1.4.2 asset was REPLACED
-  in place (same tag/versionCode — uninstall-once caveat in the
-  notes). Review pass skipped by user request for both batches ("u
-  change just little if test pass that ok").
+- **v1.4.2 (657dd74/ac98007/3ee819d/a00ef55)**: reader pull polish —
+  the dot-trail indicator now sits in the space the page slide opens
+  (the side the next/prev chapter enters from, LTR and RTL; it used to
+  draw over the artwork on the opposite edge), and the arm threshold
+  is tuned down against the shipped build: 160 px in the paged
+  (side-slide) reader, 200 px in webtoon and novel (was 400/420/300 —
+  friction-damped overscroll made the old values need far too much
+  finger travel, and with the slide + visible trail a shallow arm is
+  safe). The webtoon/novel lowering (ac98007) and the paged 160 tune
+  (3ee819d) arrived in same-session follow-ups and the v1.4.2 asset
+  was REPLACED in place each time (same tag/versionCode —
+  uninstall-once caveat in the notes). Review pass skipped by user
+  request for all batches ("u change just little if test pass that
+  ok").
 - **v1.4.1 (a780836/d0f4282)**: browse/search card dates froze at the
   site's cache-generation labels ("4 วินาที" for days on fin/up) — the
   ts homepages ride WP Fastest Cache behind the Cloudflare edge

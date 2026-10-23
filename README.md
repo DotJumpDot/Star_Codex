@@ -206,8 +206,9 @@ Star_Codex/
 **v1.4.2 (2026-10-23)** — reader pull polish. The drag-to-switch-chapter
 indicator now sits in the space the page slide opens (the side the
 next/previous chapter comes from) instead of over the artwork, and the
-swipe distance to trigger the switch drops to 200 px in every reader
-(was 420/400/300). All 11 build phases are complete; every batch landed
+swipe distance to trigger the switch is tuned down — 160 px in the
+paged (side-slide) reader, 200 px in webtoon and novel (was
+420/400/300). All 11 build phases are complete; every batch landed
 as a commit with a `- [x] item complete` checklist (see
 [CHANGELOG.md](./CHANGELOG.md) for the full history).
 
