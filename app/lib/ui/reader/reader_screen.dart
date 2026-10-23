@@ -78,7 +78,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   Chapter? _prev;
   bool _prevKnown = false;
   bool _prevLookup = false;
-  final _pull = PullChapterTracker(threshold: 420);
+  // 200 (unified with the paged reader on 2026-10-23 — user asked all
+  // readers at 200 after the paged halving felt right).
+  final _pull = PullChapterTracker(threshold: 200);
 
   /// Scroll offset sampled during an active pull — the delta between
   /// samples shrinks the pull once the finger reverses back into

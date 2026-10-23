@@ -758,10 +758,16 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   now sits on the side the next/prev chapter comes from, in both LTR
   and RTL. The arm threshold is halved (400 → 200 px): overscroll
   deltas are friction-damped, so arming needed far too much finger
-  travel. 276 tests green.
+  travel. Same-session follow-up: the webtoon (420 → 200) and novel
+  (300 → 200) readers unified at 200 too, and the v1.4.2 asset was
+  REPLACED in place (same tag, same versionCode 19 — users who
+  installed the first v1.4.2 build must uninstall/reinstall; nobody
+  outside the author had it yet). 276 tests green.
 - 2026-10-23 — Release: v1.4.2 — version 1.4.2+19. The paged-reader
   pull polish as a patch release: the drag-to-switch dot-trail
   indicator now sits in the space the page slide opens (the side the
   next/prev chapter comes from) instead of drawing over the artwork,
-  and the arm threshold is halved (400 → 200 px) so a normal-length
-  swipe is enough. 276 tests green.
+  and the arm threshold drops to 200 px in every reader (paged was
+  400, webtoon 420, novel 300) so a normal-length swipe is enough.
+  Asset replaced in place after the webtoon/novel follow-up. 276
+  tests green.
