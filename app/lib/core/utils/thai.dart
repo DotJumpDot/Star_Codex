@@ -22,6 +22,23 @@ double? parseChapterNumber(String raw) {
 String formatChapterNumber(double n) =>
     n == n.roundToDouble() ? n.toInt().toString() : '$n';
 
+/// Chapter titles repeat the number (`ตอนที่ 155 ชื่อตอน`) — strip the
+/// leading prefix so a row that re-appends the canonical number doesn't
+/// read "ตอนที่ 155  ตอนที่ 155". Null when nothing is left after the
+/// strip (title was empty or number-only).
+String? stripChapterNumberPrefix(String? title) {
+  if (title == null) return null;
+  final stripped = title.replaceFirst(
+    RegExp(
+      r'^\s*[-–]?\s*(?:ตอนที่|ตอน|chapter|ch\.?)\s*[:#]?\s*[\d.]+\s*[-–:]?\s*',
+      caseSensitive: false,
+    ),
+    '',
+  );
+  final trimmed = stripped.trim();
+  return trimmed.isEmpty ? null : trimmed;
+}
+
 const _thaiMonths = {
   'มกราคม': 1, 'กุมภาพันธ์': 2, 'มีนาคม': 3, 'เมษายน': 4,
   'พฤษภาคม': 5, 'มิถุนายน': 6, 'กรกฎาคม': 7, 'สิงหาคม': 8,

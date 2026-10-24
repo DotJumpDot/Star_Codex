@@ -391,11 +391,20 @@ class _HistoryCover extends ConsumerStatefulWidget {
 class _HistoryCoverState extends ConsumerState<_HistoryCover> {
   Future<BlobRow?>? _future;
 
+  /// The hash [_future] was resolved for. Without this check, a recycled
+  /// list element kept the PREVIOUS row's cover future and the new row
+  /// rendered manga A's art under manga B's title (user report
+  /// 2026-10-24) — same guard as _CardCoverState in library_card.dart.
+  String? _futureHash;
+
   @override
   Widget build(BuildContext context) {
     final hash = widget.row.coverHash;
     if (hash == null) return _placeholder(context);
-    _future ??= ref.read(blobStoreProvider).blobRow(hash);
+    if (_future == null || _futureHash != hash) {
+      _futureHash = hash;
+      _future = ref.read(blobStoreProvider).blobRow(hash);
+    }
     final dir = ref.watch(libraryDirProvider);
     return FutureBuilder<BlobRow?>(
       future: _future,

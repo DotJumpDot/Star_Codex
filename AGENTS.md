@@ -112,7 +112,10 @@ Also append lines to [`CHANGELOG.md`](CHANGELOG.md) per batch.
   `-no-window` (app installs persist across reboots; a GUI exit code of
   2816 usually just means the user closed the window) — or just run
   `scripts\boot-emu.bat [ramMB]`, which does exactly that (windowed
-  boot, no CPU/RAM caps). A leftover HEADLESS qemu holds the AVD lock
+  boot, no CPU/RAM caps, ALWAYS a cold boot — a quick-boot snapshot
+  restored under a different host GPU state corrupts the guest GL stack
+  and Flutter/Impeller renders BLACK while system UI is fine,
+  2026-10-24). A leftover HEADLESS qemu holds the AVD lock
   and a second launch dies with "Running multiple emulators" — kill it
   first (`taskkill //PID <qemu> //F`).
 - When the host is busy (user gaming etc.), boot via

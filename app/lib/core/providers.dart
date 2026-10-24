@@ -7,6 +7,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../data/dao/blobs_dao.dart';
 import '../data/dao/chapters_dao.dart';
+import '../data/dao/feed_anchor_dao.dart';
 import '../data/dao/library_dao.dart';
 import '../data/dao/search_history_dao.dart';
 import '../data/dao/series_dao.dart';
@@ -50,6 +51,8 @@ final searchHistoryDaoProvider =
 final downloadsDaoProvider =
     Provider((ref) => DownloadsDao(ref.watch(dbProvider)));
 final historyDaoProvider = Provider((ref) => HistoryDao(ref.watch(dbProvider)));
+final feedAnchorDaoProvider =
+    Provider((ref) => FeedAnchorDao(ref.watch(dbProvider)));
 
 /// Mutable holder so Settings can enable/disable/reorder sources at
 /// runtime (doc 14 DoD: a disabled source leaves browse/search/fallback
@@ -125,6 +128,7 @@ final browseRepoProvider = Provider((ref) => BrowseRepo(
       historyDao: ref.watch(searchHistoryDaoProvider),
       pipeline: ref.watch(imagePipelineProvider),
       seriesRepo: ref.watch(seriesRepoProvider),
+      feedAnchors: ref.watch(feedAnchorDaoProvider),
     ));
 
 /// Active tab index — shared so detail screens can jump to Browse

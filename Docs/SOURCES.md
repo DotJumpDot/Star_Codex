@@ -17,8 +17,8 @@ the other 7. Adult sources never appear in the main feed and vice versa
 |---|---|---|---|---|---|---|
 | go-manga.com | main | Madara (ts) | ✅ | ✅ family A | ✅ | |
 | slow-manga.net | main | Madara (ts) | ✅ | ✅ family B | ✅ | grid is chapter-linked |
-| up-manga.com | main | Madara (ts) | ✅ | ✅ family A | ⚠️ Cloudflare | search endpoint 403s |
-| dark-manga.com | main | Madara (ts) | ✅ | ✅ family A | 🚫 Cloudflare | 2026-10-23: whole site behind the challenge — the WAF ladder's webview tier auto-solves it (verified on-device) |
+| up-manga.com | main | Madara (ts) | ✅ | ✅ family A | ✅ | 2026-10-24: search rides the WAF ladder (was 403 pre-ladder) |
+| dark-manga.com | main | Madara (ts) | ✅ | ✅ family A | ✅ | 2026-10-23: whole site behind the challenge — the WAF ladder's webview tier auto-solves it; 2026-10-24: search re-enabled on the same clearance |
 | fin-manga.com | main | Madara (ts) | ✅ | ✅ family A | ✅ | archive order drifts A–Z; 2026-10-23: WPFC lazy covers (data-wpfc-original-src) |
 | bully-manga.com | main | custom static | ✅ | ❌ **open** | ✅ | needs its own grid port |
 | nekopost.net | main | JSON API | ✅ | n/a (API) | ✅ | the only novel carrier |
@@ -68,8 +68,9 @@ and then to fetch-now — see `core/utils/page_time.dart` and PLAN_NOTES
   chapter-linked, so stamps are borrowed by title.
 - **go-manga** — series URLs are `/<slug>/` (no prefix).
 - **up-manga / dark-manga** — `?s=` (search) sits behind a Cloudflare
-  challenge: the app gets a 403, browsing still works. `searchSupported`
-  is `false` in the config.
+  challenge (plain 403 pre-ladder, 2026-10-17). Since the WAF ladder
+  escalates the HOST on the CF-signed 403, search rides cronet/webview
+  like every other page — `searchSupported` is `true` again (2026-10-24).
 - **fin-manga** — `/manga/?order=update` intermittently serves A–Z
   instead of newest-first. The homepage grid is the reliable order
   source, which is exactly why v1.3.0 leads with it.
@@ -192,9 +193,9 @@ PLAN_NOTES 2026-10-23):
   the source row in Settings → one tap opens the visible verification
   page; after that the headless WebView takes over again.
 
-`up-manga`'s `?s=` search 403 is a CF challenge too, but search there
-stays off (`searchSupported: false`) — the ladder is for whole-site
-reachability, not per-endpoint toggling.
+`up-manga`'s `?s=` search 403 is a CF challenge too — since v1.4.0 it
+escalates the host up the ladder like any other page, so search is on
+(`searchSupported: true` since 2026-10-24).
 
 ## When a site breaks
 

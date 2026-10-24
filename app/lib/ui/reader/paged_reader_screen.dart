@@ -62,6 +62,13 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   Animation<double>? _routeAnimation;
   bool _routeHooked = false;
 
+  /// Late immersive re-assert (webtoon reader, user report 2026-10-24:
+  /// MIUI re-showed the bars after most chapter switches). Runs when the
+  /// entrance animation completes — the outgoing reader's dispose
+  /// (wakelock churn + route teardown) lands exactly there and can
+  /// override this screen's initState assert.
+  Timer? _reassertTimer;
+
   /// True while the CURRENT page's image is zoomed in (user report
   /// 2026-10-21: while zoomed, stray drags slipped into page slides).
   /// PageView physics freeze until the image returns to 1x — the zoomed
@@ -147,11 +154,23 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
     } catch (_) {}
   }
 
+  /// Re-apply the current bars state now and once after the outgoing
+  /// reader's dispose has definitely run (see [_reassertTimer]).
+  void _reassertSystemBars() {
+    _setImmersive(_barsHidden);
+    _reassertTimer?.cancel();
+    _reassertTimer = Timer(const Duration(milliseconds: 900), () {
+      if (mounted) _setImmersive(_barsHidden);
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     _setImmersive(true);
-    if (_keepAwake) _setAwake(true);
+    // Explicit set, not just an enable — same handover rule as the
+    // webtoon reader.
+    _setAwake(_keepAwake);
     WidgetsBinding.instance.addPostFrameCallback((_) => _open());
   }
 
@@ -451,6 +470,9 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   void _onRouteStatus(AnimationStatus status) {
     if (status == AnimationStatus.reverse && _barsHidden) {
       _setImmersive(false);
+    } else if (status == AnimationStatus.completed) {
+      // Entrance settled — see the webtoon reader (MIUI bars re-show).
+      _reassertSystemBars();
     }
   }
 
@@ -471,15 +493,18 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   void dispose() {
     _pageController?.dispose();
     _startedTimer?.cancel();
+    _reassertTimer?.cancel();
     _routeAnimation?.removeStatusListener(_onRouteStatus);
     // Replacement exits (chapter/mode switch) never run reverse — those
     // still restore here; pop exits already restored at reverse-start.
     // EXCEPT reader→reader handovers: the successor re-asserted
-    // immersive in its initState, and this dispose fires only after the
-    // new route's entrance animation, so restoring here would bring the
-    // system bars BACK (user report 2026-10-23).
+    // immersive in its initState (and re-asserts again when its entrance
+    // settles), so restoring here would bring the system bars BACK
+    // (user report 2026-10-23).
     if (_barsHidden && !readerHandsOverSystemBars) _setImmersive(false);
-    _setAwake(false);
+    // Same handover rule — the late window-flag churn was the likely
+    // bars re-show trigger on MIUI (user report 2026-10-24).
+    if (!readerHandsOverSystemBars) _setAwake(false);
     super.dispose();
   }
 
@@ -627,6 +652,7 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
                   visible: _chromeVisible,
                   title: _seriesTitle ?? widget.chapter.title ?? '',
                   sourceName: loaded.chapter.sourceId,
+                  chapterLabel: readerChapterLabel(context, loaded.chapter),
                   onBack: () => Navigator.of(context).pop(),
                   onTitle: () {
                     Navigator.of(context).push(

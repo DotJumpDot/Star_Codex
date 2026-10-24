@@ -56,14 +56,20 @@ const madaraConfigs = [
     name: 'Up-Manga',
     baseUrl: 'https://www.up-manga.com',
     seriesUnderMangaPrefix: true,
-    searchSupported: false, // Cloudflare on ?s= (2026-10-17)
+    // ?s= was 403-blocked pre-ladder (2026-10-17); the WAF ladder
+    // (v1.4.0) escalates the HOST on the CF-signed 403, so search rides
+    // cronet/webview like every other page now (user report 2026-10-24:
+    // search showed this source as dead).
+    searchSupported: true,
   ),
   MadaraSiteConfig(
     id: 'dark-manga',
     name: 'Dark Manga',
     baseUrl: 'https://www.dark-manga.com',
     seriesUnderMangaPrefix: false,
-    searchSupported: false, // Cloudflare on ?s= (2026-10-17)
+    // Whole site sits behind the challenge and browse already clears it
+    // via the ladder — search on the same host rides the same clearance.
+    searchSupported: true,
   ),
   MadaraSiteConfig(
     id: 'fin-manga',

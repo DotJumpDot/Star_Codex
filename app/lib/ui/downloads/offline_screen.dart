@@ -310,12 +310,18 @@ class _OfflineCover extends ConsumerStatefulWidget {
 
 class _OfflineCoverState extends ConsumerState<_OfflineCover> {
   Future<BlobRow?>? _future;
+  String? _futureHash;
 
   @override
   Widget build(BuildContext context) {
     final hash = widget.hash;
     if (hash == null) return _placeholder(context);
-    _future ??= ref.read(blobStoreProvider).blobRow(hash);
+    // Recycled list elements must re-resolve for the new row (stale
+    // future = previous series' cover under this row's title).
+    if (_future == null || _futureHash != hash) {
+      _futureHash = hash;
+      _future = ref.read(blobStoreProvider).blobRow(hash);
+    }
     final dir = ref.watch(libraryDirProvider);
     return FutureBuilder<BlobRow?>(
       future: _future,

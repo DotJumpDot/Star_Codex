@@ -234,17 +234,6 @@ class _ChapterRow extends ConsumerWidget {
   }
 
   /// Chapter titles repeat the number (`ตอนที่ 155`) — strip it so the row
-  /// doesn't read "ตอนที่ 155  ตอนที่ 155".
-  String? _stripNumberPrefix(String? title) {
-    if (title == null) return null;
-    final stripped = title.replaceFirst(
-      RegExp(
-        r'^\s*[-–]?\s*(?:ตอนที่|ตอน|chapter|ch\.?)\s*[:#]?\s*[\d.]+\s*[-–:]?\s*',
-        caseSensitive: false,
-      ),
-      '',
-    );
-    final trimmed = stripped.trim();
-    return trimmed.isEmpty ? null : trimmed;
-  }
+  /// doesn't read "ตอนที่ 155  ตอนที่ 155" (shared with the reader chrome).
+  String? _stripNumberPrefix(String? title) => stripChapterNumberPrefix(title);
 }

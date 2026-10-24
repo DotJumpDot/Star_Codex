@@ -5,7 +5,7 @@ import 'package:sqflite/sqflite.dart';
 /// Single SQLite database (Plan/02). All timestamps are milliseconds since
 /// epoch (int). Migrations append only: bump [dbVersion], add a `case` in
 /// [onUpgrade] — never edit v1 statements after shipping.
-const dbVersion = 9;
+const dbVersion = 10;
 const dbFileName = 'manga_reader.db';
 
 class DbException implements Exception {
@@ -160,6 +160,25 @@ Future<Database> openDb(
             await db.execute(
                 "UPDATE sources SET enabled = 1 "
                 "WHERE id IN ('doujin-lc', 'miku-doujin')");
+            continue next8; // chain to v10
+          // v10 (2026-10-24, sticky feed time anchors): per (source,
+          // series) the latest-chapter hint + update stamp the feed last
+          // saw. fin/dark serve WP-cache copies whose relative labels
+          // stay "2 นาที" for 10+ hours — without this table every
+          // refetch re-anchored the stamp at fetch-now and the feed froze
+          // on a wrong "just updated" age (user report). No FKs: feed
+          // tiles need not be materialized series.
+          next8:
+          case 9:
+            await db.execute('''
+              CREATE TABLE feed_anchors(
+                source_id    TEXT NOT NULL,
+                series_url   TEXT NOT NULL,
+                chapter_hint INTEGER,
+                stamp_ms     INTEGER NOT NULL,
+                updated_at   INTEGER NOT NULL,
+                PRIMARY KEY (source_id, series_url)
+              )''');
           // Future migrations append cases here: `case 1: ...; continue next;`
           default:
             break;
@@ -320,6 +339,15 @@ const _schemaSql = [
   CREATE TABLE search_history(
     query TEXT PRIMARY KEY,
     at    INTEGER NOT NULL
+  )''',
+  '''
+  CREATE TABLE feed_anchors(
+    source_id    TEXT NOT NULL,
+    series_url   TEXT NOT NULL,
+    chapter_hint INTEGER,
+    stamp_ms     INTEGER NOT NULL,
+    updated_at   INTEGER NOT NULL,
+    PRIMARY KEY (source_id, series_url)
   )''',
 ];
 

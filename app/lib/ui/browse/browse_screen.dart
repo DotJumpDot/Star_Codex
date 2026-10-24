@@ -83,6 +83,14 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
+          // Exit search mode (user report 2026-10-24: once a search ran,
+          // the tab was stuck on the results — no way back to the feed).
+          if (state.mode == BrowseMode.search)
+            IconButton(
+              icon: const Icon(Icons.close),
+              tooltip: t(context, 'browse.search_clear'),
+              onPressed: controller.clearSearch,
+            ),
           // Left of the site filter (user QA 2026-10-18): re-runs whatever
           // is showing — latest feed, search, or genre view.
           IconButton(

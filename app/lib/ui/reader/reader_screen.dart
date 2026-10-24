@@ -93,6 +93,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   /// finished or the screen is disposed.
   Timer? _startedTimer;
 
+  /// Late immersive re-assert (user report 2026-10-24: on MIUI the bars
+  /// came back after most chapter switches and stayed). Scheduled when
+  /// the entrance animation completes — the OUTGOING reader's teardown
+  /// (wakelock flag churn + route surface disposal) lands at that exact
+  /// moment and can re-show the bars after this screen's initState
+  /// assert; the delayed re-application wins whatever raced.
+  Timer? _reassertTimer;
+
   final _scroll = ScrollController();
 
   /// In-flight page futures for THIS chapter. Without the memo, the
@@ -178,6 +186,19 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     } catch (_) {}
   }
 
+  /// Re-apply the current bars state: once immediately and once more
+  /// after the outgoing reader's dispose has definitely run (its
+  /// wakelock/route teardown is what re-shows them on MIUI). Reading
+  /// [_barsHidden] (not a hardcoded value) keeps a future chrome-driven
+  /// bars change honest.
+  void _reassertSystemBars() {
+    _setImmersive(_barsHidden);
+    _reassertTimer?.cancel();
+    _reassertTimer = Timer(const Duration(milliseconds: 900), () {
+      if (mounted) _setImmersive(_barsHidden);
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -185,7 +206,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       ref.read(settingsProvider).get('reader_crop_ch${widget.chapter.id}', ''),
     );
     _setImmersive(true);
-    if (_keepAwake) _setAwake(true);
+    // Explicit set, not just an enable: on a reader→reader handover the
+    // successor must be able to DISABLE what the predecessor left on
+    // (keepAwake flipped off in the drawer before the switch).
+    _setAwake(_keepAwake);
     WidgetsBinding.instance.addPostFrameCallback((_) => _open());
   }
 
@@ -764,6 +788,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   void _onRouteStatus(AnimationStatus status) {
     if (status == AnimationStatus.reverse && _barsHidden) {
       _setImmersive(false);
+    } else if (status == AnimationStatus.completed) {
+      // Entrance settled (first push AND reader→reader replacements).
+      // The outgoing reader's dispose runs right here on a replacement;
+      // its teardown can re-show the bars after our initState assert
+      // (MIUI, user report 2026-10-24) — re-assert now and once more
+      // shortly after.
+      _reassertSystemBars();
     }
   }
 
@@ -771,15 +802,20 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   void dispose() {
     _scroll.dispose();
     _startedTimer?.cancel();
+    _reassertTimer?.cancel();
     _routeAnimation?.removeStatusListener(_onRouteStatus);
     // Replacement exits (chapter/mode switch) never run reverse — those
     // still restore here; pop exits already restored at reverse-start.
     // EXCEPT reader→reader handovers: the successor re-asserted
-    // immersive in its initState, and this dispose fires only after the
-    // new route's entrance animation, so restoring here would bring the
-    // system bars BACK (user report 2026-10-23).
+    // immersive in its initState (and re-asserts again when its entrance
+    // settles), so restoring here would bring the system bars BACK
+    // (user report 2026-10-23).
     if (_barsHidden && !readerHandsOverSystemBars) _setImmersive(false);
-    _setAwake(false);
+    // Same handover rule: the successor owns the wakelock now (its
+    // initState applies its own setting). A late disable here would not
+    // just kill it — the window-flag churn is what re-shows the system
+    // bars on some OEM shells.
+    if (!readerHandsOverSystemBars) _setAwake(false);
     super.dispose();
   }
 
@@ -922,6 +958,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   visible: _chromeVisible,
                   title: _seriesTitle ?? widget.chapter.title ?? '',
                   sourceName: loaded.chapter.sourceId,
+                  chapterLabel: readerChapterLabel(context, loaded.chapter),
                   onBack: () => Navigator.of(context).pop(),
                   onTitle: () {
                     Navigator.of(context).push(

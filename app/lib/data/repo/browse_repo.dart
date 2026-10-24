@@ -3,6 +3,7 @@ import 'dart:async';
 import '../../core/utils/title_match.dart';
 import '../../core/utils/title_norm.dart';
 import '../dao/chapters_dao.dart';
+import '../dao/feed_anchor_dao.dart';
 import '../dao/library_dao.dart';
 import '../dao/search_history_dao.dart';
 import '../dao/series_dao.dart';
@@ -36,6 +37,7 @@ class BrowseRepo {
     required this.historyDao,
     required this.seriesRepo,
     this.pipeline,
+    this.feedAnchors,
   });
 
   final List<Source> sources;
@@ -48,6 +50,10 @@ class BrowseRepo {
 
   /// Null in unit tests that don't exercise cover downloads.
   final ImagePipeline? pipeline;
+
+  /// Null in unit tests that don't exercise sticky feed time anchors
+  /// (db v10) — [latest] then keeps the raw adapter stamps.
+  final FeedAnchorDao? feedAnchors;
 
   Source? sourceById(String id) {
     for (final s in sources) {
@@ -96,6 +102,7 @@ class BrowseRepo {
       _active(onlySourceIds),
       (s) => s.latest(page: page, popular: popular),
     );
+    await _stickifyStamps(results);
     // Latest feed keeps append order: each site's listing is already
     // newest-first (or popularity-ordered when [popular] — server-side,
     // probed 2026-10-20); sources are interleaved (Plan/05 drift
@@ -104,6 +111,55 @@ class BrowseRepo {
       groups: mergeIntoGroups(const [], _candidates(results)),
       failures: _failures(results),
     );
+  }
+
+  /// Sticky time anchors (user report 2026-10-24 — see [stickyStamp] /
+  /// FeedAnchorDao): fin/dark serve WP-cache copies whose relative labels
+  /// stay "2 นาที" for 10+ hours; without this every refetch re-anchored
+  /// the stamp at fetch-now and the feed froze on a wrong "just updated"
+  /// age. Best-effort: any DB hiccup leaves the raw stamps untouched.
+  Future<void> _stickifyStamps(List<_SourceResult> results) async {
+    final anchors = feedAnchors;
+    if (anchors == null) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    for (final r in results) {
+      if (r.error != null) continue;
+      for (var i = 0; i < r.items.length; i++) {
+        final item = r.items[i];
+        final stamp = item.lastUpdatedMs;
+        if (stamp == null) continue;
+        try {
+          final stored = await anchors.get(r.source.id, item.url);
+          final adjusted = stickyStamp(
+            storedHint: stored?.chapterHint,
+            storedStampMs: stored?.stampMs,
+            newHint: item.chapterCountHint,
+            newStampMs: stamp,
+          );
+          await anchors.upsert(
+            r.source.id,
+            item.url,
+            // A tile that lost its chapter pill this round must not wipe
+            // the stored identity — stickiness survives on the old hint.
+            chapterHint: item.chapterCountHint ?? stored?.chapterHint,
+            stampMs: adjusted,
+            atMs: now,
+          );
+          if (adjusted != stamp) {
+            r.items[i] = SourceSeries(
+              url: item.url,
+              title: item.title,
+              coverUrl: item.coverUrl,
+              chapterCountHint: item.chapterCountHint,
+              type: item.type,
+              lastUpdatedMs: adjusted,
+            );
+          }
+        } catch (_) {
+          // anchors are an improvement, never a feed failure
+        }
+      }
+    }
   }
 
   /// Offline catalog (user request 2026-10-21): the series rows the user

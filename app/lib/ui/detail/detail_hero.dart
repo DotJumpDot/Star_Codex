@@ -34,6 +34,7 @@ class DetailCover extends ConsumerStatefulWidget {
 
 class _DetailCoverState extends ConsumerState<DetailCover> {
   Future<BlobRow?>? _future;
+  String? _futureHash;
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +42,13 @@ class _DetailCoverState extends ConsumerState<DetailCover> {
     if (hash != null) {
       final blobs = ref.watch(blobStoreProvider);
       final dir = ref.watch(libraryDirProvider);
-      _future ??= blobs.blobRow(hash);
+      // Re-resolve when the series identity under this element changes
+      // (same guard as _CardCoverState — a stale future would keep the
+      // previous series' cover).
+      if (_future == null || _futureHash != hash) {
+        _futureHash = hash;
+        _future = blobs.blobRow(hash);
+      }
       return FutureBuilder<BlobRow?>(
         future: _future,
         builder: (context, snap) {

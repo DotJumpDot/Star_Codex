@@ -774,3 +774,25 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   a normal-length swipe is enough. Asset replaced in place after the
   follow-ups. 276
   tests green.
+- 2026-10-24 — Fixes: five-report round from the phone + emulator. (1)
+  The system bars coming back after most chapter switches (MIUI only):
+  the readers now re-assert immersive when their entrance animation
+  settles and once more ~900 ms later, and the outgoing reader's wakelock
+  disable is handover-guarded — the window-flag churn at dispose was the
+  likely re-show trigger; needs on-phone confirmation (MIUI does not
+  reproduce on the emulator). (2) Sticky feed time anchors (db v10):
+  fin/dark serve WP-cache copies whose "2 นาที" labels stayed frozen for
+  10+ hours; the feed now remembers each series' latest-chapter + stamp,
+  keeps aging an unchanged chapter from the first-seen moment, and only
+  re-anchors when the chapter actually changes or the site corrects.
+  (3) History rows could show manga A's art under manga B's title —
+  recycled cover widgets kept the previous row's cached blob future;
+  the hash guard now covers history, offline catalog, updates sheet,
+  and the detail hero. (4) up-manga / dark-manga search re-enabled —
+  the WAF ladder carries the challenged `?s=` endpoint, so search no
+  longer shows those two as dead. (5) The reader top bar now leads its
+  subtitle with the chapter number + name before "จาก <source>"
+  (truncation keeps the source visible), and the browse search results
+  got an X button to return to the latest feed. Also: boot-emu.bat now
+  always cold-boots — a quick-boot snapshot corrupted guest GL and
+  black-screened the app on the emulator. 287 tests green.

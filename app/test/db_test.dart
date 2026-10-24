@@ -41,6 +41,7 @@ void main() {
       'downloads',
       'settings',
       'search_history',
+      'feed_anchors',
     };
     expect(names.difference(expected), isEmpty,
         reason: 'unexpected extra tables');
@@ -103,6 +104,7 @@ void main() {
     // schema (see the v4 note above about duplicate columns).
     await v1.execute('DROP TABLE blob_urls');
     await v1.execute('DROP TABLE page_bands');
+    await v1.execute('DROP TABLE feed_anchors');
     await v1.setVersion(1);
     await v1.close();
 
@@ -135,6 +137,15 @@ void main() {
       'fetched_at': 1,
     });
     expect(await db.query('blob_urls'), hasLength(1));
+    // v10 creates the sticky feed time anchors.
+    await db.insert('feed_anchors', {
+      'source_id': 'fin-manga',
+      'series_url': 'https://www.fin-manga.com/x/',
+      'chapter_hint': 69,
+      'stamp_ms': 1000,
+      'updated_at': 2000,
+    });
+    expect(await db.query('feed_anchors'), hasLength(1));
     await db.close();
   });
 

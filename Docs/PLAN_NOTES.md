@@ -1415,3 +1415,69 @@ next-older 24 — DESCENDING page numbers, discovered live 2026-10-23.
   hentaithai upload dates come from absolute CDN path dates, bully has
   no grid. `parseSiteDate` (detail/archive pages) is untouched — those
   pages carry date-only/absolute strings, no relative labels.
+
+## 2026-10-24 — Five-fix round: immersive re-assert, sticky feed anchors, cover hash-guard, search on up/dark, chrome chapter label
+
+User phone (Redmi Note 11 4G, MIUI/Android 13) + emulator reports, all
+repro'd or root-caused from code:
+
+- **System bars came back after MOST chapter switches (phone only,
+  never the emulator).** Every reader→reader replacement already goes
+  through `replaceReaderRoute` and the dispose restore is handover-guarded
+  (2026-10-23), but the bars still returned and STAYED. Remaining
+  trigger: the outgoing reader's dispose runs the moment the successor's
+  entrance completes, and its teardown — the wakelock platform call
+  (`FLAG_KEEP_SCREEN_ON` churn) + route surface disposal — can re-show
+  the bars AFTER the successor's initState assert, and nothing re-hid
+  them. MIUI is the shell that loses that race. FIX (belt + suspenders):
+  the readers now hook the route animation's `completed` status and
+  RE-ASSERT the current bars state immediately and again ~900 ms later
+  (`_reassertTimer`, cancelled in dispose — covers the first push from
+  detail too); the dispose wakelock disable is now also handover-guarded,
+  and the successor's initState uses an explicit `_setAwake(_keepAwake)`
+  (not enable-only) so a handover from a keep-awake-on reader to an
+  off one still lands OFF. The bars bug itself can only be judged on the
+  user's phone (MIUI is not reproducible on the emulator).
+- **Sticky feed time anchors (db v10, `feed_anchors`).** fin-manga and
+  dark-manga serve WP-cache copies whose relative labels stay "2 นาที"
+  for 10+ hours; the 2026-10-23 anchor fix made the VALUE true when the
+  edge serves an honestly-stale copy, but these hosts flip between fresh
+  and stale copies per request, and every stale refetch re-anchored the
+  stamp at fetch-now (feed froze on a wrong "just updated" age). The
+  user's own rule, implemented: remember per (source, series) the
+  latest-chapter hint + stamp (`.fivchap` chapter number is the identity);
+  when the hint is UNCHANGED keep the OLDER of the two stamps — a fresh
+  page's label converges to the same absolute moment (min is a no-op)
+  while a stale copy's re-anchored "2 นาที" is discarded; a changed hint
+  re-anchors. Stored stamps age forward at render time naturally. Missing
+  identity on either side falls back to the new stamp; a tile that lost
+  its pill must not wipe the stored hint. `BrowseRepo.latest` applies it
+  (`_stickifyStamps`, best-effort); search/genre pages are untouched.
+  Pure rule in `stickyStamp` (feed_anchor_dao.dart) + DAO tests.
+- **Cover/title mismatch on history rows** (manga A under manga B's
+  art): `_HistoryCoverState` cached its `blobRow` future with `??=`,
+  so a recycled list element kept the PREVIOUS row's blob. The guard
+  (`_futureHash != hash`) already existed on library cards — now on
+  history covers, offline-catalog covers, updates-sheet covers, and the
+  detail hero (identity change re-resolves).
+- **up-manga / dark-manga search re-enabled.** `?s=` 403'd pre-ladder
+  (configs had `searchSupported: false` since 2026-10-17) and search
+  showed both sources as dead. The WAF ladder escalates the HOST on any
+  CF-signed 403, so search rides cronet/webview like every other page —
+  both flags true (2026-10-24), SOURCES.md updated. Emulator-verified:
+  search runs, no error chips, both sources alive in feed + search.
+- **Reader chrome chapter label.** The webtoon/paged top bar said only
+  "จาก `<source>`" — after a drag-to-continue switch there was no telling
+  which chapter you landed on. New `chapterLabel` param: "ตอนที่ N" +
+  stripped chapter name (shared `stripChapterNumberPrefix` in thai.dart —
+  chapter_list's private copy delegates), rendered as a Row with the
+  chapter part in the ellipsizing Expanded and the source tail as a
+  separate non-truncating Text (user: "จาก go-manga" must stay visible).
+  Novel reader already showed the number; untouched.
+- **Emulator black screen (environment, not app):** a quick-boot
+  snapshot restored under a different host GPU state corrupts the guest
+  GL stack — system UI renders, Flutter's Impeller GLES draws BLACK
+  (both debug and release; airplane-mode A/B ruled the webview lane out;
+  cold boot with `-gpu swiftshader_indirect` renders fine).
+  `scripts/boot-emu.bat` now always passes `-no-snapshot` (installs
+  persist across cold boots anyway). AGENTS.md env section updated.
