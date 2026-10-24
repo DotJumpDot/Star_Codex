@@ -146,7 +146,7 @@ Requires Android 7.0+ (API 24).
 > **Upgrading from a debug/test build?** Uninstall it first — release
 > builds are signed with a different key.
 
-See [what changed in v1.4.2](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.4.2).
+See [what changed in v1.4.3](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.4.3).
 
 ## 🛠️ Tech stack
 
@@ -202,6 +202,18 @@ Star_Codex/
 ```
 
 ## 📜 Status
+
+**v1.4.3 (2026-10-24)** — fix round from on-phone reports: system bars
+no longer return after chapter switches on MIUI (re-assert at entrance
+settle), feed update times keep aging truthfully on sites that serve
+stale cached copies (sticky anchors, db v10), search cards show the
+intro text (borrowing a sibling site's synopsis when the primary has
+none), Up-Manga/Dark-Manga search works again (rides the request
+ladder), search results got a clear button, the reader top bar shows
+the chapter ("ตอนที่ 628 · จาก dark-manga"), and recycled list rows can
+no longer show another series' cover. All 11 build phases are complete;
+every batch landed as a commit with a `- [x] item complete` checklist
+(see [CHANGELOG.md](./CHANGELOG.md) for the full history).
 
 **v1.4.2 (2026-10-23)** — reader pull polish. The drag-to-switch-chapter
 indicator now sits in the space the page slide opens (the side the

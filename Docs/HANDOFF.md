@@ -1,13 +1,13 @@
 # HANDOFF — read this first in a new conversation
 
-> Last updated 2026-10-23 (v1.4.2 release). Written originally 2026-10-17
+> Last updated 2026-10-24 (v1.4.3 release). Written originally 2026-10-17
 > when the folder was renamed `C:\Code\Manga_Reader` → `C:\Code\StarCodex`.
 
 ## Where things stand
 
 - **The app is built, QA'd, and released.** All 11 plan phases completed
   (2026-10-17), four user-driven UX rounds + the Doujin (18+) page
-  landed (2026-10-18/19), and **v1.0.0 → v1.4.2 are live on GitHub
+  landed (2026-10-18/19), and **v1.0.0 → v1.4.3 are live on GitHub
   Releases** (release-signed `StarCodex-<version>.apk`).
 - **ALL 11 sources are live and enabled by default** (db v9): main feed
   = go-manga, slow-manga, up-manga, dark-manga, fin-manga (Madara/ts),
@@ -20,6 +20,27 @@
   green, analyze clean. Invariants: PLAN_NOTES 2026-10-23 (four
   sections: WAF ladder, hentaithai /page-N, tooling note, grid-label
   generation-time anchor).
+- **v1.4.3 (e02914c/a549622/20fbd53/bbda11d/d9119b6)**: the five-fix
+  round from the user's phone + emulator QA. (1) MIUI bars re-show
+  after reader→reader switches: readers re-assert the bars state when
+  the entrance animation settles + once more ~900 ms later
+  (`_reassertTimer`), the dispose wakelock disable is
+  handover-guarded, successors apply their own keep-awake explicitly —
+  and the post-batch review pass caught the resulting novel-reader
+  wakelock leak (novel dispose now disables unconditionally). On-phone
+  confirmation still pending. (2) Sticky feed time anchors (db v10
+  `feed_anchors` + `stickyStamp`): an unchanged chapter hint keeps the
+  OLDER stamp so fin/dark stale WP-cache copies ("2 นาที" for 10+ h)
+  can no longer re-freeze the label; changed/first-seen re-anchors.
+  (3) Cover blob-future hash guard on history/offline/updates/detail
+  (recycled rows showed another series' art). (4) up-manga +
+  dark-manga search re-enabled (the WAF ladder carries the challenged
+  `?s=`). (5) Reader chrome subtitle = "ตอนที่ N <name> · จาก
+  <source>" (loose Flexible, source never truncates) + browse search
+  ✕. Plus bbda11d: search cards show intro text (materialize class 3,
+  cap 20/pass unmemoized + sibling description fallback ≤2 tries).
+  Emulator black screen root-caused to a restored-snapshot GL
+  corruption — boot-emu.bat always cold-boots now. 290 tests.
 - **v1.4.2 (657dd74/ac98007/3ee819d/a00ef55)**: reader pull polish —
   the dot-trail indicator now sits in the space the page slide opens
   (the side the next/prev chapter enters from, LTR and RTL; it used to

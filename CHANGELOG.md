@@ -805,4 +805,10 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   background backfill covers dated+covered cards that never got opened
   (bounded at 20 per pass), and when a series' primary site writes no
   synopsis the card borrows a sibling member's (go-manga-empty /
-  bully-or-up-has-it, user ask). Emulator-verified on a fresh search.
+  bully-or-up-has-it, user ask). Emulator-verified on a fresh search.- 2026-10-24 — Release: v1.4.3 — version 1.4.3+20. The five-fix round
+  as a patch release: MIUI bars re-assert after chapter switches,
+  sticky feed time anchors (db v10), search-card intro text with
+  sibling-synopsis fallback, Up/Dark-Manga search via the ladder, the
+  search ✕ button, the "ตอนที่ N · จาก <source>" reader subtitle, and
+  the cover-recycling guard — plus the review-pass catch (novel-reader
+  wakelock leak) landed in the release commit itself. 290 tests green.
