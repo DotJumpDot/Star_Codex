@@ -1,13 +1,13 @@
 # HANDOFF — read this first in a new conversation
 
-> Last updated 2026-10-24 (v1.4.3 release). Written originally 2026-10-17
+> Last updated 2026-10-24 (v1.4.4 release). Written originally 2026-10-17
 > when the folder was renamed `C:\Code\Manga_Reader` → `C:\Code\StarCodex`.
 
 ## Where things stand
 
 - **The app is built, QA'd, and released.** All 11 plan phases completed
   (2026-10-17), four user-driven UX rounds + the Doujin (18+) page
-  landed (2026-10-18/19), and **v1.0.0 → v1.4.3 are live on GitHub
+  landed (2026-10-18/19), and **v1.0.0 → v1.4.4 are live on GitHub
   Releases** (release-signed `StarCodex-<version>.apk`).
 - **ALL 11 sources are live and enabled by default** (db v9): main feed
   = go-manga, slow-manga, up-manga, dark-manga, fin-manga (Madara/ts),
@@ -20,6 +20,14 @@
   green, analyze clean. Invariants: PLAN_NOTES 2026-10-23 (four
   sections: WAF ladder, hentaithai /page-N, tooling note, grid-label
   generation-time anchor).
+- **v1.4.4 (6a4549a..78f71d7, rel 5c76ddc)**: chapter-list polish —
+  dateless rows show "ไม่ระบุวันที่" at full two-line height, and dates
+  are AGE-CODED on a hue ladder derived from the theme accent: <1 day
+  raw accent, then even hue steps week/month/yellow(<3 mo)/orange(3-6
+  mo)/deep orange(to 1 y), red variants for 1 y / 2-3 y / 3-4 y, grey
+  past 4 y (user iterated 4 rounds: equal heights first, centering
+  reverted for a visible label, grey-outline rejected as indistinct on
+  OLED, hue ladder remapped twice). MIUI bars fix CONFIRMED on-phone.
 - **v1.4.3 (e02914c/a549622/20fbd53/bbda11d/d9119b6)**: the five-fix
   round from the user's phone + emulator QA. (1) MIUI bars re-show
   after reader→reader switches: readers re-assert the bars state when

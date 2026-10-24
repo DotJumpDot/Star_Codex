@@ -146,7 +146,7 @@ Requires Android 7.0+ (API 24).
 > **Upgrading from a debug/test build?** Uninstall it first — release
 > builds are signed with a different key.
 
-See [what changed in v1.4.3](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.4.3).
+See [what changed in v1.4.4](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.4.4).
 
 ## 🛠️ Tech stack
 
@@ -202,6 +202,14 @@ Star_Codex/
 ```
 
 ## 📜 Status
+
+**v1.4.4 (2026-10-24)** — chapter-list polish: dateless chapters show
+"ไม่ระบุวันที่" at full row height, and update dates are color-coded by
+age on a theme-derived ladder (accent for fresh, drifting warm through
+yellow/orange to red variants across the years). All 11 build phases
+are complete; every batch landed as a commit with a `- [x] item
+complete` checklist (see [CHANGELOG.md](./CHANGELOG.md) for the full
+history).
 
 **v1.4.3 (2026-10-24)** — fix round from on-phone reports: system bars
 no longer return after chapter switches on MIUI (re-assert at entrance
