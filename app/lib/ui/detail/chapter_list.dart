@@ -147,7 +147,15 @@ class _ChapterRow extends ConsumerWidget {
       // screen edge.
       minLeadingWidth: 0,
       horizontalTitleGap: 12,
-      contentPadding: const EdgeInsets.only(left: 16, right: 16),
+      // Dateless rows have no subtitle, which would collapse the tile to
+      // one line — visibly SHORTER than dated chapters (user report
+      // 2026-10-24, ch.57/58). Symmetric vertical padding instead keeps
+      // the row at the two-line height AND lets ListTile natively center
+      // the title + read-dot in it (a placeholder subtitle left the
+      // title top-anchored and dragged the dot up — user follow-up).
+      contentPadding: dateText == null
+          ? const EdgeInsets.symmetric(vertical: 8, horizontal: 16)
+          : const EdgeInsets.only(left: 16, right: 16),
       leading: Padding(
         padding: const EdgeInsets.only(right: 2),
         child: ChapterStateDot(state: readState),
@@ -173,12 +181,7 @@ class _ChapterRow extends ConsumerWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      // A single-space subtitle when the date is missing: an empty
-      // subtitle makes ListTile collapse to one line, so dateless
-      // chapters rendered visibly SHORTER than dated ones (user report
-      // 2026-10-24, ch.57/58 vs the rest). The space lays out with the
-      // same font metrics as a real date → identical row height.
-      subtitle: Text(dateText ?? ' '),
+      subtitle: dateText == null ? null : Text(dateText),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

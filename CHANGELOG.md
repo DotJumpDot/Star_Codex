@@ -812,8 +812,11 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   sibling-synopsis fallback, Up/Dark-Manga search via the ladder, the
   search ✕ button, the "ตอนที่ N · จาก <source>" reader subtitle, and
   the cover-recycling guard — plus the review-pass catch (novel-reader
-  wakelock leak) landed in the release commit itself. 290 tests green.- 2026-10-24 — Polish: dateless chapter rows are two-line height now.
-  A missing date collapsed the ListTile to one line, so chapters
-  without an upload stamp rendered visibly shorter than dated ones
-  (user report, ch.57/58 vs the rest); a single-space subtitle keeps
-  every row the same height. 290 tests green.
+  wakelock leak) landed in the release commit itself. 290 tests green.- 2026-10-24 — Polish: dateless chapter rows are two-line height now
+  and their title + read-dot sit vertically CENTERED in the row (user
+  follow-up after the first fix left the title top-anchored). A missing
+  date collapsed the ListTile to one line; the row now grows via
+  symmetric content padding instead of a placeholder subtitle, so
+  ListTile centers everything natively. Verified by exact row bounds
+  from the UI dump: every chapter row is 168 px on the emulator, dated
+  or not. 290 tests green.
