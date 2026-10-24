@@ -147,15 +147,7 @@ class _ChapterRow extends ConsumerWidget {
       // screen edge.
       minLeadingWidth: 0,
       horizontalTitleGap: 12,
-      // Dateless rows have no subtitle, which would collapse the tile to
-      // one line — visibly SHORTER than dated chapters (user report
-      // 2026-10-24, ch.57/58). Symmetric vertical padding instead keeps
-      // the row at the two-line height AND lets ListTile natively center
-      // the title + read-dot in it (a placeholder subtitle left the
-      // title top-anchored and dragged the dot up — user follow-up).
-      contentPadding: dateText == null
-          ? const EdgeInsets.symmetric(vertical: 8, horizontal: 16)
-          : const EdgeInsets.only(left: 16, right: 16),
+      contentPadding: const EdgeInsets.only(left: 16, right: 16),
       leading: Padding(
         padding: const EdgeInsets.only(right: 2),
         child: ChapterStateDot(state: readState),
@@ -181,7 +173,21 @@ class _ChapterRow extends ConsumerWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      subtitle: dateText == null ? null : Text(dateText),
+      // No date → say so: an empty subtitle collapsed the tile to one
+      // line, so dateless chapters rendered visibly SHORTER than dated
+      // ones (user report 2026-10-24, ch.57/58; the centering and
+      // invisible-placeholder attempts were reverted — the user prefers
+      // honest text). The placeholder line also keeps every row at the
+      // two-line height, tinted with the theme's outline color so it
+      // reads as "empty" rather than data (user request).
+      subtitle: dateText == null
+          ? Text(
+              t(context, 'detail.no_date'),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.outline,
+              ),
+            )
+          : Text(dateText),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

@@ -79,6 +79,7 @@
   "detail.origin.thailand": "ไทย",
   "detail.origin.other": "อื่น ๆ",
   "detail.chapter_number": "ตอนที่ {n}",
+  "detail.no_date": "ไม่ระบุวันที่",
   "detail.sort.newest": "สลับเป็นใหม่ไปเก่า",
   "detail.sort.oldest": "สลับเป็นเก่าไปใหม่",
   "detail.search_chapters": "ค้นหาตอน",

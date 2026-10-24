@@ -819,4 +819,9 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   symmetric content padding instead of a placeholder subtitle, so
   ListTile centers everything natively. Verified by exact row bounds
   from the UI dump: every chapter row is 168 px on the emulator, dated
-  or not. 290 tests green.
+  or not. 290 tests green.- 2026-10-24 — Polish (final form): dateless chapter rows say
+  "ไม่ระบุวันที่" (No date) in the theme's outline color instead of
+  collapsing to a short one-line row. Supersedes today's earlier
+  invisible-placeholder and vertical-centering attempts at the user's
+  direction — the visible placeholder keeps every row two-line and
+  tells you WHY there is no date. 290 tests green, analyze clean.
