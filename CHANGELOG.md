@@ -774,6 +774,8 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   a normal-length swipe is enough. Asset replaced in place after the
   follow-ups. 276
   tests green.
+- 2026-10-24 — Polish: the reader top bar's "จาก <source>" tail got a
+  12 px gap before the book-icon button (user: sat too close). Same day.
 - 2026-10-24 — Fixes: five-report round from the phone + emulator. (1)
   The system bars coming back after most chapter switches (MIUI only):
   the readers now re-assert immersive when their entrance animation

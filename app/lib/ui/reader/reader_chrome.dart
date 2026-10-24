@@ -118,6 +118,10 @@ class ReaderChrome extends StatelessWidget {
                       ),
                     ),
                   ),
+                  // Breathing room before the trailing buttons — the
+                  // subtitle's tail sat flush against the book icon
+                  // (user feedback 2026-10-24).
+                  const SizedBox(width: 12),
                   IconButton(
                     icon: Icon(Icons.menu_book, color: foreground),
                     tooltip: t(context, 'reader.chapter_picker'),
