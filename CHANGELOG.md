@@ -775,7 +775,11 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   follow-ups. 276
   tests green.
 - 2026-10-24 — Polish: the reader top bar's "จาก <source>" tail got a
-  12 px gap before the book-icon button (user: sat too close). Same day.
+  12 px gap before the book-icon button (user: sat too close), and the
+  subtitle now flows as one line — "ตอนที่ 628 · จาก dark-manga" — with
+  the source hugging the chapter text instead of pinning to the bar's
+  right edge (loose Flexible: short label = adjacent, long label still
+  ellipsizes the chapter first). Same day, user-approved.
 - 2026-10-24 — Fixes: five-report round from the phone + emulator. (1)
   The system bars coming back after most chapter switches (MIUI only):
   the readers now re-assert immersive when their entrance animation
