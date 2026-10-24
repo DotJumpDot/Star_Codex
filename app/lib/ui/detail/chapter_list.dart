@@ -240,29 +240,38 @@ class _ChapterRow extends ConsumerWidget {
   String? _stripNumberPrefix(String? title) => stripChapterNumberPrefix(title);
 
   /// Age-coded date color (user request 2026-10-24: "old to new need
-  /// unique color") — fresh chapters pop with the theme accent, the
-  /// current week gets the tertiary tone, then the default muted text,
-  /// and old chapters fade to a clearly DIMMER grey. Buckets mirror the
-  /// relative labels (hours / days / weeks / months+). The no-date
-  /// placeholder shares the oldest bucket. NOTE: outline is NOT used
-  /// for the old bucket — on the user's OLED themes it is nearly
-  /// identical to onSurfaceVariant, which made months-old and weeks-old
-  /// indistinguishable; an alpha-dimmed onSurface reads clearly.
+  /// unique color"). A HUE LADDER derived from the theme's accent, not
+  /// a grey fade: fresh = the accent itself, then the hue drifts toward
+  /// yellow → orange → red as the chapter ages (classic heatmap), and
+  /// only truly ANCIENT chapters (1 year+) grey out. Boundaries are
+  /// wide enough for real libraries — user follow-up: months-old vs
+  /// 3-4-YEAR-old chapters must not share a bucket, and the old end
+  /// must stay colorful instead of two indistinguishable greys (the
+  /// OLED outline/variant greys were twins).
   Color _dateColor(BuildContext context, int? uploadedAtMs) {
     final scheme = Theme.of(context).colorScheme;
     if (uploadedAtMs == null) {
       return scheme.onSurfaceVariant.withValues(alpha: 0.45);
     }
     final ageMs = DateTime.now().millisecondsSinceEpoch - uploadedAtMs;
+    // Hue shifts are relative to the accent so every theme family gets
+    // its own ladder (green accent → yellow/orange/red; blue accent →
+    // purple/magenta/red), always reading "drifting warm with age".
+    final hsl = HSLColor.fromColor(scheme.primary);
+    Color drift(double degrees) =>
+        hsl.withHue((hsl.hue + degrees + 360) % 360).toColor();
     if (ageMs < const Duration(hours: 24).inMilliseconds) {
-      return scheme.primary;
+      return scheme.primary; // today-ish: the accent, full strength
     }
     if (ageMs < const Duration(days: 7).inMilliseconds) {
-      return scheme.tertiary;
+      return drift(-30); // this week
     }
     if (ageMs < const Duration(days: 30).inMilliseconds) {
-      return scheme.onSurfaceVariant;
+      return drift(-70); // this month
     }
-    return scheme.onSurfaceVariant.withValues(alpha: 0.45);
+    if (ageMs < const Duration(days: 365).inMilliseconds) {
+      return drift(-110); // this year (1-12 months)
+    }
+    return scheme.onSurfaceVariant.withValues(alpha: 0.45); // 1 year+
   }
 }
