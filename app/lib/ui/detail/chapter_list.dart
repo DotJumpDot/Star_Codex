@@ -173,7 +173,12 @@ class _ChapterRow extends ConsumerWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      subtitle: dateText == null ? null : Text(dateText),
+      // A single-space subtitle when the date is missing: an empty
+      // subtitle makes ListTile collapse to one line, so dateless
+      // chapters rendered visibly SHORTER than dated ones (user report
+      // 2026-10-24, ch.57/58 vs the rest). The space lays out with the
+      // same font metrics as a real date → identical row height.
+      subtitle: Text(dateText ?? ' '),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
