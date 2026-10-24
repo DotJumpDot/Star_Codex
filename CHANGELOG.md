@@ -839,4 +839,9 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   week / month / yellow at 3 months / orange at 3-6 months / deep
   orange to a year — and three distinct red variants for 1 year,
   2-3 years, and 3-4 years, greying out past 4 years. 290 tests
-  green, analyze clean.
+  green, analyze clean.- 2026-10-24 — Release: v1.4.4 — version 1.4.4+21. Chapter list
+  polish: dateless rows say "ไม่ระบุวันที่" at full two-line height,
+  and dates are age-coded on a hue ladder derived from the theme
+  accent (under a day raw accent → week → month → yellow → orange →
+  red variants through 4 years → grey). MIUI bars fix confirmed
+  on-phone. 290 tests green, analyze clean.
