@@ -27,8 +27,8 @@
   (`_reassertTimer`), the dispose wakelock disable is
   handover-guarded, successors apply their own keep-awake explicitly —
   and the post-batch review pass caught the resulting novel-reader
-  wakelock leak (novel dispose now disables unconditionally). On-phone
-  confirmation still pending. (2) Sticky feed time anchors (db v10
+  wakelock leak (novel dispose now disables unconditionally). CONFIRMED on-phone
+  2026-10-24 (user: "no system tab bug now"). (2) Sticky feed time anchors (db v10
   `feed_anchors` + `stickyStamp`): an unchanged chapter hint keeps the
   OLDER stamp so fin/dark stale WP-cache copies ("2 นาที" for 10+ h)
   can no longer re-freeze the label; changed/first-seen re-anchors.

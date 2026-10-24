@@ -1436,8 +1436,8 @@ repro'd or root-caused from code:
   detail too); the dispose wakelock disable is now also handover-guarded,
   and the successor's initState uses an explicit `_setAwake(_keepAwake)`
   (not enable-only) so a handover from a keep-awake-on reader to an
-  off one still lands OFF. The bars bug itself can only be judged on the
-  user's phone (MIUI is not reproducible on the emulator).
+  off one still lands OFF. The bars bug itself could only be judged on the
+  user's phone — CONFIRMED FIXED on-phone 2026-10-24.
 - **Sticky feed time anchors (db v10, `feed_anchors`).** fin-manga and
   dark-manga serve WP-cache copies whose relative labels stay "2 นาที"
   for 10+ hours; the 2026-10-23 anchor fix made the VALUE true when the

@@ -781,7 +781,8 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   right edge (loose Flexible: short label = adjacent, long label still
   ellipsizes the chapter first). Same day, user-approved.
 - 2026-10-24 — Fixes: five-report round from the phone + emulator. (1)
-  The system bars coming back after most chapter switches (MIUI only):
+  The system bars coming back after most chapter switches (MIUI only;
+  confirmed fixed on-phone 2026-10-24):
   the readers now re-assert immersive when their entrance animation
   settles and once more ~900 ms later, and the outgoing reader's wakelock
   disable is handover-guarded — the window-flag churn at dispose was the
