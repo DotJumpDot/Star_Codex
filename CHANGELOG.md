@@ -801,4 +801,8 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   (truncation keeps the source visible), and the browse search results
   got an X button to return to the latest feed. Also: boot-emu.bat now
   always cold-boots — a quick-boot snapshot corrupted guest GL and
-  black-screened the app on the emulator. 287 tests green.
+  black-screened the app on the emulator. 287 tests green.- 2026-10-24 — Search cards show the intro text (เรื่องย่อ) now: the
+  background backfill covers dated+covered cards that never got opened
+  (bounded at 20 per pass), and when a series' primary site writes no
+  synopsis the card borrows a sibling member's (go-manga-empty /
+  bully-or-up-has-it, user ask). Emulator-verified on a fresh search.

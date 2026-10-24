@@ -360,4 +360,12 @@ class SeriesDao {
       whereArgs: [ids[j]],
     );
   }
+
+  /// Targeted description write (sibling backfill — browse_repo's
+  /// background pass): the rest of the row must not be touched.
+  Future<void> setDescription(int id, String description) => db.update(
+      'series',
+      {'description': description},
+      where: 'id = ?',
+      whereArgs: [id]);
 }

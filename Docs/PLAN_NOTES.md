@@ -1474,6 +1474,19 @@ repro'd or root-caused from code:
   chapter part in the ellipsizing Expanded and the source tail as a
   separate non-truncating Text (user: "จาก go-manga" must stay visible).
   Novel reader already showed the number; untouched.
+- **Search/browse cards show the intro text now (class 3 + sibling
+  fallback).** Cards only carried a description after being OPENED once
+  (rows carry it; listings don't), and the background materialize pass
+  skipped fresh-dated, covered cards entirely — the user's exact
+  screenshot. `materializeIncompleteGroups` grew a third class: dated +
+  covered + UNDESCRIBED → the same one-detail-fetch backfill (bounded:
+  `maxDescriptionBackfill = 20`/pass, capped cards stay UNMEMOIZED so a
+  later pass picks them up). When the PRIMARY member's site writes no
+  synopsis, one sibling member's detail is fetched description-only
+  (≤2 tries) and persisted onto the row — go-manga's empty intro must
+  not hide bully/up's (user's exact ask). Emulator-verified: the same
+  "solo" search showed intros on cards ~90 s after the results, none of
+  them visited before.
 - **Emulator black screen (environment, not app):** a quick-boot
   snapshot restored under a different host GPU state corrupts the guest
   GL stack — system UI renders, Flutter's Impeller GLES draws BLACK

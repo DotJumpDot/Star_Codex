@@ -543,6 +543,10 @@ void main() {
           'Fresh Card',
           nowMs - const Duration(hours: 1).inMilliseconds,
         );
+        // Class 3 (2026-10-24) now detail-fetches fresh UNDESCRIBED cards;
+        // this test is about the DATE re-check window, so the fresh card
+        // must be COMPLETE (dated + described) to stay skipped.
+        fresh.dbDescription = 'intro already here';
 
         await repo.materializeIncompleteGroups([stale, fresh], budget: 0);
         expect(
@@ -869,5 +873,175 @@ void main() {
       expect(one, isNot(two));
       expect(await seriesDao.findByTitleNorm(''), isNull); // never ''
     });
+    test(
+        'class 3: a dated, covered, UNDESCRIBED card gets the intro text',
+        () async {
+          // User report 2026-10-24: fresh search cards showed no intro
+          // while their detail pages had one — the pass only touched
+          // undated or stale cards. A recent-dated card with a cover and
+          // no description must now be materialized too.
+          final now = DateTime.now().millisecondsSinceEpoch;
+          final src = FakeSource(
+            'slow-manga',
+            searchResults: {
+              'q': [
+                SourceSeries(
+                  url: 'https://a/hero/',
+                  title: 'Desc Hero',
+                  coverUrl: 'https://a/c.jpg',
+                  lastUpdatedMs: now - 3600000, // 1 h old — NOT stale
+                ),
+              ],
+            },
+            details: {
+              'https://a/hero/': SourceSeriesDetail(
+                title: 'Desc Hero',
+                description: 'The intro text.',
+                chapters: [
+                  const SourceChapter(
+                    url: 'https://a/hero/c1/',
+                    title: 'ตอนที่ 1',
+                    number: 1,
+                  ),
+                ],
+              ),
+            },
+          );
+          final repo = repoWith([src]);
+          final page = await repo.search('q');
+          expect(page.groups.single.lastUpdatedMs, isNotNull,
+              reason: 'precondition: the card is dated (old rule skipped it)');
+          expect(page.groups.single.dbDescription, isNull);
+          await repo.materializeIncompleteGroups(page.groups, budget: 0);
+          expect(src.detailCalls, 1);
+          expect(page.groups.single.dbDescription, 'The intro text.');
+        });
+
+    test(
+        'class 3 fallback: empty primary synopsis borrows a sibling',
+        () async {
+          // User's exact ask: go-manga writes no synopsis while bully/up
+          // do — the card must show whoever HAS one. Primary = most
+          // chapters (slow-manga, 100 > 90); its detail carries NO
+          // description; the go-manga sibling's does.
+          final now = DateTime.now().millisecondsSinceEpoch;
+          final a = FakeSource(
+            'slow-manga',
+            searchResults: {
+              'q': [
+                SourceSeries(
+                  url: 'https://a/hero/',
+                  title: 'Hero',
+                  chapterCountHint: 100,
+                  coverUrl: 'https://a/c.jpg',
+                  lastUpdatedMs: now - 3600000,
+                ),
+              ],
+            },
+            details: {
+              'https://a/hero/': SourceSeriesDetail(
+                title: 'Hero',
+                chapters: [
+                  const SourceChapter(
+                    url: 'https://a/hero/c100/',
+                    title: 'ตอนที่ 100',
+                    number: 100,
+                  ),
+                ],
+              ),
+            },
+          );
+          final b = FakeSource(
+            'go-manga',
+            searchResults: {
+              'q': [
+                SourceSeries(
+                  url: 'https://b/hero/',
+                  title: 'hero (แปลไทย)',
+                  chapterCountHint: 90,
+                  coverUrl: 'https://b/c.jpg',
+                  lastUpdatedMs: now - 3600000,
+                ),
+              ],
+            },
+            details: {
+              'https://b/hero/': SourceSeriesDetail(
+                title: 'hero (แปลไทย)',
+                description: 'Sibling synopsis.',
+                chapters: [
+                  const SourceChapter(
+                    url: 'https://b/hero/c90/',
+                    title: 'ตอนที่ 90',
+                    number: 90,
+                  ),
+                ],
+              ),
+            },
+          );
+          final repo = repoWith([a, b]);
+          final page = await repo.search('q');
+          expect(page.groups, hasLength(1),
+              reason: 'the two tiles merge into one group');
+          await repo.materializeIncompleteGroups(page.groups, budget: 0);
+          expect(a.detailCalls, 1, reason: 'primary detail fetched');
+          expect(b.detailCalls, 1,
+              reason: 'exactly one sibling description fetch');
+          expect(page.groups.single.dbDescription, 'Sibling synopsis.');
+        });
+
+    test(
+        'class 3 cap: at most maxDescriptionBackfill per pass, rest on '
+        'the next pass (unmemoized)', () async {
+          final now = DateTime.now().millisecondsSinceEpoch;
+          const total = BrowseRepo.maxDescriptionBackfill + 5;
+          // Deliberately DISSIMILAR titles — jaro-winkler fuses "Cap Card
+          // 0/1/2…" into ONE group and the cap would have nothing to
+          // bound (the 16-name trick from the date-backfill test, grown).
+          const names = [
+            'Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot',
+            'Golf', 'Hotel', 'India', 'Juliet', 'Kilo', 'Lima', 'Mike',
+            'November', 'Oscar', 'Papa', 'Quebec', 'Romeo', 'Sierra',
+            'Tango', 'Uniform', 'Victor', 'Whiskey', 'Xray', 'Yankee',
+            'Zulu',
+          ];
+          final src = FakeSource(
+            'slow-manga',
+            searchResults: {
+              'q': [
+                for (var i = 0; i < total; i++)
+                  SourceSeries(
+                    url: 'https://a/$i/',
+                    title: names[i],
+                    coverUrl: 'https://a/c$i.jpg',
+                    lastUpdatedMs: now - 3600000,
+                  ),
+              ],
+            },
+            details: {
+              for (var i = 0; i < total; i++)
+                'https://a/$i/': SourceSeriesDetail(
+                  title: names[i],
+                  description: 'intro $i',
+                  chapters: [
+                    SourceChapter(
+                      url: 'https://a/$i/c1/',
+                      title: 'ตอนที่ 1',
+                      number: 1,
+                    ),
+                  ],
+                ),
+            },
+          );
+          final repo = repoWith([src]);
+          final page = await repo.search('q');
+          expect(page.groups, hasLength(total));
+          await repo.materializeIncompleteGroups(page.groups, budget: 0);
+          expect(src.detailCalls, BrowseRepo.maxDescriptionBackfill,
+              reason: 'the pass stops at the cap');
+          await repo.materializeIncompleteGroups(page.groups, budget: 0);
+          expect(src.detailCalls, total,
+              reason: 'capped cards were NOT memoized — the next pass '
+                  'picks up the remainder');
+        });
   });
 }

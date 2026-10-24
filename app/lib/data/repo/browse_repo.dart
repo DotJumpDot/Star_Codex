@@ -273,7 +273,7 @@ class BrowseRepo {
     }
   }
 
-  /// Background pass over two classes of card:
+  /// Background pass over three classes of card:
   ///
   /// 1. INCOMPLETE — missing a date or cover ([SearchGroup
   ///    .needsMaterialization]): run the same path as opening the card —
@@ -288,6 +288,11 @@ class BrowseRepo {
   ///    the site's own tile said "16 ชั่วโมงที่แล้ว" (user report
   ///    2026-10-22: ts/madara listing tiles carry no timestamps, so the
   ///    detail chapters are the only fresh date signal).
+  /// 3. UNDESCRIBED — dated and covered, but no intro text (the common
+  ///    fresh-search card; user report 2026-10-24): the detail fetch the
+  ///    other classes run is the only place a description exists —
+  ///    without this class such cards NEVER showed the intro the user
+  ///    sees on the detail page. Bounded by [maxDescriptionBackfill].
   ///
   /// [onCardDone] receives each finished group so the caller can
   /// re-enrich JUST it (progressive re-render). A card is attempted at
@@ -299,6 +304,16 @@ class BrowseRepo {
   /// 2026-10-20: Overgeared on up/go-manga) — safe_http's per-host
   /// limiter is the real politeness gate. Workers run CONCURRENTLY (a
   /// strictly sequential pass dated ~1 card/second, 2026-10-20 report).
+  ///
+  /// Class 3 (user report 2026-10-24): a DATED, COVERED card whose
+  /// description is empty used to be skipped forever — the intro text the
+  /// user sees on the detail page never reached the card. Such cards are
+  /// now candidates too, capped at [maxDescriptionBackfill] per pass
+  /// (they are the common case on fresh search results, so the pass must
+  /// stay bounded; persistence means a later pass only sees the rest).
+  /// When the PRIMARY member's site writes no synopsis, ONE sibling
+  /// member's detail is fetched description-only (≤2 tries) — go-manga's
+  /// empty intro must not hide bully/up's (user's exact ask).
   Future<void> materializeIncompleteGroups(
     List<SearchGroup> groups, {
     int budget = 12,
@@ -308,16 +323,26 @@ class BrowseRepo {
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     final staleMs = staleAfter.inMilliseconds;
     final pending = <({SearchGroup group, bool crossProbe})>[];
+    var descriptionBackfill = 0;
     for (final g in groups) {
+      final crossProbe = g.needsMaterialization;
+      var descriptionOnly = false;
+      if (!crossProbe) {
+        final date = g.lastUpdatedMs;
+        final dated = date != null && nowMs - date < staleMs;
+        final described = (g.dbDescription ?? '').trim().isNotEmpty;
+        if (dated && described) continue; // complete — nothing to fetch
+        descriptionOnly = dated && !described; // class 3 (see doc above)
+        if (descriptionOnly && descriptionBackfill >= maxDescriptionBackfill) {
+          // Over the cap — left UNMEMOIZED so the next pass picks it up.
+          continue;
+        }
+      }
       final url = g.primary.url;
       final at = _materializedAt[url];
       if (at != null && nowMs - at < staleMs) continue;
       _materializedAt[url] = nowMs;
-      final crossProbe = g.needsMaterialization;
-      if (!crossProbe) {
-        final date = g.lastUpdatedMs;
-        if (date == null || nowMs - date < staleMs) continue;
-      }
+      if (descriptionOnly) descriptionBackfill++;
       pending.add((group: g, crossProbe: crossProbe));
     }
     var next = 0;
@@ -337,7 +362,14 @@ class BrowseRepo {
           if (row != null) {
             // EXACT row → card (no title-norm guessing): this is what puts
             // the newest-chapter date on a tile that carries none.
-            await _applyRowToGroup(g, row);
+            var fresh = row;
+            if (!rec.crossProbe && (row.description ?? '').trim().isEmpty) {
+              // Primary site writes no synopsis — try a sibling member's
+              // (user ask 2026-10-24: go-manga empty, bully/up have one).
+              await _backfillSiblingDescription(g, seriesId);
+              fresh = await seriesDao.byId(seriesId) ?? row;
+            }
+            await _applyRowToGroup(g, fresh);
             if (rec.crossProbe && budget > 0) {
               budget--;
               await seriesRepo.probeOtherSources(
@@ -374,6 +406,38 @@ class BrowseRepo {
   /// the site for a newer chapter (class 2 above). 6 h: site updates land
   /// in bursts; a refresh after this window corrects every lagging stamp.
   static const dateStaleAfter = Duration(hours: 6);
+
+  /// Class-3 cap (see [materializeIncompleteGroups]): description-less
+  /// dated cards processed per pass. Bounded so a fresh 40-card search
+  /// can't fire 40 detail fetches at once — persistence plus later
+  /// passes (pagination, revisits) pick up the remainder.
+  static const maxDescriptionBackfill = 20;
+
+  /// Description-only sibling fallback: the primary member's site wrote
+  /// no synopsis, so try up to 2 OTHER members' detail pages and persist
+  /// the first real one onto the row. No linking, no chapters — the
+  /// interactive open path owns full cross-source materialization.
+  Future<void> _backfillSiblingDescription(SearchGroup g, int seriesId) async {
+    final primarySid = g.primary.sourceId;
+    var tried = 0;
+    for (final m in g.members) {
+      if (m.sourceId == primarySid) continue;
+      if (tried >= 2) return;
+      tried++;
+      final source = sourceById(m.sourceId);
+      if (source == null) continue;
+      try {
+        final d = await source.detail(m.url);
+        final desc = d.description?.trim() ?? '';
+        if (desc.isNotEmpty) {
+          await seriesDao.setDescription(seriesId, desc);
+          return;
+        }
+      } catch (_) {
+        // best-effort — a dead sibling just leaves the card as-is
+      }
+    }
+  }
 
   /// Primary URL → last materialize attempt (ms epoch) this session.
   /// Filter toggles and pagination re-present the same cards constantly;
