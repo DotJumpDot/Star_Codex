@@ -827,7 +827,11 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   tells you WHY there is no date. 290 tests green, analyze clean.- 2026-10-24 — Chapter list dates are age-coded (user: "old to new
   need unique color"): under 24 h renders in the theme's primary
   accent, the current week in tertiary, then the default muted text,
-  and months-old fades to outline — all theme-defined, so it follows
-  whatever OLED family is active. The "ไม่ระบุวันที่" placeholder
-  shares the oldest bucket. Verified on the emulator across the four
-  buckets. 290 tests green, analyze clean.
+  and months-old fades to a clearly DIMMER grey — all theme-defined,
+  so it follows whatever OLED family is active. The "ไม่ระบุวันที่"
+  placeholder shares the oldest bucket. Follow-up: the first cut used
+  `outline` for the old bucket, which on the user's OLED theme is
+  nearly identical to the weeks-old grey — the old bucket now dims
+  `onSurfaceVariant` to 45 % instead, clearly distinct. Verified on the
+  emulator across the four buckets in one list. 290 tests green,
+  analyze clean.

@@ -242,12 +242,17 @@ class _ChapterRow extends ConsumerWidget {
   /// Age-coded date color (user request 2026-10-24: "old to new need
   /// unique color") — fresh chapters pop with the theme accent, the
   /// current week gets the tertiary tone, then the default muted text,
-  /// and old chapters fade to outline. Buckets mirror the relative
-  /// labels (hours / days / weeks / months+). The no-date placeholder
-  /// shares the oldest bucket.
+  /// and old chapters fade to a clearly DIMMER grey. Buckets mirror the
+  /// relative labels (hours / days / weeks / months+). The no-date
+  /// placeholder shares the oldest bucket. NOTE: outline is NOT used
+  /// for the old bucket — on the user's OLED themes it is nearly
+  /// identical to onSurfaceVariant, which made months-old and weeks-old
+  /// indistinguishable; an alpha-dimmed onSurface reads clearly.
   Color _dateColor(BuildContext context, int? uploadedAtMs) {
     final scheme = Theme.of(context).colorScheme;
-    if (uploadedAtMs == null) return scheme.outline;
+    if (uploadedAtMs == null) {
+      return scheme.onSurfaceVariant.withValues(alpha: 0.45);
+    }
     final ageMs = DateTime.now().millisecondsSinceEpoch - uploadedAtMs;
     if (ageMs < const Duration(hours: 24).inMilliseconds) {
       return scheme.primary;
@@ -258,6 +263,6 @@ class _ChapterRow extends ConsumerWidget {
     if (ageMs < const Duration(days: 30).inMilliseconds) {
       return scheme.onSurfaceVariant;
     }
-    return scheme.outline;
+    return scheme.onSurfaceVariant.withValues(alpha: 0.45);
   }
 }
