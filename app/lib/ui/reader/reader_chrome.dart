@@ -88,7 +88,11 @@ class ReaderChrome extends StatelessWidget {
                           ),
                           // The chapter label ellipsizes FIRST; the
                           // source tail always stays visible (user
-                          // request 2026-10-24).
+                          // request 2026-10-24). LOOSE fit: the source
+                          // hugs the chapter text when short instead of
+                          // pinning to the bar's right edge (follow-up
+                          // same day — the pinned look read as a weird
+                          // hole in the middle).
                           if (chapterLabel == null)
                             Text(
                               '${t(context, 'reader.from_source')} $sourceName',
@@ -99,7 +103,7 @@ class ReaderChrome extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.baseline,
                               textBaseline: TextBaseline.alphabetic,
                               children: [
-                                Expanded(
+                                Flexible(
                                   child: Text(
                                     chapterLabel!,
                                     maxLines: 1,
@@ -107,9 +111,9 @@ class ReaderChrome extends StatelessWidget {
                                     style: sourceLine,
                                   ),
                                 ),
-                                const SizedBox(width: 8),
+                                const SizedBox(width: 6),
                                 Text(
-                                  '${t(context, 'reader.from_source')} $sourceName',
+                                  '· ${t(context, 'reader.from_source')} $sourceName',
                                   style: sourceLine,
                                 ),
                               ],
