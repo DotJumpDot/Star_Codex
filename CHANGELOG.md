@@ -824,4 +824,10 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   collapsing to a short one-line row. Supersedes today's earlier
   invisible-placeholder and vertical-centering attempts at the user's
   direction — the visible placeholder keeps every row two-line and
-  tells you WHY there is no date. 290 tests green, analyze clean.
+  tells you WHY there is no date. 290 tests green, analyze clean.- 2026-10-24 — Chapter list dates are age-coded (user: "old to new
+  need unique color"): under 24 h renders in the theme's primary
+  accent, the current week in tertiary, then the default muted text,
+  and months-old fades to outline — all theme-defined, so it follows
+  whatever OLED family is active. The "ไม่ระบุวันที่" placeholder
+  shares the oldest bucket. Verified on the emulator across the four
+  buckets. 290 tests green, analyze clean.

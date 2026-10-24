@@ -133,7 +133,6 @@ class _ChapterRow extends ConsumerWidget {
       );
       dateText = tFmt(context, parts.key, parts.params);
     }
-
     return ListTile(
       dense: true,
       // The read-state circle sits in FRONT of the chapter title (user
@@ -173,21 +172,10 @@ class _ChapterRow extends ConsumerWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      // No date → say so: an empty subtitle collapsed the tile to one
-      // line, so dateless chapters rendered visibly SHORTER than dated
-      // ones (user report 2026-10-24, ch.57/58; the centering and
-      // invisible-placeholder attempts were reverted — the user prefers
-      // honest text). The placeholder line also keeps every row at the
-      // two-line height, tinted with the theme's outline color so it
-      // reads as "empty" rather than data (user request).
-      subtitle: dateText == null
-          ? Text(
-              t(context, 'detail.no_date'),
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.outline,
-              ),
-            )
-          : Text(dateText),
+      subtitle: Text(
+        dateText ?? t(context, 'detail.no_date'),
+        style: TextStyle(color: _dateColor(context, uploadedAt)),
+      ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -250,4 +238,26 @@ class _ChapterRow extends ConsumerWidget {
   /// Chapter titles repeat the number (`ตอนที่ 155`) — strip it so the row
   /// doesn't read "ตอนที่ 155  ตอนที่ 155" (shared with the reader chrome).
   String? _stripNumberPrefix(String? title) => stripChapterNumberPrefix(title);
+
+  /// Age-coded date color (user request 2026-10-24: "old to new need
+  /// unique color") — fresh chapters pop with the theme accent, the
+  /// current week gets the tertiary tone, then the default muted text,
+  /// and old chapters fade to outline. Buckets mirror the relative
+  /// labels (hours / days / weeks / months+). The no-date placeholder
+  /// shares the oldest bucket.
+  Color _dateColor(BuildContext context, int? uploadedAtMs) {
+    final scheme = Theme.of(context).colorScheme;
+    if (uploadedAtMs == null) return scheme.outline;
+    final ageMs = DateTime.now().millisecondsSinceEpoch - uploadedAtMs;
+    if (ageMs < const Duration(hours: 24).inMilliseconds) {
+      return scheme.primary;
+    }
+    if (ageMs < const Duration(days: 7).inMilliseconds) {
+      return scheme.tertiary;
+    }
+    if (ageMs < const Duration(days: 30).inMilliseconds) {
+      return scheme.onSurfaceVariant;
+    }
+    return scheme.outline;
+  }
 }
