@@ -1487,6 +1487,13 @@ repro'd or root-caused from code:
   not hide bully/up's (user's exact ask). Emulator-verified: the same
   "solo" search showed intros on cards ~90 s after the results, none of
   them visited before.
+- **Post-batch review catch (big-model pass, 2026-10-24):** the wakelock
+  handover guard made webtoon/paged SKIP their disable when switching
+  into the novel reader — and the novel reader never disabled it itself,
+  so exiting a novel reached that way left the screen awake forever.
+  Novel dispose now disables the wakelock unconditionally (successors
+  apply their own keep-awake in initState; a fresh novel open never
+  enabled it).
 - **Emulator black screen (environment, not app):** a quick-boot
   snapshot restored under a different host GPU state corrupts the guest
   GL stack — system UI renders, Flutter's Impeller GLES draws BLACK

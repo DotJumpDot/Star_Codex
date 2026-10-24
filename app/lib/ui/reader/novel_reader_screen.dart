@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemChrome, SystemUiMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../core/i18n/i18n.dart';
 import '../../core/providers.dart';
@@ -314,6 +315,15 @@ class _NovelReaderScreenState extends ConsumerState<NovelReaderScreen> {
   void dispose() {
     _scroll.dispose();
     _startedTimer?.cancel();
+    // The novel reader never enables the wakelock itself, but a
+    // webtoon/paged → novel handover SKIPS the predecessor's disable
+    // (readerHandsOverSystemBars — the successor owns the flags). Without
+    // this, exiting a novel reached that way left the screen awake
+    // forever (post-batch review catch, 2026-10-24). Unconditional: a
+    // successor reader applies its own keep-awake setting in initState.
+    try {
+      WakelockPlus.disable();
+    } catch (_) {}
     super.dispose();
   }
 
