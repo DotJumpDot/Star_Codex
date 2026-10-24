@@ -248,30 +248,49 @@ class _ChapterRow extends ConsumerWidget {
   /// 3-4-YEAR-old chapters must not share a bucket, and the old end
   /// must stay colorful instead of two indistinguishable greys (the
   /// OLED outline/variant greys were twins).
+  /// Age-coded date color (user request 2026-10-24). RAW theme accent
+  /// for under-a-day (user: "my theme color fully, not brighter"), then
+  /// a hue ladder in even steps toward red with NO lightening, and
+  /// three distinct red variants for the year bands (user: 1 year /
+  /// 2-3 years / 4 years+ need their own red). 4+ years eventually
+  /// greys out — nothing stays colorful forever.
   Color _dateColor(BuildContext context, int? uploadedAtMs) {
     final scheme = Theme.of(context).colorScheme;
     if (uploadedAtMs == null) {
       return scheme.onSurfaceVariant.withValues(alpha: 0.45);
     }
     final ageMs = DateTime.now().millisecondsSinceEpoch - uploadedAtMs;
-    // Hue shifts are relative to the accent so every theme family gets
-    // its own ladder (green accent → yellow/orange/red; blue accent →
-    // purple/magenta/red), always reading "drifting warm with age".
     final hsl = HSLColor.fromColor(scheme.primary);
     Color drift(double degrees) =>
         hsl.withHue((hsl.hue + degrees + 360) % 360).toColor();
-    if (ageMs < const Duration(hours: 24).inMilliseconds) {
-      return scheme.primary; // today-ish: the accent, full strength
+
+    final day = const Duration(days: 1).inMilliseconds;
+    final week = const Duration(days: 7).inMilliseconds;
+    final month = const Duration(days: 30).inMilliseconds;
+    final threeMonths = const Duration(days: 91).inMilliseconds;
+    final sixMonths = const Duration(days: 182).inMilliseconds;
+    final year = const Duration(days: 365).inMilliseconds;
+    final twoYears = const Duration(days: 730).inMilliseconds;
+    final threeYears = const Duration(days: 1095).inMilliseconds;
+
+    if (ageMs < day) return scheme.primary; // theme color, full strength
+    if (ageMs < week) return drift(-30);
+    if (ageMs < month) return drift(-60);
+    if (ageMs < threeMonths) return drift(-85); // yellow
+    if (ageMs < sixMonths) return drift(-105); // orange
+    if (ageMs < year) return drift(-120); // deep orange
+    if (ageMs < twoYears) return drift(-140); // red
+    if (ageMs < threeYears) {
+      // darker red
+      final c = hsl.withHue((hsl.hue - 150 + 360) % 360);
+      return c.withLightness((c.lightness - 0.06).clamp(0.0, 1.0)).toColor();
     }
-    if (ageMs < const Duration(days: 7).inMilliseconds) {
-      return drift(-30); // this week
+    if (ageMs < const Duration(days: 1460).inMilliseconds) {
+      // 3-4 years: deepest red
+      final c = hsl.withHue((hsl.hue - 155 + 360) % 360);
+      return c.withLightness((c.lightness - 0.12).clamp(0.0, 1.0)).toColor();
     }
-    if (ageMs < const Duration(days: 30).inMilliseconds) {
-      return drift(-70); // this month
-    }
-    if (ageMs < const Duration(days: 365).inMilliseconds) {
-      return drift(-110); // this year (1-12 months)
-    }
-    return scheme.onSurfaceVariant.withValues(alpha: 0.45); // 1 year+
+    // 4+ years: greyed out
+    return scheme.onSurfaceVariant.withValues(alpha: 0.45);
   }
 }

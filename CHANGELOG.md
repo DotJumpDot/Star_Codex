@@ -834,4 +834,9 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   nearly identical to the weeks-old grey — the old bucket now dims
   `onSurfaceVariant` to 45 % instead, clearly distinct. Verified on the
   emulator across the four buckets in one list. 290 tests green,
-  analyze clean.
+  analyze clean.- 2026-10-24 — Date color ladder refined per user mapping: under a
+  day is the raw theme accent (no lightening), then even hue steps —
+  week / month / yellow at 3 months / orange at 3-6 months / deep
+  orange to a year — and three distinct red variants for 1 year,
+  2-3 years, and 3-4 years, greying out past 4 years. 290 tests
+  green, analyze clean.
