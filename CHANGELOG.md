@@ -857,3 +857,8 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   just via the toggle. On-device verified (nekopost chapter renders,
   miku feed pages past 1+2 text-only, intro tap-collapse); 292 tests
   green, analyze clean.
+- 2026-10-28 — Release: v1.4.5 — version 1.4.5+22. Site-rebuild fixes:
+  nekopost chapters open again (cinfo → /api/handler/cinfo + full-URL
+  pageName), miku-doujin feed pages past the first screen (?paged= →
+  ?page=, /category/ → /genre/), introduction panel tap-to-collapse.
+  292 tests green, analyze clean.

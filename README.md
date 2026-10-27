@@ -146,7 +146,7 @@ Requires Android 7.0+ (API 24).
 > **Upgrading from a debug/test build?** Uninstall it first — release
 > builds are signed with a different key.
 
-See [what changed in v1.4.4](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.4.4).
+See [what changed in v1.4.5](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.4.5).
 
 ## 🛠️ Tech stack
 
@@ -202,6 +202,11 @@ Star_Codex/
 ```
 
 ## 📜 Status
+
+**v1.4.5 (2026-10-28)** — site-rebuild fixes: Nekopost chapters open
+again (the site moved its chapter endpoint), the Miku-Doujin feed pages
+past the first screen (the site changed its pagination parameter), and
+the expanded introduction collapses when tapped anywhere.
 
 **v1.4.4 (2026-10-24)** — chapter-list polish: dateless chapters show
 "ไม่ระบุวันที่" at full row height, and update dates are color-coded by

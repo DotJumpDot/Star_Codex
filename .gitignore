@@ -15,6 +15,7 @@ qa_v2/
 
 # scratch commit-message files (the messages live in git history proper)
 .git-msg-*
+release_notes_*
 
 # Flutter / Dart (pre-covers app/ once created)
 app/.dart_tool/

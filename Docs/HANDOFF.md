@@ -1,13 +1,13 @@
 # HANDOFF — read this first in a new conversation
 
-> Last updated 2026-10-24 (v1.4.4 release). Written originally 2026-10-17
+> Last updated 2026-10-28 (v1.4.5 release). Written originally 2026-10-17
 > when the folder was renamed `C:\Code\Manga_Reader` → `C:\Code\StarCodex`.
 
 ## Where things stand
 
 - **The app is built, QA'd, and released.** All 11 plan phases completed
   (2026-10-17), four user-driven UX rounds + the Doujin (18+) page
-  landed (2026-10-18/19), and **v1.0.0 → v1.4.4 are live on GitHub
+  landed (2026-10-18/19), and **v1.0.0 → v1.4.5 are live on GitHub
   Releases** (release-signed `StarCodex-<version>.apk`).
 - **ALL 11 sources are live and enabled by default** (db v9): main feed
   = go-manga, slow-manga, up-manga, dark-manga, fin-manga (Madara/ts),
@@ -20,6 +20,16 @@
   green, analyze clean. Invariants: PLAN_NOTES 2026-10-23 (four
   sections: WAF ladder, hentaithai /page-N, tooling note, grid-label
   generation-time anchor).
+- **v1.4.5 (34104e8, rel e63853c)**: two site-rebuild fixes + intro UX —
+  nekopost cinfo moved to `/api/handler/cinfo` (SvelteKit rebuild; old
+  path 404s — every chapter open failed while listings worked) with
+  `pageName` now possibly a full URL (preferred over bare `fileName`);
+  miku-doujin pagination `?paged=` → `?page=` (old param re-serves page
+  1 — feed looked stuck after the first screen) and genres moved
+  `/category/` → `/genre/` (plus a latent double-decode crash on Thai
+  genre terms fixed); the expanded introduction collapses when tapped
+  anywhere. On-device verified (miku via TEXT-only UI dumps — user
+  rule: never read 18+ screenshots). 292 tests green, analyze clean.
 - **v1.4.4 (6a4549a..78f71d7, rel 5c76ddc)**: chapter-list polish —
   dateless rows show "ไม่ระบุวันที่" at full two-line height, and dates
   are AGE-CODED on a hue ladder derived from the theme accent: <1 day
