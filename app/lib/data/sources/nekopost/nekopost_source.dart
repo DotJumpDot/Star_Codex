@@ -68,11 +68,13 @@ class NekopostSource implements Source {
     return jsonDecode(utf8.decode(bytes, allowMalformed: true));
   }
 
-  /// cinfo lives OUTSIDE /api (verified live) and answers with an OpenSSL
+  /// cinfo moved UNDER /api (site rebuild — SvelteKit frontend calls
+  /// `$api/handler/cinfo`, probed live 2026-10-28; the old
+  /// `/handler/cinfo` answers 404) and still answers with an OpenSSL
   /// "Salted__" AES payload, not JSON.
   Future<Map<String, Object?>> _cinfo(int pid, int chapterId) async {
     if (kDebugMode) debugPrint('NEKO cinfo START p=$pid c=$chapterId');
-    final bytes = await http.postJson(Uri.parse('$_base/handler/cinfo'), {
+    final bytes = await http.postJson(Uri.parse('$_base/api/handler/cinfo'), {
       'p': pid,
       'c': chapterId,
     });
@@ -307,7 +309,15 @@ class NekopostSource implements Source {
         if (raw is Map<String, Object?>) raw,
     ]..sort((a, b) => _pageNo(a).compareTo(_pageNo(b)));
     final base = '${_fileHost(pid)}$pid/$cid/';
-    final urls = <String>[for (final page in sorted) '$base${_fileName(page)}'];
+    // pageItem rows now carry pageName as a FULL url (site rebuild
+    // 2026-10-28) with fileName the bare name — use a full url as-is and
+    // only prepend the collectManga base for bare names.
+    String pageUrl(Map<String, Object?> page) {
+      final name = _fileName(page);
+      return name.startsWith('http') ? name : '$base$name';
+    }
+
+    final urls = <String>[for (final page in sorted) pageUrl(page)];
     if (kDebugMode) debugPrint('NEKO pages mapped n=${urls.length}');
     if (urls.isEmpty || urls.any((u) => u.endsWith('/'))) {
       if (kDebugMode) debugPrint('NEKO pages THROW bad names');
@@ -324,11 +334,13 @@ class NekopostSource implements Source {
   /// ({pageNo: 1, fileName: "…_1.jpg", width, height}) — the previous
   /// `as String?` casts blew up with a TypeError, which made every
   /// image-chapter open on the nekopost source fail its candidate.
+  /// 2026-10-28: `pageName` may be a full url — the site's own reader
+  /// resolves `pageName ?: fileName`, so a non-empty pageName wins.
   static String _fileName(Map<String, Object?> page) {
-    final fn = page['fileName'];
-    if (fn is String && fn.isNotEmpty) return fn;
     final pn = page['pageName'];
     if (pn is String && pn.isNotEmpty) return pn;
+    final fn = page['fileName'];
+    if (fn is String && fn.isNotEmpty) return fn;
     return '';
   }
 

@@ -442,10 +442,15 @@ class IntroductionToggle extends StatelessWidget {
 /// (the hero/app-bar copies ellipsize; this is where the whole name is
 /// readable — user QA 2026-10-18), then the description when present,
 /// every tag, and the description-source caption.
+///
+/// Tapping ANYWHERE on the panel collapses it ([onCollapse], user
+/// request 2026-10-28) — the tag chips keep their own handlers because
+/// child gesture detectors win the arena over this parent one.
 class IntroductionExpansion extends StatelessWidget {
-  const IntroductionExpansion({super.key, required this.vm});
+  const IntroductionExpansion({super.key, required this.vm, this.onCollapse});
 
   final SeriesDetailVm vm;
+  final VoidCallback? onCollapse;
 
   @override
   Widget build(BuildContext context) {
@@ -455,46 +460,50 @@ class IntroductionExpansion extends StatelessWidget {
         ? vm.sourceNames[vm.descriptionSourceId]
         : null;
     final description = series.description;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            series.originalTitle ?? series.title,
-            style: theme.textTheme.titleSmall
-                ?.copyWith(fontWeight: FontWeight.w700),
-          ),
-          if (description != null && description.isNotEmpty) ...[
-            const SizedBox(height: 6),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onCollapse,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Text(
-              description,
-              style: theme.textTheme.bodySmall,
+              series.originalTitle ?? series.title,
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w700),
             ),
-          ],
-          if (vm.tags.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              children: [
-                for (final tag in vm.tags)
-                  Chip(
-                    label: Text(tag, style: theme.textTheme.labelSmall),
-                    visualDensity: VisualDensity.compact,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-              ],
-            ),
-          ],
-          if (captionSource != null)
-            Text(
-              tFmt(context, 'detail.description_from', {'source': captionSource}),
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+            if (description != null && description.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                description,
+                style: theme.textTheme.bodySmall,
               ),
-            ),
-        ],
+            ],
+            if (vm.tags.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  for (final tag in vm.tags)
+                    Chip(
+                      label: Text(tag, style: theme.textTheme.labelSmall),
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                ],
+              ),
+            ],
+            if (captionSource != null)
+              Text(
+                tFmt(context, 'detail.description_from', {'source': captionSource}),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

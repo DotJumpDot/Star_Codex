@@ -281,7 +281,12 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
           curve: Curves.easeOutCubic,
           alignment: Alignment.topCenter,
           child: _introExpanded
-              ? IntroductionExpansion(vm: vm)
+              // Tap anywhere on the open panel collapses it (user request
+              // 2026-10-28); the toggle row itself still flips both ways.
+              ? IntroductionExpansion(
+                  vm: vm,
+                  onCollapse: () => setState(() => _introExpanded = false),
+                )
               : const SizedBox(width: double.infinity, height: 0),
         ),
         // Chapter search + sort moved onto the row the intro used to

@@ -129,13 +129,20 @@ would ride a v1.3.1.
 
 A JSON API, not HTML. Two live payload shapes matter:
 
-- `POST /handler/cinfo` with `{p, c}` → decrypted via the app's own
+- `POST /api/handler/cinfo` with `{p, c}` → decrypted via the app's own
   `nekopost_crypto.dart`. The decrypted payload has keys
   `[projectId, chapterId, chapterNo, pageItem, pageCount]`.
+  **Path moved 2026-10-28**: the site rebuilt onto a SvelteKit frontend
+  whose bundle calls `www.nekopost.net/api/handler/cinfo` — the bare
+  `/handler/cinfo` answers 404 and every chapter open failed. Crypto
+  unchanged (CryptoJS passphrase `AeyTest`, OpenSSL salted format).
 - In a page item, **`pageNo` is an int** (not a String) and **`fileName`
   is the real key** (`pageName` does not exist). `width`/`height` ride
   along as extra metadata. The old `as String?` casts threw and the
-  reader spun forever — see PLAN_NOTES 2026-10-18.
+  reader spun forever — see PLAN_NOTES 2026-10-18. **2026-10-28:**
+  `pageName` may now be a FULL image URL (`fs?…/collectManga/…`) — the
+  adapter prefers a non-empty `pageName` (mirrors the site's own reader)
+  and only prepends the collectManga base to bare names.
 
 Novels use `novelContent` when `pageText` is absent. Listings already
 carry stamps, so `recentStamps()` is a no-op here.
@@ -163,14 +170,21 @@ A forum-style community site, not WordPress:
 
 WordPress with a fully custom "inz" theme:
 
-- listing: homepage + `?paged=N` — cards are `a.inz-a`, the title in
+- listing: homepage + `?page=N` — cards are `a.inz-a`, the title in
   `.inz-title`/`.inz-title-sm`, the cover in `img.inz-img-thumbnail`
-  (lazy `data-src`).
+  (lazy `data-src`). **Pagination param is `?page=` (2026-10-28):** the
+  theme's own "older" link is `?page=2`; the old `?paged=N` still
+  answers 200 but renders a COPY of page 1, which stalled the feed
+  after the first screen (dedup ate the duplicates).
 - search: not supported — `?s=` is ignored and renders the homepage.
+- genres: `/genre/<term>/` paged the same `?page=N` way (2026-10-28 —
+  was `/category/`; old paths answer 200 EMPTY). Genre terms in
+  `pathSegments` arrive already percent-decoded — a second
+  `Uri.decodeComponent` on decoded Thai throws.
 - the series page IS the reader (one-shot doujin): all pages are
   `#manga-content img.lazy[data-src]` inline, so the detail reports
   exactly one chapter whose URL is the series URL. Tags come from
-  `a[href*="/category/"]`.
+  `a[href*="/genre/"]`.
 
 ## Cloudflare blocks → the WAF ladder (2026-10-23)
 

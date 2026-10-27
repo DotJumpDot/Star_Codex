@@ -1501,3 +1501,34 @@ repro'd or root-caused from code:
   cold boot with `-gpu swiftshader_indirect` renders fine).
   `scripts/boot-emu.bat` now always passes `-no-snapshot` (installs
   persist across cold boots anyway). AGENTS.md env section updated.
+
+## 2026-10-28 — two site-rebuild fixes + intro tap-to-collapse
+
+- **Nekopost chapter open failed site-wide: cinfo moved under /api.**
+  The site rebuilt onto a SvelteKit frontend (was server-rendered
+  pages); the new client bundle calls `www.nekopost.net/api/handler/cinfo`
+  while the bare `/handler/cinfo` now 404s — every image/novel chapter
+  open died with a parse/network error while listings still worked
+  (listings ride `/api/project/*`, unaffected). One-line path fix; the
+  CryptoJS `AeyTest` OpenSSL-salt format and the project/detail2/search
+  endpoints are unchanged (verified against the live bundle + a live
+  decrypt round-trip). `pageItem` rows now also carry `pageName` as a
+  FULL image URL alongside bare `fileName` — the adapter prefers a
+  non-empty `pageName` (mirrors the site's own `pageName ?? fileName`)
+  and only prepends the collectManga base to bare names. Fixture suite
+  pins the new `/api/handler/cinfo` path + a full-URL fixture.
+- **miku-doujin feed stuck on the first screen: `?paged=` → `?page=`.**
+  The theme's own "older" link is `?page=2` now; the old `?paged=N`
+  still answers 200 but renders a COPY of page 1 — the merge dedups the
+  duplicates, so the miku-filtered feed never grew past 24 cards.
+  Genre paths moved `/category/<term>/` → `/genre/<term>/` in the same
+  rebuild (old paths 200 EMPTY); tags/cloud/browseGenre all follow.
+  Bonus latent bug: `Uri.pathSegments` is already percent-decoded —
+  the old extra `Uri.decodeComponent` threw "Illegal percent encoding"
+  on Thai terms (first exercised by the new genre-cloud test).
+  On-device verified text-only (no 18+ screenshots read, per user):
+  miku-filtered feed served distinct titles across three scroll pages.
+- **Introduction panel: tap anywhere on the expanded section collapses
+  it** (user request) — the expansion is wrapped in an opaque
+  GestureDetector with `onCollapse`; the hero toggle still flips both
+  ways; tag chips keep their own taps (child detectors win the arena).

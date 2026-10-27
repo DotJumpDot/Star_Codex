@@ -9,14 +9,18 @@ import '../source_api.dart';
 /// Adapter for miku-doujin.com (added 2026-10-19, adult scope). WordPress
 /// with a fully custom "inz" theme. Probed structure:
 ///
-/// - listing: homepage + `?paged=N` (verified) — cards are `a.inz-a` with
-///   the title in `.inz-title`/`.inz-title-sm` and the cover in
-///   `img.inz-img-thumbnail` (lazy data-src).
+/// - listing: homepage + `?page=N` (theme rebuild 2026-10-28 moved the
+///   pagination param from `?paged=N` — the old param now answers with a
+///   COPY of page 1, which stalled the infinite feed). Cards are
+///   `a.inz-a` with the title in `.inz-title`/`.inz-title-sm` and the
+///   cover in `img.inz-img-thumbnail` (lazy data-src).
 /// - search: NOT supported — `?s=` is ignored and renders the homepage.
+/// - genres: `/genre/<term>/` (2026-10-28 — was `/category/`; the old
+///   paths still answer 200 but render an EMPTY list).
 /// - series page = the READER (one-shot doujin): all pages are
 ///   `#manga-content img.lazy[data-src]` inline. Detail therefore reports
 ///   exactly one chapter whose URL IS the series URL; tags come from
-///   `a[href*="/category/"]`.
+///   `a[href*="/genre/"]`.
 ///
 /// CLOUDFLARE BLOCKED (2026-10-19 live probe): Cloudflare's WAF
 /// fingerprint-blocks Dart's TLS stack ("Attention Required!" 403 while
@@ -50,15 +54,15 @@ class MikuDoujinSource implements Source {
 
   @override
   Future<List<SourceSeries>> latest({int page = 1, bool popular = false}) =>
-      _listing(Uri.parse(page > 1 ? '$baseUrl/?paged=$page' : '$baseUrl/'));
+      _listing(Uri.parse(page > 1 ? '$baseUrl/?page=$page' : '$baseUrl/'));
 
   @override
   Future<List<SourceSeries>> browseGenre(String term, {int page = 1}) =>
       _listing(
         Uri.parse(
           page > 1
-              ? '$baseUrl/category/${Uri.encodeComponent(term)}/?paged=$page'
-              : '$baseUrl/category/${Uri.encodeComponent(term)}/',
+              ? '$baseUrl/genre/${Uri.encodeComponent(term)}/?page=$page'
+              : '$baseUrl/genre/${Uri.encodeComponent(term)}/',
         ),
       );
 
@@ -188,7 +192,7 @@ SourceSeriesDetail? parseMikuDetail(
   }
 
   final tags = <String>{
-    for (final a in doc.querySelectorAll('a[href*="/category/"]'))
+    for (final a in doc.querySelectorAll('a[href*="/genre/"]'))
       if (a.text.trim().isNotEmpty) a.text.trim(),
   }.toList();
 
@@ -220,15 +224,18 @@ List<SourceGenre> parseMikuGenres(String body) {
   final doc = html_parser.parse(body);
   final seen = <String>{};
   final out = <SourceGenre>[];
-  for (final a in doc.querySelectorAll('a[href*="/category/"]')) {
+  for (final a in doc.querySelectorAll('a[href*="/genre/"]')) {
     final name = a.text.trim();
     final href = a.attributes['href'] ?? '';
     if (name.isEmpty || href.isEmpty) continue;
     final segs = Uri.tryParse(href)?.pathSegments ?? const [];
-    // /category/<term>/ → term (Thai, possibly URL-encoded in href).
-    var i = segs.indexOf('category');
+    // /genre/<term>/ → term. pathSegments arrives ALREADY
+    // percent-decoded (Thai terms decode fine); a second
+    // Uri.decodeComponent on the decoded Thai throws "Illegal percent
+    // encoding" (caught by the 2026-10-28 genre-cloud test).
+    var i = segs.indexOf('genre');
     if (i < 0 || i + 1 >= segs.length) continue;
-    final term = Uri.decodeComponent(segs[i + 1]);
+    final term = segs[i + 1];
     if (term.isEmpty || !seen.add(term)) continue;
     out.add(SourceGenre(name: name, term: term));
   }

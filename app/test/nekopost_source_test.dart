@@ -93,10 +93,14 @@ void main() {
               (b as Map)['pid'] == 8262,
           fixture('nekopost-detail-novel-8262.json'));
       api.on((u, b) =>
-              u.path.endsWith('/handler/cinfo') &&
+              u.path.endsWith('/api/handler/cinfo') &&
               (b as Map)['p'] == 8262,
           fixture('nekopost-cinfo-novel-enc.txt'));
-      api.on((u, _) => u.path.endsWith('/handler/cinfo'),
+      api.on((u, b) =>
+              u.path.endsWith('/api/handler/cinfo') &&
+              (b as Map)['p'] == 99999,
+          fixture('nekopost-cinfo-fullurl-enc.txt'));
+      api.on((u, _) => u.path.endsWith('/api/handler/cinfo'),
           fixture('nekopost-cinfo-encrypted.txt'));
       source = NekopostSource(api.http());
     });
@@ -151,6 +155,16 @@ void main() {
           pages.imageUrls[1], endsWith('/4013/28967/10.jpg'));
       expect(pages.imageUrls.first,
           startsWith('https://www.osemocphoto.com/collectManga/4013/'));
+    });
+
+    test('pages: full-URL pageName used as-is (site rebuild 2026-10-28)',
+        () async {
+      final pages = await source.pages('nekopost:chapter:99999:88888');
+      expect(pages.imageUrls, hasLength(1));
+      expect(
+        pages.imageUrls.single,
+        'https://fs.osemocphoto.com/collectManga/99999/88888/x.jpg',
+      );
     });
 
     test('novelText: HTML → \\n\\n paragraphs, Thai kept, style stripped',

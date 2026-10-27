@@ -845,3 +845,15 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   accent (under a day raw accent → week → month → yellow → orange →
   red variants through 4 years → grey). MIUI bars fix confirmed
   on-phone. 290 tests green, analyze clean.
+- 2026-10-28 — Fixes: two site rebuilds + intro UX. (1) Nekopost
+  chapter opens failed site-wide — the site rebuilt onto a SvelteKit
+  frontend and cinfo moved to /api/handler/cinfo (old path 404s);
+  fixed + pageItem's pageName may now be a full URL (preferred, mirrors
+  the site's own reader). (2) miku-doujin feed was stuck on the first
+  screen — the theme's pagination param changed ?paged= → ?page= (old
+  param re-serves page 1); genre paths moved /category/ → /genre/ and
+  a latent double-decode crash on Thai genre terms fixed. (3) The
+  expanded Introduction panel now collapses when tapped anywhere, not
+  just via the toggle. On-device verified (nekopost chapter renders,
+  miku feed pages past 1+2 text-only, intro tap-collapse); 292 tests
+  green, analyze clean.

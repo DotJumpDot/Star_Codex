@@ -85,10 +85,22 @@ Future<void> main() async {
       expect(detail.title.toLowerCase(), isNot(contains('miku-doujin')));
       expect(detail.chapters, hasLength(1));
       expect(detail.chapters.first.url, url);
+      // Tags come from /genre/ links (2026-10-28 — was /category/).
+      expect(detail.tags, contains('NTR'));
+      expect(detail.tags, contains('โล'));
       final pages = parseMikuPages(await fixture('miku_series.html'));
       expect(pages, isNotEmpty);
       expect(pages.first, startsWith('https://miku-doujin.com/uploads/'));
       expect(pages.every((u) => !u.startsWith('data:')), isTrue);
+    });
+
+    test('genre cloud: /genre/<term> links, Thai terms decoded', () {
+      const html = '<a href="https://miku-doujin.com/genre/NTR/">NTR</a>'
+          '<a href="https://miku-doujin.com/genre/%E0%B9%82%E0%B8%A5/">โล</a>';
+      final genres = parseMikuGenres(html);
+      expect(genres.map((g) => g.term), containsAll(['NTR', 'โล']));
+      // Nav /category/ links must NOT leak into the cloud.
+      expect(genres.map((g) => g.term), isNot(contains('ติดต่อเรา')));
     });
   });
 
