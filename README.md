@@ -146,7 +146,7 @@ Requires Android 7.0+ (API 24).
 > **Upgrading from a debug/test build?** Uninstall it first — release
 > builds are signed with a different key.
 
-See [what changed in v1.4.5](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.4.5).
+See [what changed in v1.5.0](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.5.0).
 
 ## 🛠️ Tech stack
 
@@ -203,7 +203,7 @@ Star_Codex/
 
 ## 📜 Status
 
-**Unreleased (2026-10-28)** — a Search Mix tab (mangary + whytoon,
+**v1.5.0 (2026-10-28)** — a Search Mix tab (mangary + whytoon,
 normal and 18+ catalogs side by side with yaoi hidden by default),
 nano-manga joins the main feed, the first feed paints progressively
 instead of waiting for the slowest site, read-state/history refresh

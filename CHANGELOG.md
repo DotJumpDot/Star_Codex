@@ -879,3 +879,9 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   auto-shape detection swaps to paged for manga-shaped pages. (10)
   Library toolbar source-scope cycle (all → normal → 18+). 302 tests
   green, analyze clean.
+- 2026-10-28 — Release: v1.5.0 — version 1.5.0+23. Search Mix tab
+  (mangary + whytoon, yaoi hidden by default), nano-manga source, db v11
+  (14 sources + super favorite), progressive first feed, read-state
+  route-observer refresh, history per-chapter default, library New chip
+  above-highest-read, bilingual title merge, reader auto-shape swap,
+  library scope cycle. 302 tests green, analyze clean.
