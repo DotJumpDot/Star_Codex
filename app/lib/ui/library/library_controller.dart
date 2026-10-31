@@ -4,6 +4,10 @@ import '../../core/providers.dart';
 import '../../core/settings_provider.dart';
 import '../../data/dao/library_dao.dart';
 import '../../data/repo/library_cards.dart';
+import '../../data/sources/source_registry.dart' show adultSourceIds;
+
+/// Library source-scope cycle (2026-10-28): all → normal → 18+ → all.
+enum LibraryScope { all, normal, adult }
 
 /// Library tab state (Plan/12): the full card list stays in memory;
 /// tab/filter/search/sort apply over it via the pure
@@ -20,6 +24,7 @@ class LibraryState {
     this.search = '',
     this.listView = false,
     this.selection = const [],
+    this.scope = LibraryScope.all,
   });
 
   final List<LibraryCard> cards;
@@ -38,8 +43,20 @@ class LibraryState {
   /// (Plan/12 §4: "target = the one user tapped first").
   final List<int> selection;
 
+  /// Source-scope filter (user request 2026-10-28, toolbar cycle button):
+  /// all → non-18+ → 18+ only.
+  final LibraryScope scope;
+
   List<LibraryCard> get visible => filterAndSortCards(
-        cards,
+        cards
+            .where((c) => switch (scope) {
+                  LibraryScope.all => true,
+                  LibraryScope.normal =>
+                    c.sources.any((s) => !adultSourceIds.contains(s)),
+                  LibraryScope.adult =>
+                    c.sources.any(adultSourceIds.contains),
+                })
+            .toList(growable: false),
         tab: tab,
         filters: filters,
         search: search,
@@ -59,6 +76,7 @@ class LibraryState {
     bool? listView,
     List<int>? selection,
     bool clearSelection = false,
+    LibraryScope? scope,
   }) =>
       LibraryState(
         cards: cards ?? this.cards,
@@ -71,6 +89,7 @@ class LibraryState {
         search: search ?? this.search,
         listView: listView ?? this.listView,
         selection: clearSelection ? const [] : (selection ?? this.selection),
+        scope: scope ?? this.scope,
       );
 }
 
@@ -108,6 +127,16 @@ class LibraryController extends StateNotifier<LibraryState> {
   }
 
   void setTab(LibraryTab tab) => state = state.copyWith(tab: tab);
+
+  /// Cycles all → normal → 18+ → all (library toolbar button).
+  void cycleScope() {
+    final next = switch (state.scope) {
+      LibraryScope.all => LibraryScope.normal,
+      LibraryScope.normal => LibraryScope.adult,
+      LibraryScope.adult => LibraryScope.all,
+    };
+    state = state.copyWith(scope: next);
+  }
 
   void setSearch(String q) => state = state.copyWith(search: q);
 

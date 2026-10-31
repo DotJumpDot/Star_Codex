@@ -862,3 +862,20 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   pageName), miku-doujin feed pages past the first screen (?paged= →
   ?page=, /category/ → /genre/), introduction panel tap-to-collapse.
   292 tests green, analyze clean.
+- 2026-10-28 (2) — Mix tab + nano-manga + seven UX fixes. (1) nano-manga
+  joins the main feed (classic Madara). (2) New Search Mix drawer tab
+  between Search and Doujin 18+: mangary + whytoon (same Toonary
+  platform, one adapter), normal+18+ mixed catalogs with yaoi hidden by
+  default (setting `mix_hide_yaoi`; yuri untouched; toondee excluded —
+  client-only data). (3) Startup first feed paints progressively as
+  each source lands (was waiting 10+ s for the slowest WAF-ladder host).
+  (4) Detail read-state refreshes when the reader closes (route
+  observer — drag-to-next sessions no longer leave stale dots).
+  (5) History: one row per chapter by default + app-bar grouping toggle.
+  (6) Library New chip counts only chapters ABOVE the highest read
+  (68-chapter series with ch.66 done = 2 new). (7) Super favorite: 2nd
+  heart tap pins to the top of the library (db v11). (8) Bilingual
+  title merge + display (English + Thai shown together). (9) Reader
+  auto-shape detection swaps to paged for manga-shaped pages. (10)
+  Library toolbar source-scope cycle (all → normal → 18+). 302 tests
+  green, analyze clean.

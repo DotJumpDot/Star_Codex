@@ -7,6 +7,7 @@ import '../../core/i18n/i18n.dart';
 import '../../core/settings_provider.dart';
 import '../../data/repo/browse_merge.dart' show SearchGroup;
 import '../../data/repo/series_repo.dart';
+import '../route_observer.dart';
 import 'chapter_list.dart';
 import 'detail_controller.dart';
 import 'detail_dialogs.dart';
@@ -31,14 +32,42 @@ class DetailScreen extends ConsumerStatefulWidget {
 }
 
 class _DetailScreenState extends ConsumerState<DetailScreen> {
+  Route<dynamic>? _route;
+  void Function()? _onTopAgain;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        ref.read(detailControllerProvider(widget._key).notifier).load();
+      if (!mounted) return;
+      ref.read(detailControllerProvider(widget._key).notifier).load();
+      // Re-sync progress whenever this screen becomes the top route
+      // again (user report 2026-10-28): openReader's future resolves at
+      // the FIRST reader→reader handover (pushReplacement completes the
+      // original push), so the old await-based refresh fired mid-reading
+      // — after a long drag-to-next session the chapter dots came back
+      // stale until the screen was re-entered.
+      final route = ModalRoute.of(context);
+      if (route != null) {
+        _route = route;
+        _onTopAgain = () {
+          if (mounted) {
+            ref
+                .read(detailControllerProvider(widget._key).notifier)
+                .refreshProgress();
+          }
+        };
+        starRouteObserver.onTopAgain(route, _onTopAgain!);
       }
     });
+  }
+
+  @override
+  void dispose() {
+    final route = _route;
+    final cb = _onTopAgain;
+    if (route != null && cb != null) starRouteObserver.remove(route, cb);
+    super.dispose();
   }
 
   @override
@@ -78,7 +107,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          vm?.series.title ?? '',
+          vm?.displayTitle ?? '',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -212,7 +241,7 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      series.title,
+                      vm.displayTitle,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context)

@@ -8,6 +8,7 @@ import 'core/settings_provider.dart';
 import 'core/theme/app_fonts.dart';
 import 'core/theme/app_themes.dart';
 import 'data/dao/settings_dao.dart';
+import 'ui/route_observer.dart';
 import 'ui/shell/shell.dart';
 
 /// Active theme id (settings key `theme`), persisted to the settings table.
@@ -51,6 +52,7 @@ class StarCodexApp extends ConsumerWidget {
     final theme = buildTheme(spec, fontFamily: font.family);
     return MaterialApp(
       navigatorKey: appNavigatorKey,
+      navigatorObservers: [starRouteObserver],
       title: 'Star Codex',
       theme: theme,
       darkTheme: theme,

@@ -78,6 +78,17 @@ const madaraConfigs = [
     seriesUnderMangaPrefix: false, // /<slug>/ (probed 2026-10-18)
     searchSupported: true,
   ),
+  // v11 (2026-10-28): user-added main-feed site. Classic Madara layout
+  // (c-tabs-item rows, /manga/page/N/ archive, working ?s= search —
+  // probed 2026-10-28, same family as doujin-lc).
+  MadaraSiteConfig(
+    id: 'nano-manga',
+    name: 'Nano-Manga',
+    baseUrl: 'https://nano-manga.com',
+    seriesUnderMangaPrefix: true, // /manga/<slug>/ (probed 2026-10-28)
+    searchSupported: true,
+    classicLayout: true,
+  ),
   // --- adult (18+), scoped to the Doujin page only ---
   MadaraSiteConfig(
     id: 'ntr-manga',

@@ -48,6 +48,7 @@ class LibraryRepo {
   Future<List<LibraryCard>> load() async {
     final rows = await seriesDao.db.rawQuery('''
       SELECT l.series_id, l.added_at, l.last_read_at, l.last_seen_at,
+             l.favorite,
              s.title, s.original_title, s.cover_hash, s.type
       FROM library l JOIN series s ON s.id = l.series_id
       ORDER BY l.added_at DESC
@@ -72,11 +73,17 @@ class LibraryRepo {
     }
     // Doc-13 badge rule, deduped by NUMBER: mirrors carry the same new
     // chapter and "2 ตอนใหม่" must mean two new chapters, not two copies.
-    // Threshold is max(last_read_at, last_seen_at) (db v4): reading a
-    // chapter OR visiting the detail page clears the chip — only chapters
-    // uploaded after BOTH re-arm it. No threshold at all (added to library
-    // but never read/visited — last_seen_at 0 means pre-v4 row) → every
-    // dated chapter counts as new; the first detail visit clears it.
+    //
+    // 2026-10-28 (user report): the count must respect what was READ, not
+    // just timestamps — 68 chapters with ch.66 finished shows "2 new"
+    // (67, 68), not 67. So when the series has any completed chapter, new
+    // = chapters with a HIGHER NUMBER than the highest completed one
+    // (users importing progress from another app read out of order).
+    // Timestamps stay as the fallback for never-read series: threshold is
+    // max(last_read_at, last_seen_at) (db v4) — reading a chapter OR
+    // visiting the detail page clears the chip. No threshold at all
+    // (added but never read/visited) → every dated chapter counts as new;
+    // the first detail visit clears it.
     final lastReadById = {
       for (final r in rows)
         r['series_id'] as int: _maxOf(
@@ -85,16 +92,26 @@ class LibraryRepo {
                 ? null
                 : r['last_seen_at'] as int?),
     };
+    final maxCompletedBySeries = <int, double>{
+      for (final e in completed.entries)
+        if (e.value.isNotEmpty) e.key: e.value.reduce(_maxDouble),
+    };
     final newNumbers = <int, Set<double>>{};
     for (final r in await seriesDao.db.rawQuery(
       'SELECT series_id, number, uploaded_at FROM chapters '
       'WHERE uploaded_at IS NOT NULL',
     )) {
       final sid = r['series_id'] as int;
+      final number = (r['number'] as num).toDouble();
+      final maxCompleted = maxCompletedBySeries[sid];
+      if (maxCompleted != null) {
+        if (number > maxCompleted) (newNumbers[sid] ??= {}).add(number);
+        continue;
+      }
       final lastRead = lastReadById[sid];
       final at = r['uploaded_at'] as int;
       if (lastRead == null || at > lastRead) {
-        (newNumbers[sid] ??= {}).add((r['number'] as num).toDouble());
+        (newNumbers[sid] ??= {}).add(number);
       }
     }
 
@@ -151,6 +168,7 @@ class LibraryRepo {
           chapterNumbers: numbers[r['series_id'] as int] ?? {},
           completedNumbers: completed[r['series_id'] as int] ?? {},
           newCount: newNumbers[r['series_id'] as int]?.length ?? 0,
+          favorite: (r['favorite'] as int?) ?? 0,
           maxUpdatedAt: maxUpdated[r['series_id'] as int],
           doneDownloads: downloads[r['series_id'] as int] ?? 0,
           sources: sourcesBySeries[r['series_id'] as int] ?? const [],
@@ -162,6 +180,8 @@ class LibraryRepo {
 
   static int? _maxOf(int? a, int? b) =>
       a == null ? b : (b == null ? a : (a > b ? a : b));
+
+  static double _maxDouble(double a, double b) => a > b ? a : b;
 
   /// Delete-from-library (13 §C): removes the `library` row; with
   /// [keepFiles] false it also deletes the downloads rows and recomputes

@@ -66,6 +66,14 @@ class LibraryCardView extends ConsumerWidget {
                           size: 18,
                           color: Colors.white.withValues(alpha: 0.95)),
                     ),
+                  if (card.favorite >= 2 && !selectionMode)
+                    Positioned(
+                      top: 6,
+                      left: 6,
+                      child: Icon(Icons.stars,
+                          size: 20,
+                          color: Colors.amber.withValues(alpha: 0.95)),
+                    ),
                   if (card.newCount > 0)
                     Positioned(
                       top: 6,

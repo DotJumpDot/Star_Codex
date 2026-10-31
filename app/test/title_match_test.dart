@@ -36,6 +36,25 @@ void main() {
       expect(merges(kind), isFalse);
     });
 
+    test('bilingual suffix: "English ไทย" vs plain English → merge', () {
+      // User report 2026-10-28: go-manga lists "Star-Embracing Swordmaster
+      // ยอดนักดาบผู้โอบอุ้มดารา" while another site lists only the English
+      // part — the latin-only norms are identical, so it IS the same work.
+      expect(
+        matchTitles(
+          c('Star-Embracing Swordmaster'),
+          c('Star-Embracing Swordmaster ยอดนักดาบผู้โอบอุ้มดารา'),
+        ),
+        TitleMatchKind.fuzzy,
+      );
+      // Short generic English names must NOT auto-merge (the
+      // latinOnlyNorm 12-char guard) — at most a similar-band hint.
+      expect(
+        merges(matchTitles(c('The King'), c('The King ราชา'))),
+        isFalse,
+      );
+    });
+
     test('Overgeared vs Overgeared (Novel) → merge (bracket stripped)', () {
       expect(matchTitles(c('Overgeared'), c('Overgeared (Novel)')),
           TitleMatchKind.exact);

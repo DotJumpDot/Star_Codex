@@ -11,6 +11,7 @@ import '../../core/utils/thai.dart';
 import '../../data/dao/blobs_dao.dart';
 import '../../data/dao/library_dao.dart';
 import '../reader/reader_router.dart';
+import '../route_observer.dart';
 import '../shell/star_app_bar.dart';
 import 'history_group.dart';
 
@@ -19,9 +20,13 @@ import 'history_group.dart';
 /// deletes the row; the AppBar button clears ALL history (reading_history
 /// ONLY — read_progress and library stay).
 ///
-/// Grouped mode (setting `history_group_series`, default ON): one row per
-/// series showing the read-chapter range ("ตอน 1-3"); tap reopens the
-/// LAST-read chapter; long-press deletes the whole series' history.
+/// Grouped mode (setting `history_group_series`, default OFF since
+/// 2026-10-28): one row per series showing the read-chapter range
+/// ("ตอน 1-3"); tap reopens the LAST-read chapter; long-press deletes the
+/// whole series' history. Default is one row PER CHAPTER — the grouped
+/// range went stale when re-reading an older chapter (user report
+/// 2026-10-28: read 1-47, revisited 37, still "1-47"); the app-bar
+/// toggle (first action) flips grouping on the fly.
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
 
@@ -33,11 +38,34 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   List<HistoryRow>? _rows;
   String _filter = '';
   bool _refreshOnNextEnter = true;
+  Route<dynamic>? _route;
+  void Function()? _onTopAgain;
 
   @override
   void initState() {
     super.initState();
     _reload();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Reader pops back onto the shell route — refresh here too (the
+      // tab listener alone missed "finished reading while history was
+      // already the selected tab").
+      final route = ModalRoute.of(context);
+      if (route != null) {
+        _route = route;
+        _onTopAgain = _reload;
+        starRouteObserver.onTopAgain(route, _reload);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    final route = _route;
+    if (route != null && _onTopAgain != null) {
+      starRouteObserver.remove(route, _onTopAgain!);
+    }
+    super.dispose();
   }
 
   Future<void> _reload() async {
@@ -51,11 +79,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     // IndexedStack keeps this tab alive — refresh whenever the shell
     // switches back to it so a just-finished chapter shows up.
     ref.listen(tabIndexProvider, (prev, next) {
-      if (next == 2 && _refreshOnNextEnter) {
+      if (next == 4 && _refreshOnNextEnter) {
         _refreshOnNextEnter = false;
         _reload();
       }
-      if (next != 2) _refreshOnNextEnter = true;
+      if (next != 4) _refreshOnNextEnter = true;
     });
 
     final rows = _rows;
@@ -65,6 +93,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         ref: ref,
         title: Text(t(context, 'tab.history')),
         actions: [
+          // Group/ungroup toggle (user request 2026-10-28) — line-per-
+          // chapter by default, grouping opt-in.
+          IconButton(
+            tooltip: t(context, 'history.toggle_group'),
+            icon: Icon(
+              _grouped(context) ? Icons.view_agenda_outlined : Icons.layers,
+            ),
+            onPressed: () => _toggleGrouped(context),
+          ),
           IconButton(
             tooltip: t(context, 'history.clear_all'),
             icon: const Icon(Icons.delete_sweep_outlined),
@@ -78,6 +115,18 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     );
   }
 
+  bool _grouped(BuildContext context) =>
+      ref.read(settingsProvider).getBool('history_group_series', false);
+
+  Future<void> _toggleGrouped(BuildContext context) async {
+    final nowGrouped = !_grouped(context);
+    // ref.read inside callbacks is fine; setState re-reads in build.
+    await ref
+        .read(settingsProvider.notifier)
+        .set('history_group_series', nowGrouped ? '1' : '0');
+    if (mounted) setState(() {});
+  }
+
   Widget _body(BuildContext context, List<HistoryRow> rows) {
     final q = _filter.trim().toLowerCase();
     final visible = q.isEmpty
@@ -87,9 +136,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 r.title.toLowerCase().contains(q) ||
                 (r.originalTitle?.toLowerCase().contains(q) ?? false))
             .toList();
-    final grouped = ref
-        .read(settingsProvider)
-        .get('history_group_series', 'true') == 'true';
+    final grouped = _grouped(context);
     if (visible.isEmpty) {
       return Center(
           child: Text(

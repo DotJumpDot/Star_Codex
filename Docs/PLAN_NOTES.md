@@ -1532,3 +1532,69 @@ repro'd or root-caused from code:
   it** (user request) — the expansion is wrapped in an opaque
   GestureDetector with `onCollapse`; the hero toggle still flips both
   ways; tag chips keep their own taps (child detectors win the arena).
+
+## 2026-10-28 (2) — Mix tab, nano-manga, seven UX fixes
+
+- **New sources (db v11, 14 total).** nano-manga.com joins the MAIN feed
+  (classic Madara: `.c-tabs-item` rows, `/manga/page/N/`, working `?s=`
+  — `madaraConfigs` entry with classicLayout). mangary.com + whytoon.com
+  join a NEW **Search Mix** tab (drawer index 1, between ค้นหา and
+  Doujin 18+): both run the same "Toonary" Next.js platform — one
+  parameterized adapter (`data/sources/toonary/`). Their catalogs mix
+  normal and 18+ titles, which is why they get their own universe
+  (`mixSourceIds`, `BrowseScope.mix`, `mixBrowseControllerProvider`)
+  instead of polluting either existing tab. toondee.com runs the same
+  platform but renders chapters/images client-side only (no SSR flight
+  data; an RSC-header request returns nothing) — NOT addable without a
+  session-bound API; left out.
+- **Toonary payloads.** Listings are plain HTML (`/content/<slug>`
+  anchors, chips on mangary cards); the chapter list and reader images
+  live ONLY in the `self.__next_f.push([1,"…"])` flight chunks — the
+  first non-empty `"episodes":[…]` array is the main series (whytoon
+  appends related-series previews), the genres array that isn't the
+  site-wide dictionary (30+ slugs incl. sports/psychological) is the
+  series' own, and `"images":[…]` holds the page URLs (whytoon serves
+  them relative → `gd.whytoon.com`). `premium:true` (coin) episodes are
+  EXCLUDED — no paywall bypass (decision D).
+- **Yaoi filter on the Mix tab (default ON).** Setting `mix_hide_yaoi`
+  (Settings → Search Mix; live at fetch time). Applies ONLY to the Mix
+  tab: `BrowseRepo.latest(hideYaoi:)` drops cards whose listing chips or
+  stored tags match yaoi markers (yaoi / วาย / shounen ai / boys love).
+  Yuri is untouched. mangary cards carry chips (instant filter);
+  whytoon cards get tags once a detail fetch has stored them.
+- **Startup first feed was 10+ s** — `Future.wait` waited for the
+  SLOWEST source and a Cloudflare host climbs the WAF ladder 10-40 s.
+  `BrowseRepo.latest(onPartial:)` now emits the merged feed after EACH
+  source lands; the controller paints partial pages immediately.
+- **Detail read-state went stale after long drag-to-next sessions** —
+  `openReader`'s future resolves at the FIRST reader→reader handover
+  (pushReplacement completes the original push), so the old
+  await-then-refresh fired mid-reading. New global `StarRouteObserver`
+  (`ui/route_observer.dart`, wired in MaterialApp): detail refreshes
+  progress on didPopNext; history reloads the same way.
+- **History**: default is now ONE ROW PER CHAPTER (setting
+  `history_group_series` default off) + an app-bar toggle; grouped
+  ranges went stale when re-reading an older chapter (read 1-47,
+  revisit 37, still "1-47"). Tab index fixed to 4 (the Mix tab shifted
+  the shell indices).
+- **Library New chip respects reading**: when any chapter is completed,
+  new = chapters with a NUMBER above the highest completed one — 68
+  chapters with ch.66 done shows 2, not 67 (imported-progress case).
+  Timestamps only decide when nothing is read.
+- **Super favorite** (db v11 `library.favorite`): heart tap 1 = favorite,
+  tap 2 = SUPER (star, pins above everything in the library), tap 3 =
+  remove. Migration sets existing rows to 1.
+- **Bilingual merge + display**: `matchTitles` now also merges when the
+  LATIN-ONLY norms are identical (≥12 chars) — "Star-Embracing
+  Swordmaster" vs "Star-Embracing Swordmaster ยอดนักดาบผู้โอบอุ้มดารา".
+  Detail shows `SeriesDetailVm.displayTitle` (longest link title with
+  BOTH scripts) in the app bar/hero/intro.
+- **Reader auto-shape detection**: one-shot sources carry no type, so
+  miku-doujin/hentaithai always opened as webtoon strips. When nothing
+  was chosen explicitly, the webtoon reader watches the first 3 pages'
+  aspect and swaps to the PAGED reader once avg h/w < 1.6 (explicit
+  per-series/global modes never auto-switch).
+- **Library toolbar scope cycle**: new rightmost button cycles
+  all → normal → 18+ (library source-scope filter).
+- **Webtoons.com (webtoons.com/th) tab — FUTURE work only** (user
+  request, explicitly deferred; a Webtoon tab would slot after Mix).

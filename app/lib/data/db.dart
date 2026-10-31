@@ -5,7 +5,7 @@ import 'package:sqflite/sqflite.dart';
 /// Single SQLite database (Plan/02). All timestamps are milliseconds since
 /// epoch (int). Migrations append only: bump [dbVersion], add a `case` in
 /// [onUpgrade] — never edit v1 statements after shipping.
-const dbVersion = 10;
+const dbVersion = 11;
 const dbFileName = 'manga_reader.db';
 
 class DbException implements Exception {
@@ -179,6 +179,36 @@ Future<Database> openDb(
                 updated_at   INTEGER NOT NULL,
                 PRIMARY KEY (source_id, series_url)
               )''');
+            continue next9; // chain to v11
+          // v11 (2026-10-28): three new sources — nano-manga joins the
+          // main feed (classic Madara), mangary + whytoon are MIX-scope
+          // Toonary sites with their own tab (source_registry
+          // mixSourceIds). Also the library "super favorite" pin (0/1/2
+          // favorite ladder: 0 none, 1 favorite, 2 super) — super pins to
+          // the top of the library regardless of sort.
+          next9:
+          case 10:
+            for (var i = 0; i < _seededSources.length; i++) {
+              final s = _seededSources[i];
+              if (i < 11) continue; // rows 0-10 predate v11
+              await db.insert(
+                  'sources',
+                  {
+                    'id': s.$1,
+                    'name': s.$2,
+                    'base_url': s.$3,
+                    'adapter': s.$4,
+                    'enabled': 1,
+                    'sort': i,
+                  },
+                  conflictAlgorithm: ConflictAlgorithm.ignore);
+            }
+            await db.execute(
+                'ALTER TABLE library ADD COLUMN favorite INTEGER NOT NULL '
+                'DEFAULT 0');
+            // Existing rows ARE favorites (library membership = the old
+            // single-step favorite) — ladder: 1 favorite, 2 super.
+            await db.execute('UPDATE library SET favorite = 1');
           // Future migrations append cases here: `case 1: ...; continue next;`
           default:
             break;
@@ -312,7 +342,8 @@ const _schemaSql = [
     added_at            INTEGER NOT NULL,
     last_read_at        INTEGER,
     last_read_chapter_id INTEGER REFERENCES chapters(id) ON DELETE SET NULL,
-    last_seen_at        INTEGER NOT NULL DEFAULT 0
+    last_seen_at        INTEGER NOT NULL DEFAULT 0,
+    favorite            INTEGER NOT NULL DEFAULT 0
   )''',
   '''
   CREATE TABLE categories(
@@ -375,6 +406,11 @@ const _seededSources = [
   ('doujin-lc', 'Doujin-LC', 'https://doujin-lc.net', 'madara'),
   ('hentaithai', 'HentaiThai', 'https://hentaithai.net', 'hentaithai'),
   ('miku-doujin', 'Miku-Doujin', 'https://miku-doujin.com', 'miku'),
+  // v11 (2026-10-28): nano-manga joins the main feed (classic Madara);
+  // mangary + whytoon are MIX-scope Toonary sites (own tab).
+  ('nano-manga', 'Nano-Manga', 'https://nano-manga.com', 'madara'),
+  ('mangary', 'Mangary', 'https://mangary.com', 'toonary'),
+  ('whytoon', 'WhyToon', 'https://whytoon.com', 'toonary'),
 ];
 
 const _defaultSettings = {
@@ -392,6 +428,11 @@ const _defaultSettings = {
   'novel_font_size': '18',
   'novel_line_height': '1.7',
   'novel_bg_opacity': '1.0',
+  // Mix tab (2026-10-28): yaoi titles hidden by default — the three mix
+  // sites carry a heavy yaoi share; the user likes yuri (unaffected).
+  // Applies ONLY to the Mix tab, never Search or Search 18+.
+  'mix_hide_yaoi': '1',
+  'history_grouped': '0',
 };
 
 /// (Removed 2026-10-23: `_seededDisabled` = {doujin-lc, miku-doujin}.

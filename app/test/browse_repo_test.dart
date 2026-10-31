@@ -358,6 +358,49 @@ void main() {
       expect(await historyDao.recent(), ['nano']); // trimmed, recorded once
     });
 
+    test('hideYaoi drops yaoi-chipped cards only (Mix tab, 2026-10-28)',
+        () async {
+      final a = FakeSource(
+        'mangary',
+        latestResults: const [
+          SourceSeries(
+            url: 'https://mangary.com/content/jinx',
+            title: 'Jinx',
+            genres: ['Drama - ดราม่า', 'Yaoi - มังงะวาย'],
+          ),
+          SourceSeries(
+            url: 'https://mangary.com/content/solo',
+            title: 'Solo Hunter',
+            genres: ['Action - แอ็กชั่น'],
+          ),
+        ],
+      );
+      final repo = repoWith([a]);
+      final filtered = await repo.latest(hideYaoi: true);
+      expect(filtered.groups, hasLength(1));
+      expect(filtered.groups.first.members.first.title, 'Solo Hunter');
+      final unfiltered = await repo.latest();
+      expect(unfiltered.groups, hasLength(2));
+    });
+
+    test('progressive onPartial emits before the slow source lands',
+        () async {
+      final fast = FakeSource(
+        'fast',
+        latestResults: const [
+          SourceSeries(url: 'https://f/1', title: 'Fast One'),
+        ],
+      );
+      final slow = FakeSource('slow', latestResults: const []);
+      slow.latestDelay = const Duration(milliseconds: 120);
+      final partials = <int>[];
+      final page = await repoWith([fast, slow]).latest(
+        onPartial: (p) => partials.add(p.groups.length),
+      );
+      expect(page.groups, hasLength(1));
+      expect(partials.first, 1); // the fast source painted immediately
+    });
+
     test('one failing source never blanks results (Plan/08)', () async {
       final a = FakeSource('a', error: SourceException.cloudflare('a'));
       final b = FakeSource(

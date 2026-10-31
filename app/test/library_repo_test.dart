@@ -116,17 +116,21 @@ void main() {
       expect(cardB.chapterNumbers.length, 3); // {1, 2, 99} — dup 2 counts once
       expect(cardB.completedNumbers, {1});
       expect(cardB.unreadCount, 2);
-      expect(cardB.newCount, 1); // only the chapter newer than last_read
+      // 2026-10-28 rule: new = chapters with a NUMBER above the highest
+      // COMPLETED one (ch.1 done → 2 and 99 are new; the mirror copy of 2
+      // dedupes). Timestamps no longer decide once something is read.
+      expect(cardB.newCount, 2);
       expect(cardB.doneDownloads, 1);
       expect(cardB.altTitles, ['นาโน']);
 
       final cardA = cards['Novel One']!;
       expect(cardA.chapterNumbers.length, 2);
       expect(cardA.unreadCount, 1);
-      // Never read/visited (no last_read_at, pre-v4 last_seen_at 0):
-      // EVERY dated chapter counts as new — the first detail visit
-      // stamps last_seen_at and clears the chip.
-      expect(cardA.newCount, 2);
+      // 2026-10-28 rule: ch.1 is completed, so only numbers ABOVE it
+      // count as new (the "imported progress" case: 68 chapters with
+      // ch.66 read must show 2, not 67). Timestamps only decide when
+      // nothing is read at all.
+      expect(cardA.newCount, 1);
       expect(cardA.type, 'novel');
     });
 
@@ -140,7 +144,8 @@ void main() {
               int? lastRead,
               List<String> sources = const ['s1'],
               List<String> alts = const [],
-              List<String> tags = const []}) =>
+              List<String> tags = const [],
+              int favorite = 0}) =>
           LibraryCard(
             seriesId: title.hashCode,
             title: title,
@@ -157,6 +162,7 @@ void main() {
             sources: sources,
             altTitles: alts,
             tags: tags,
+            favorite: favorite,
           );
 
       final novel = card('นิยายเรื่องหนึ่ง', type: 'novel', unread: 12);
@@ -167,6 +173,18 @@ void main() {
       final all = [novel, fresh, thaiB, thaiA, dl];
 
       // Smart tab นิยาย.
+      // Super favorites (favorite=2) pin above even the New chips
+      // (user request 2026-10-28).
+      final pinned = card('ปักหมุดไว้', favorite: 2, unread: 1);
+      var pinnedOut = filterAndSortCards(
+          [novel, fresh, pinned],
+          tab: const AllTab(),
+          filters: const LibraryFilters(),
+          search: '',
+          sort: LibrarySort.added,
+          categoryMembers: const {});
+      expect(pinnedOut.first.title, 'ปักหมุดไว้');
+
       var out = filterAndSortCards(all,
           tab: const SmartTab(SmartKind.novel),
           filters: const LibraryFilters(),

@@ -21,6 +21,7 @@ class LibraryCard {
     required this.sources,
     required this.altTitles,
     required this.tags,
+    this.favorite = 0,
   });
 
   final int seriesId;
@@ -42,6 +43,10 @@ class LibraryCard {
 
   /// Doc 13 badge rule: chapters with uploaded_at > library.last_read_at.
   final int newCount;
+
+  /// Favorite ladder (db v11): 2 = super favorite → pinned above the
+  /// New-chip partition at the top of the library.
+  final int favorite;
   final int? maxUpdatedAt;
   final int doneDownloads;
   final List<String> sources;
@@ -185,11 +190,13 @@ List<LibraryCard> filterAndSortCards(
         return byUnread != 0 ? byUnread : compareTitlesThai(a.title, b.title);
       });
   }
-  // "New"-chipped series always float to the top (user QA 2026-10-18),
+  // SUPER favorites pin above everything (user request 2026-10-28),
+  // then "New"-chipped series float to the top (user QA 2026-10-18),
   // keeping the chosen sort's order within each partition.
   return [
-    ...list.where((c) => c.newCount > 0),
-    ...list.where((c) => c.newCount == 0),
+    ...list.where((c) => c.favorite >= 2),
+    ...list.where((c) => c.favorite < 2 && c.newCount > 0),
+    ...list.where((c) => c.favorite < 2 && c.newCount == 0),
   ];
 }
 

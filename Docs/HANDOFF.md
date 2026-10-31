@@ -1,6 +1,6 @@
 # HANDOFF — read this first in a new conversation
 
-> Last updated 2026-10-28 (v1.4.5 release). Written originally 2026-10-17
+> Last updated 2026-10-28 (post-v1.4.5 batch: Mix tab + sources + UX). Written originally 2026-10-17
 > when the folder was renamed `C:\Code\Manga_Reader` → `C:\Code\StarCodex`.
 
 ## Where things stand
@@ -20,6 +20,15 @@
   green, analyze clean. Invariants: PLAN_NOTES 2026-10-23 (four
   sections: WAF ladder, hentaithai /page-N, tooling note, grid-label
   generation-time anchor).
+- **2026-10-28 batch 2 (UNRELEASED)**: Search Mix drawer tab (mangary +
+  whytoon, Toonary adapter, yaoi hidden by default via `mix_hide_yaoi`),
+  nano-manga into the main feed (classic Madara), db v11 (14 sources +
+  library.favorite super-pin), progressive first feed (partials per
+  source), detail read-state route-observer refresh, history one-row-per-
+  chapter default + toggle, library New chip above-highest-read rule,
+  bilingual title merge/display, reader auto-shape paged swap, library
+  scope cycle button. toondee.com NOT added (client-only data);
+  webtoons.com/th tab deferred (user). 302 tests green.
 - **v1.4.5 (34104e8, rel e63853c)**: two site-rebuild fixes + intro UX —
   nekopost cinfo moved to `/api/handler/cinfo` (SvelteKit rebuild; old
   path 404s — every chapter open failed while listings worked) with

@@ -61,6 +61,16 @@ Future<void> main() async {
     await detail.toggleLibrary(); // add — must refresh the library controller
     expect(lib.state.cards.map((c) => c.seriesId), contains(outside));
 
+    // 2026-10-28 ladder: the second tap makes it a SUPER favorite
+    // (still in the library), the THIRD removes it.
+    await detail.toggleLibrary(); // super favorite
+    expect(lib.state.cards.map((c) => c.seriesId), contains(outside));
+    expect(
+        lib.state.cards
+            .firstWhere((c) => c.seriesId == outside)
+            .favorite,
+        2);
+
     await detail.toggleLibrary(); // remove — must refresh again
     expect(lib.state.cards.map((c) => c.seriesId), isNot(contains(outside)));
     expect(lib.state.cards.map((c) => c.seriesId), [inLib]);

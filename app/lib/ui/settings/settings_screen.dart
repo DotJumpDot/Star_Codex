@@ -155,8 +155,17 @@ class SettingsScreen extends ConsumerWidget {
             title: Text(t(context, 'settings.history_group')),
             subtitle: Text(t(context, 'settings.history_group_hint'),
                 style: Theme.of(context).textTheme.labelSmall),
-            value: settings.getBool('history_group_series', true),
+            value: settings.getBool('history_group_series', false),
             onChanged: (v) => _set(ref, 'history_group_series', v ? '1' : '0'),
+          ),
+
+          _SectionHeader(t(context, 'settings.mix')),
+          SwitchListTile(
+            title: Text(t(context, 'mix.hide_yaoi')),
+            subtitle: Text(t(context, 'mix.hide_yaoi_desc'),
+                style: Theme.of(context).textTheme.labelSmall),
+            value: settings.getBool('mix_hide_yaoi', true),
+            onChanged: (v) => _set(ref, 'mix_hide_yaoi', v ? '1' : '0'),
           ),
 
           const StorageSection(),

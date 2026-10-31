@@ -49,9 +49,9 @@ void main() {
         reason: 'missing tables');
   });
 
-  test('seeds all eleven sources', () async {
+  test('seeds all fourteen sources', () async {
     final rows = await db.query('sources', orderBy: 'sort');
-    expect(rows.length, 11);
+    expect(rows.length, 14);
     final byId = {for (final r in rows) r['id'] as String: r};
     expect(byId['slow-manga']!['base_url'], 'https://www.slow-manga.net');
     expect(byId['go-manga']!['adapter'], 'madara');
@@ -65,6 +65,11 @@ void main() {
     expect(byId['doujin-lc']!['adapter'], 'madara');
     expect(byId['hentaithai']!['adapter'], 'hentaithai');
     expect(byId['miku-doujin']!['adapter'], 'miku');
+    // db v11 (2026-10-28): nano-manga joins the main feed; mangary +
+    // whytoon are MIX-scope Toonary sites.
+    expect(byId['nano-manga']!['adapter'], 'madara');
+    expect(byId['mangary']!['adapter'], 'toonary');
+    expect(byId['whytoon']!['adapter'], 'toonary');
     // db v9 (2026-10-23): every source seeds ON — the WAF ladder made
     // the last two Cloudflare-blocked ones reachable.
     expect(byId['doujin-lc']!['enabled'], 1,
@@ -112,7 +117,7 @@ void main() {
     final db = await openDb(
         path: dbPath, factory: databaseFactoryFfi, singleInstance: false);
     final rows = await db.query('sources');
-    expect(rows.length, 11,
+    expect(rows.length, 14,
         reason: 'migration must (re)insert every post-v1 source row');
     // The v1→v9 chain inserts the adult rows (v5), v6 disables the two
     // Cloudflare-blocked ones, and v9 re-enables them (WAF ladder,

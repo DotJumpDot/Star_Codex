@@ -102,8 +102,10 @@ class BrowseController extends StateNotifier<BrowseState> {
   BrowseController(this._repo,
       {Set<String>? allowedSourceIds,
       this.initialFeedPopular = false,
-      this.onFeedPopularChanged})
+      this.onFeedPopularChanged,
+      bool Function()? hideYaoiResolver})
       : _allowedSourceIds = allowedSourceIds, // ignore: prefer_initializing_formals
+        _hideYaoiResolver = hideYaoiResolver ?? _neverHide,
         super(BrowseState(
           filters: initialFeedPopular
               ? const BrowseFilters(sort: BrowseSortOrder.popular)
@@ -115,6 +117,13 @@ class BrowseController extends StateNotifier<BrowseState> {
   /// Optional universe for scoped controllers (the adult page): the feed
   /// and the site sheet only ever see these sources. Null = all.
   final Set<String>? _allowedSourceIds;
+
+  /// Mix tab (2026-10-28): drop yaoi-tagged titles from the feed — the
+  /// mix catalogs carry a heavy yaoi share (user preference; yuri stays;
+  /// live-toggled via the `mix_hide_yaoi` setting, checked per fetch).
+  final bool Function() _hideYaoiResolver;
+
+  static bool _neverHide() => false;
 
   /// Popular-ordering seed + persistence hook (wired by the providers to
   /// the `browse_feed_popular` setting; the choice lives in the sort
@@ -404,6 +413,25 @@ class BrowseController extends StateNotifier<BrowseState> {
     }());
   }
 
+  /// Progressive first paint (2026-10-28): the repo emits the merged
+  /// feed after EACH source lands; page-1 fetches show partial results
+  /// immediately instead of waiting 10+ s for the slowest (WAF-ladder)
+  /// host. Only used by _replace (page 1 / refreshes) — loadMore still
+  /// appends whole batches.
+  void Function(BrowsePage)? get _onPartial {
+    final seq = _fetchSeq;
+    return (partial) {
+      if (seq != _fetchSeq || !mounted) return;
+      if (partial.groups.isEmpty) return;
+      state = state.copyWith(
+        groups: partial.groups,
+        failedSources: {for (final f in partial.failures) f.sourceId},
+        loading: false,
+        offline: false,
+      );
+    };
+  }
+
   Future<BrowsePage> _fetch(int page) {
     final only = _effectiveSourceIds;
     switch (state.mode) {
@@ -420,7 +448,11 @@ class BrowseController extends StateNotifier<BrowseState> {
         return _repo.genre(source, term, page: page);
       case BrowseMode.latest:
         return _repo.latest(
-            onlySourceIds: only, page: page, popular: state.feedPopular);
+            onlySourceIds: only,
+            page: page,
+            popular: state.feedPopular,
+            hideYaoi: _hideYaoiResolver(),
+            onPartial: _onPartial);
     }
   }
 }
@@ -431,10 +463,12 @@ final browseControllerProvider =
   final settings = ref.read(settingsProvider);
   return BrowseController(repo,
       allowedSourceIds: {
-        // The main feed/search never touch the 18+ sources — they live
-        // on the Doujin page's own controller (user request 2026-10-19).
+        // The main feed/search never touch the 18+ or mix sources —
+        // they live on their own tabs' controllers (user request
+        // 2026-10-19 + 2026-10-28).
         for (final s in repo.sources)
-          if (!adultSourceIds.contains(s.id)) s.id,
+          if (!adultSourceIds.contains(s.id) && !mixSourceIds.contains(s.id))
+            s.id,
       },
       initialFeedPopular: settings.getBool('browse_feed_popular', false),
       onFeedPopularChanged: (popular) => unawaited(ref
@@ -452,3 +486,31 @@ final adultBrowseControllerProvider =
             onFeedPopularChanged: (popular) => unawaited(ref
                 .read(settingsProvider.notifier)
                 .set('browse_feed_popular', popular ? '1' : '0'))));
+
+/// Search Mix page (2026-10-28) — universe = the mix sources only
+/// (mangary/whytoon: normal + 18+ mixed catalogs). Yaoi titles are
+/// dropped while the setting allows (default on).
+final mixBrowseControllerProvider =
+    StateNotifierProvider<BrowseController, BrowseState>(
+        (ref) => BrowseController(ref.watch(browseRepoProvider),
+            allowedSourceIds: mixSourceIds,
+            initialFeedPopular:
+                ref.read(settingsProvider).getBool('browse_feed_popular', false),
+            hideYaoiResolver: () =>
+                ref.read(settingsProvider).getBool('mix_hide_yaoi', true),
+            onFeedPopularChanged: (popular) => unawaited(ref
+                .read(settingsProvider.notifier)
+                .set('browse_feed_popular', popular ? '1' : '0'))));
+
+/// Scope → controller provider (BrowseScreen picks its provider by tab).
+StateNotifierProvider<BrowseController, BrowseState> browseControllerProviderFor(
+    BrowseScope scope) {
+  switch (scope) {
+    case BrowseScope.main:
+      return browseControllerProvider;
+    case BrowseScope.mix:
+      return mixBrowseControllerProvider;
+    case BrowseScope.adult:
+      return adultBrowseControllerProvider;
+  }
+}

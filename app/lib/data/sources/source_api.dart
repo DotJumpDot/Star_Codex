@@ -80,6 +80,7 @@ class SourceSeries {
     this.chapterCountHint,
     this.type,
     this.lastUpdatedMs,
+    this.genres = const [],
   });
 
   final String url;
@@ -92,6 +93,11 @@ class SourceSeries {
   /// it (nekopost API does; Madara/bully tiles don't). The browse card
   /// prefers the DB-enriched stamp and falls back to this.
   final int? lastUpdatedMs;
+
+  /// Genre names carried by the LISTING card itself (Toonary chips —
+  /// "Yaoi - มังงะวาย"). Most sources don't put genres on cards; used by
+  /// the Mix tab's yaoi filter before any detail fetch happened.
+  final List<String> genres;
 }
 
 class SourceSeriesDetail {

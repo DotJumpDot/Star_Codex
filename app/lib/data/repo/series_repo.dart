@@ -28,6 +28,7 @@ class SeriesDetailVm {
     required this.progress,
     required this.downloadedChapterIds,
     required this.inLibrary,
+    this.favoriteLevel = 0,
     required this.lastReadChapterId,
     required this.altTitles,
     required this.sortOldestFirst,
@@ -50,9 +51,36 @@ class SeriesDetailVm {
   /// per-chapter source chips + "read from which site" picker).
   final Map<double, List<Chapter>> chaptersByNumber;
 
+  /// Display title (user request 2026-10-28): mirrors sometimes carry a
+  /// BILINGUAL "English Name ไทย" title while another carries only the
+  /// English part — the merged series must show the FULL bilingual name
+  /// on detail (identity/merge still keys on series.title/title_norm).
+  /// Picks the longest link title containing BOTH scripts; falls back to
+  /// the stored series title.
+  String get displayTitle {
+    String? best;
+    for (final l in links) {
+      final t = l.sourceTitle?.trim();
+      if (t == null || t.isEmpty) continue;
+      if (!hasThaiScript(t)) continue;
+      var latin = 0;
+      for (final r in t.runes) {
+        if ((r >= 0x41 && r <= 0x5A) || (r >= 0x61 && r <= 0x7A)) latin++;
+      }
+      if (latin < 6) continue;
+      if (best == null || t.length > best.length) best = t;
+    }
+    return best ?? series.title;
+  }
+
   final Map<int, ChapterProgress> progress;
   final Set<int> downloadedChapterIds;
   final bool inLibrary;
+
+  /// Favorite ladder (db v11, 2026-10-28): 0 = not favorited, 1 =
+  /// favorite (the classic heart), 2 = SUPER favorite (pinned to the top
+  /// of the library). Row presence in `library` = inLibrary.
+  final int favoriteLevel;
   final int? lastReadChapterId;
   final List<String> altTitles; // union across links
   final bool sortOldestFirst; // settings `chapter_sort_<seriesId>`
@@ -89,6 +117,7 @@ class SeriesDetailVm {
     Map<int, ChapterProgress>? progress,
     Set<int>? downloadedChapterIds,
     bool? inLibrary,
+    int? favoriteLevel,
     int? lastReadChapterId,
     bool clearLastRead = false,
     bool? sortOldestFirst,
@@ -105,6 +134,7 @@ class SeriesDetailVm {
     progress: progress ?? this.progress,
     downloadedChapterIds: downloadedChapterIds ?? this.downloadedChapterIds,
     inLibrary: inLibrary ?? this.inLibrary,
+    favoriteLevel: favoriteLevel ?? this.favoriteLevel,
     lastReadChapterId: clearLastRead
         ? null
         : (lastReadChapterId ?? this.lastReadChapterId),
@@ -302,6 +332,7 @@ class SeriesRepo {
       progress: await chaptersDao.progressForSeries(seriesId),
       downloadedChapterIds: await downloadsDao.downloadedForSeries(seriesId),
       inLibrary: entry != null,
+      favoriteLevel: entry?.favorite ?? 0,
       lastReadChapterId: entry?.lastReadChapterId,
       altTitles: dedupeAltTitles([for (final l in links) ...l.altTitles]),
       sortOldestFirst:

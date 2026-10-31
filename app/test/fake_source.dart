@@ -42,6 +42,10 @@ class FakeSource implements Source {
   /// Mutable so tests can flip a source offline mid-run.
   Object? error;
 
+  /// Optional per-source latency for the progressive-feed test (the
+  /// repo emits partial pages as each source lands).
+  Duration latestDelay = Duration.zero;
+
   int searchCalls = 0;
   int detailCalls = 0;
   int pagesCalls = 0;
@@ -72,6 +76,7 @@ class FakeSource implements Source {
     bool popular = false,
   }) async {
     latestPopular = popular;
+    if (latestDelay > Duration.zero) await Future<void>.delayed(latestDelay);
     if (error != null) throw error!;
     return page == 1 ? latestResults : const [];
   }

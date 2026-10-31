@@ -97,11 +97,49 @@ class BrowseRepo {
     Set<String> onlySourceIds = const {},
     int page = 1,
     bool popular = false,
+    bool hideYaoi = false,
+    void Function(BrowsePage partial)? onPartial,
   }) async {
+    final active = _active(onlySourceIds);
+    // Progressive first paint (user report 2026-10-28: first feed took
+    // 10+ s at startup — Future.wait waited for the SLOWEST source, and
+    // a Cloudflare-challenged host climbs the WAF ladder for 10-40 s).
+    // With [onPartial] the merged feed is emitted after EVERY source
+    // lands; the final await still returns the complete page.
+    if (onPartial != null) {
+      final results = <_SourceResult>[];
+      Future<void> run(Source src) async {
+        _SourceResult r;
+        try {
+          r = _SourceResult(src, await src.latest(page: page, popular: popular), null);
+        } catch (e) {
+          r = _SourceResult(src, const [], e);
+        }
+        // Single-threaded Dart: from here to the emit there is no await,
+        // so this append+snapshot pair cannot interleave with another
+        // source's completion.
+        results.add(r);
+        final snapshot = List.of(results);
+        if (hideYaoi) _dropYaoi(snapshot);
+        onPartial(BrowsePage(
+          groups: mergeIntoGroups(const [], _candidates(snapshot)),
+          failures: _failures(snapshot),
+        ));
+      }
+
+      await Future.wait(active.map(run));
+      if (hideYaoi) _dropYaoi(results);
+      await _stickifyStamps(results);
+      return BrowsePage(
+        groups: mergeIntoGroups(const [], _candidates(results)),
+        failures: _failures(results),
+      );
+    }
     final results = await _gather(
-      _active(onlySourceIds),
+      active,
       (s) => s.latest(page: page, popular: popular),
     );
+    if (hideYaoi) _dropYaoi(results);
     await _stickifyStamps(results);
     // Latest feed keeps append order: each site's listing is already
     // newest-first (or popularity-ordered when [popular] — server-side,
@@ -111,6 +149,27 @@ class BrowseRepo {
       groups: mergeIntoGroups(const [], _candidates(results)),
       failures: _failures(results),
     );
+  }
+
+  /// Mix-tab yaoi filter (user request 2026-10-28 — the mix catalogs
+  /// carry a heavy yaoi share; yuri stays). Two signals: the listing
+  /// card's own genre chips (mangary) and the series' stored tags from
+  /// any earlier detail fetch. Best-effort — never a feed failure.
+  /// Rebuilds each result (the adapter's list may be unmodifiable).
+  void _dropYaoi(List<_SourceResult> results) {
+    final markers =
+        RegExp(r'yaoi|shounen ai|boys love|มังงะวาย|วาย', caseSensitive: false);
+    for (var i = 0; i < results.length; i++) {
+      final r = results[i];
+      if (r.error != null) continue;
+      final kept = [
+        for (final item in r.items)
+          if (!item.genres.any(markers.hasMatch)) item,
+      ];
+      if (kept.length != r.items.length) {
+        results[i] = _SourceResult(r.source, kept, null);
+      }
+    }
   }
 
   /// Sticky time anchors (user report 2026-10-24 — see [stickyStamp] /
@@ -153,6 +212,7 @@ class BrowseRepo {
               chapterCountHint: item.chapterCountHint,
               type: item.type,
               lastUpdatedMs: adjusted,
+              genres: item.genres,
             );
           }
         } catch (_) {

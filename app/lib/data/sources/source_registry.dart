@@ -8,6 +8,8 @@ import 'madara/madara_source.dart';
 import 'miku/miku_source.dart';
 import 'nekopost/nekopost_source.dart';
 import 'source_api.dart';
+import 'toonary/configs.dart';
+import 'toonary/toonary_source.dart';
 
 /// Adult (18+) sources — shown ONLY on the dedicated Doujin page, never
 /// in the main browse feed/search (user request 2026-10-19).
@@ -17,6 +19,32 @@ const adultSourceIds = <String>{
   'hentaithai',
   'miku-doujin',
 };
+
+/// MIX sources (2026-10-28): sites whose catalogs mix normal AND 18+
+/// content (plus a heavy yaoi share — the Mix tab filters yaoi by
+/// default). Own tab; never in the main feed or the Doujin page.
+const mixSourceIds = <String>{
+  'mangary',
+  'whytoon',
+};
+
+/// Feed universes: main = everything except adult + mix; mix = mix only;
+/// adult = adult only.
+enum BrowseScope { main, mix, adult }
+
+List<String> sourceIdsForScope(BrowseScope scope, Iterable<String> all) {
+  switch (scope) {
+    case BrowseScope.main:
+      return [
+        for (final id in all)
+          if (!adultSourceIds.contains(id) && !mixSourceIds.contains(id)) id,
+      ];
+    case BrowseScope.mix:
+      return [for (final id in all) if (mixSourceIds.contains(id)) id];
+    case BrowseScope.adult:
+      return [for (final id in all) if (adultSourceIds.contains(id)) id];
+  }
+}
 
 /// All live Source instances, ordered by the `sources` table `sort`
 /// (Plan/04 §7). Adapter column decides the class.
@@ -43,6 +71,11 @@ Future<List<Source>> loadSources(Database db, SafeHttp http,
         sources.add(HentaiThaiSource(http));
       case 'miku':
         sources.add(MikuDoujinSource(http));
+      case 'toonary':
+        final id = row['id'] as String;
+        for (final config in toonaryConfigs) {
+          if (config.id == id) sources.add(ToonarySource(config, http));
+        }
     }
   }
   return sources;

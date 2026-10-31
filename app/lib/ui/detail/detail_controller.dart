@@ -149,18 +149,20 @@ class DetailController extends StateNotifier<AsyncValue<SeriesDetailVm>> {
     state = AsyncValue.data(cur.copyWith(sortOldestFirst: oldestFirst));
   }
 
+  /// Favorite ladder (user request 2026-10-28): tap 1 → favorite (the
+  /// classic add-to-library), tap 2 → SUPER favorite (pins to the top of
+  /// the library), tap 3 → back to none (removed from library).
   Future<void> toggleLibrary() async {
     final cur = state.valueOrNull;
     if (cur == null) return;
-    if (cur.inLibrary) {
-      await libraryDao.remove(seriesId);
-      if (!mounted) return; // pop mid-toggle: no state write after dispose
-      state = AsyncValue.data(cur.copyWith(inLibrary: false));
-    } else {
-      await libraryDao.add(seriesId, DateTime.now().millisecondsSinceEpoch);
-      if (!mounted) return;
-      state = AsyncValue.data(cur.copyWith(inLibrary: true));
-    }
+    final next = cur.inLibrary ? (cur.favoriteLevel >= 2 ? 0 : 2) : 1;
+    await libraryDao.setFavorite(
+        seriesId, next, DateTime.now().millisecondsSinceEpoch);
+    if (!mounted) return; // pop mid-toggle: no state write after dispose
+    state = AsyncValue.data(cur.copyWith(
+      inLibrary: next > 0,
+      favoriteLevel: next,
+    ));
     await onLibraryChanged?.call();
   }
 

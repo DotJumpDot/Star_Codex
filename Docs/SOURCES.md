@@ -22,6 +22,9 @@ the other 7. Adult sources never appear in the main feed and vice versa
 | fin-manga.com | main | Madara (ts) | ✅ | ✅ family A | ✅ | archive order drifts A–Z; 2026-10-23: WPFC lazy covers (data-wpfc-original-src) |
 | bully-manga.com | main | custom static | ✅ | ❌ **open** | ✅ | needs its own grid port |
 | nekopost.net | main | JSON API | ✅ | n/a (API) | ✅ | the only novel carrier |
+| nano-manga.com | main | Madara (classic) | ✅ | ✅ | ✅ | added 2026-10-28 |
+| mangary.com | MIX | Toonary (Next.js) | ❌ | ✅ | ✅ | normal+18+ mixed; yaoi filtered by default |
+| whytoon.com | MIX | Toonary (Next.js) | ❌ | ❌ (no genre pages) | ✅ | BL-heavy; same adapter as mangary |
 | ntr-manga.net | Doujin | Madara (ts) | ✅ | ❌ custom grid | ✅ | its own grid markup — not parsed |
 | hentaithai.net | Doujin | custom one-shot | ✅ | n/a | ❌ | one-shot; thread page = reader |
 | doujin-lc.net | Doujin | Madara (classic) | ✅ | n/a | ✅ | cronet lane unlocks it (2026-10-23); enabled since db v9 |
@@ -146,6 +149,35 @@ A JSON API, not HTML. Two live payload shapes matter:
 
 Novels use `novelContent` when `pageText` is absent. Listings already
 carry stamps, so `recentStamps()` is a no-op here.
+
+### nano-manga.com — Madara config (main feed)
+
+Classic Madara layout (same family as doujin-lc): `.c-tabs-item` rows,
+`/manga/page/N/` archive, series under `/manga/<slug>/`, working `?s=`
+search (probed 2026-10-28). Added as a `madaraConfigs` entry with
+`classicLayout: true` — no dedicated adapter.
+
+### mangary.com / whytoon.com — `app/lib/data/sources/toonary/`
+
+One adapter, per-site configs (`configs.dart`). Both are Next.js
+App-Router sites on the "Toonary" platform:
+
+- listing: mangary `/latest?page=N` (cards carry genre chips — the Mix
+  tab's yaoi filter reads them); whytoon `/browse/page/N`.
+- detail `/content/<slug>`: title/description/cover from the HTML;
+  chapters + genres ONLY in the flight payload
+  (`self.__next_f.push([1,"…"])` chunks) — first non-empty
+  `"episodes":[…]` array = main series, first non-dictionary
+  `"genres":[…]` = series tags. `premium:true` episodes are EXCLUDED
+  (coin-locked, no bypass).
+- reader: mangary `/content/<slug>/episode/<no>`, whytoon
+  `/content/<slug>/<no>`; images from the flight `"images":[…]` array
+  (whytoon relative → `https://gd.whytoon.com/`).
+- search: none (404s). Genre pages: mangary `/latest/<term>`, whytoon
+  none.
+- toondee.com runs the same platform but ships NO server-side chapter
+  or image data (client-only, RSC-header request empty) — not addable
+  without a session API; excluded 2026-10-28.
 
 ### hentaithai.net — `app/lib/data/sources/hentaithai/`
 

@@ -270,12 +270,22 @@ class DetailActionRow extends ConsumerWidget {
           IconButton(
             tooltip: t(
               context,
-              vm.inLibrary ? 'detail.remove_library' : 'detail.add_library',
+              vm.favoriteLevel >= 2
+                  ? 'detail.remove_library'
+                  : (vm.inLibrary
+                      ? 'detail.super_favorite'
+                      : 'detail.add_library'),
             ),
+            // Favorite ladder (user request 2026-10-28): outline heart →
+            // filled heart → filled STAR (super, pins to the library top)
+            // → back to none.
             icon: Icon(
-              vm.inLibrary ? Icons.favorite : Icons.favorite_border,
-              color:
-                  vm.inLibrary ? Theme.of(context).colorScheme.primary : null,
+              vm.favoriteLevel >= 2
+                  ? Icons.stars
+                  : (vm.inLibrary ? Icons.favorite : Icons.favorite_border),
+              color: vm.inLibrary
+                  ? Theme.of(context).colorScheme.primary
+                  : null,
             ),
             onPressed: controller.toggleLibrary,
           ),
@@ -469,7 +479,10 @@ class IntroductionExpansion extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              series.originalTitle ?? series.title,
+              // Full bilingual name when a mirror carries it (user
+              // request 2026-10-28) — the intro is where the whole name
+              // is readable.
+              vm.displayTitle,
               style: theme.textTheme.titleSmall
                   ?.copyWith(fontWeight: FontWeight.w700),
             ),

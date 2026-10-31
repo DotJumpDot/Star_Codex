@@ -16,6 +16,7 @@ import '../../data/repo/reader_repo.dart';
 import '../detail/detail_screen.dart';
 import 'chapter_picker_sheet.dart';
 import 'page_slot.dart';
+import 'paged_reader_screen.dart';
 import 'pull_next.dart';
 import 'reader_chrome.dart';
 import 'reader_crop.dart';
@@ -33,9 +34,19 @@ class ReaderScreen extends ConsumerStatefulWidget {
     super.key,
     required this.chapter,
     this.chromeVisible = true,
+    this.autoDetectPaged = false,
   });
 
   final Chapter chapter;
+
+  /// Auto-shape detection (user report 2026-10-28): one-shot sources
+  /// (miku-doujin, hentaithai) carry NO series type, so they always
+  /// opened as webtoon strips even though their pages are normal manga
+  /// pages. When nothing was chosen explicitly, the reader watches the
+  /// first few resolved pages' aspect ratio and swaps to the PAGED
+  /// reader once they prove short (avg h/w < 1.6). Never fires for an
+  /// explicit per-series/global mode choice.
+  final bool autoDetectPaged;
 
   /// Whether the chrome starts VISIBLE. Carried across a chapter switch
   /// so hiding the chrome in one chapter and pulling to the next keeps
@@ -124,6 +135,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   /// As pages resolve, estimates converge to the chapter's real shape.
   double _observedAspectSum = 0;
   int _observedAspectCount = 0;
+  bool _autoSwitched = false;
 
   /// Slot REBUILDS re-fire onDimensions off the memoized resolve —
   /// without this set, a page scrolled past N times would weigh N× in
@@ -341,11 +353,33 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     if (_aspectCounted.add(idx)) {
       _observedAspectSum += aspect;
       _observedAspectCount++;
+      _maybeAutoSwitchPaged();
     }
     final exact = _slotWidth * aspect;
     if ((exact - _heights[idx]).abs() < 1) return;
     _pendingDims[idx] = exact;
     _scheduleDimFlush();
+  }
+
+  /// Auto-shape detection (user report 2026-10-28): after 3 distinct
+  /// pages the chapter's average aspect is trustworthy — short pages
+  /// (h/w < 1.6, manga shape) mean the webtoon strip view is wrong for
+  /// this chapter; swap to the paged reader once, resuming where the
+  /// user is. Long strips (webtoons, ~3+) stay put.
+  void _maybeAutoSwitchPaged() {
+    if (_autoSwitched || !widget.autoDetectPaged || !mounted) return;
+    if (_observedAspectCount < 3) return;
+    final avg = _observedAspectSum / _observedAspectCount;
+    if (avg >= 1.6) return;
+    _autoSwitched = true;
+    _saveProgress(_currentPage, completed: false);
+    replaceReaderRoute(
+      context,
+      (_) => PagedReaderScreen(
+        chapter: widget.chapter,
+        chromeVisible: widget.chromeVisible,
+      ),
+    );
   }
 
   /// Apply every queued fix-up in one setState + ONE anchor shift.

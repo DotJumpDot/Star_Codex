@@ -33,6 +33,15 @@ TitleMatchKind matchTitles(TitleCandidate a, TitleCandidate b,
   if (a.altNorms.contains(b.norm) || b.altNorms.contains(a.norm)) {
     return TitleMatchKind.alt;
   }
+  // Bilingual-suffix rule (user report 2026-10-28): several sources list
+  // "English Name ยอดนักดาบผู้โอบอุ้มดารา" while another lists just
+  // "English Name" — the full norms fall below the fuzzy band, but the
+  // LATIN-ONLY parts are identical, which is the same work. Only fires
+  // when both sides keep ≥12 latin chars (latinOnlyNorm guard), so short
+  // generic English titles can't link unrelated series.
+  final la = latinOnlyNorm(a.norm);
+  final lb = latinOnlyNorm(b.norm);
+  if (la != null && lb != null && la == lb) return TitleMatchKind.fuzzy;
   final jw = jaroWinkler(a.norm, b.norm);
   if (jw >= fuzzyMerge) return TitleMatchKind.fuzzy;
   if (jw >= similarBand) return TitleMatchKind.similar;

@@ -72,8 +72,9 @@ Future<void> main() async {
 
     // Tap by destination KEY — the settings tab's own header inside the
     // IndexedStack also carries the same text, so text finders are
-    // ambiguous here. Index 5 = Settings (Doujin 18+ moved to index 1).
-    await tester.tap(find.byKey(const ValueKey('nav-dest-5')));
+    // ambiguous here. Index 6 = Settings (Search Mix + Doujin 18+ sit at
+    // 1-2 since 2026-10-28).
+    await tester.tap(find.byKey(const ValueKey('nav-dest-6')));
     await tester.pump(); // start the close animation
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pump(const Duration(milliseconds: 100));

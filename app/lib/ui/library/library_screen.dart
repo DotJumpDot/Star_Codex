@@ -382,6 +382,17 @@ class _Toolbar extends ConsumerWidget {
               onPressed: () => showLibraryFilterSheet(context, ref),
             ),
           ),
+          // Source-scope cycle (user request 2026-10-28): all → normal →
+          // 18+ → all. Fills the empty slot right of the filter.
+          IconButton(
+            tooltip: t(context, 'library.scope_cycle'),
+            icon: Icon(switch (state.scope) {
+              LibraryScope.all => Icons.all_inclusive,
+              LibraryScope.normal => Icons.auto_stories_outlined,
+              LibraryScope.adult => Icons.eighteen_up_rating_outlined,
+            }),
+            onPressed: controller.cycleScope,
+          ),
         ],
       ),
     );

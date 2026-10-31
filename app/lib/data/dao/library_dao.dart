@@ -7,6 +7,7 @@ class LibraryEntry {
     required this.addedAt,
     this.lastReadAt,
     this.lastReadChapterId,
+    this.favorite = 0,
   });
 
   final int seriesId;
@@ -14,11 +15,15 @@ class LibraryEntry {
   final int? lastReadAt;
   final int? lastReadChapterId;
 
+  /// Favorite ladder (db v11): 0 none, 1 favorite, 2 super favorite.
+  final int favorite;
+
   static LibraryEntry fromRow(Map<String, Object?> r) => LibraryEntry(
         seriesId: r['series_id'] as int,
         addedAt: r['added_at'] as int,
         lastReadAt: r['last_read_at'] as int?,
         lastReadChapterId: r['last_read_chapter_id'] as int?,
+        favorite: (r['favorite'] as int?) ?? 0,
       );
 }
 
@@ -47,6 +52,18 @@ class LibraryDao {
 
   Future<void> remove(int seriesId) =>
       db.delete('library', where: 'series_id = ?', whereArgs: [seriesId]);
+
+  /// Favorite ladder (2026-10-28): 0 none (row removed), 1 favorite,
+  /// 2 super favorite (pins to the top of the library).
+  Future<void> setFavorite(int seriesId, int level, int atMs) async {
+    if (level <= 0) {
+      await remove(seriesId);
+      return;
+    }
+    await add(seriesId, atMs);
+    await db.update('library', {'favorite': level},
+        where: 'series_id = ?', whereArgs: [seriesId]);
+  }
 
   Future<bool> contains(int seriesId) async {
     final rows = await db.query('library',

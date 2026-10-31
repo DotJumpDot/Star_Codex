@@ -203,6 +203,15 @@ Star_Codex/
 
 ## 📜 Status
 
+**Unreleased (2026-10-28)** — a Search Mix tab (mangary + whytoon,
+normal and 18+ catalogs side by side with yaoi hidden by default),
+nano-manga joins the main feed, the first feed paints progressively
+instead of waiting for the slowest site, read-state/history refresh
+after long reading sessions, history defaults to one row per chapter,
+the library counts only chapters above your highest read as new, super
+favorites pin to the top, bilingual titles merge and display together,
+and the reader auto-switches manga-shaped pages to paged view.
+
 **v1.4.5 (2026-10-28)** — site-rebuild fixes: Nekopost chapters open
 again (the site moved its chapter endpoint), the Miku-Doujin feed pages
 past the first screen (the site changed its pagination parameter), and

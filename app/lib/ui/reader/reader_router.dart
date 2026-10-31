@@ -48,11 +48,16 @@ Future<void> openReader(
 }) async {
   final series = await seriesDao.byId(chapter.seriesId);
   final mode = resolveReaderMode(series?.type, modeOverride);
+  // Nothing chosen explicitly AND no type on the series (one-shot
+  // sources) → the webtoon reader may auto-swap to paged when the pages
+  // turn out to be manga-shaped (2026-10-28).
+  final autoDetectPaged = modeOverride == null && series?.type == null;
   if (!context.mounted) return;
   await Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (_) => switch (mode) {
-        ReaderMode.webtoon => ReaderScreen(chapter: chapter),
+        ReaderMode.webtoon =>
+          ReaderScreen(chapter: chapter, autoDetectPaged: autoDetectPaged),
         ReaderMode.paged => PagedReaderScreen(chapter: chapter),
         ReaderMode.novel => NovelReaderScreen(chapter: chapter),
       },

@@ -18,9 +18,13 @@ class AppNavDrawer extends ConsumerWidget {
     final theme = Theme.of(context);
     final items = <(IconData, IconData, String)>[
       (Icons.search_outlined, Icons.search, 'tab.browse'),
+      // Search Mix (2026-10-28) — mangary/whytoon: catalogs that mix
+      // normal AND 18+ content get their own universe so neither the
+      // main feed nor the Doujin page absorbs them. Yaoi is filtered by
+      // default on this tab (setting `mix_hide_yaoi`).
+      (Icons.blur_on_outlined, Icons.blur_on, 'tab.mix'),
       // Doujin (18+) — its own scoped browse page (user request
-      // 2026-10-19): separated from the main feed on purpose, second in
-      // the drawer right under ค้นหา.
+      // 2026-10-19): separated from the main feed on purpose.
       (Icons.eighteen_up_rating_outlined, Icons.eighteen_up_rating,
           'tab.adult'),
       (Icons.collections_bookmark_outlined, Icons.collections_bookmark,

@@ -18,23 +18,23 @@ import 'source_filter.dart';
 /// site pickers in the app bar, one thin context row for genre mode /
 /// failed sources.
 ///
-/// [adult] scopes the screen to the 18+ source set on its own controller
-/// (`adultBrowseControllerProvider`) — the Doujin page is a separate
-/// destination in the drawer, and its feed/search/site sheet never touch
-/// the main sources (user request 2026-10-19).
+/// [scope] picks the source universe: `main` (Search tab), `mix` (the
+/// Search Mix tab — mangary/whytoon, normal+18+ side by side with the
+/// default-on yaoi filter), `adult` (the Doujin 18+ page). Each scope
+/// has its own controller so feeds/search/site sheets never leak across
+/// tabs (user request 2026-10-19 + 2026-10-28).
 class BrowseScreen extends ConsumerStatefulWidget {
-  const BrowseScreen({super.key, this.adult = false});
+  const BrowseScreen({super.key, this.scope = BrowseScope.main});
 
-  final bool adult;
+  final BrowseScope scope;
 
   @override
   ConsumerState<BrowseScreen> createState() => _BrowseScreenState();
 }
 
 class _BrowseScreenState extends ConsumerState<BrowseScreen> {
-  BrowseController get _controller => ref
-      .read((widget.adult ? adultBrowseControllerProvider : browseControllerProvider)
-          .notifier);
+  BrowseController get _controller =>
+      ref.read(browseControllerProviderFor(widget.scope).notifier);
 
   @override
   void initState() {
@@ -46,18 +46,12 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final provider = widget.adult
-        ? adultBrowseControllerProvider
-        : browseControllerProvider;
+    final provider = browseControllerProviderFor(widget.scope);
     final state = ref.watch(provider);
     final allSources = ref.watch(sourcesProvider);
-    final sources = widget.adult
-        ? allSources
-            .where((s) => adultSourceIds.contains(s.id))
-            .toList(growable: false)
-        : allSources
-            .where((s) => !adultSourceIds.contains(s.id))
-            .toList(growable: false);
+    final sources = allSources
+        .where((s) => sourceIdsForScope(widget.scope, [s.id]).isNotEmpty)
+        .toList(growable: false);
     final repo = ref.watch(browseRepoProvider);
     final controller = ref.read(provider.notifier);
     final visible =
