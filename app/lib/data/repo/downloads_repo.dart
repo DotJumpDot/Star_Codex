@@ -285,22 +285,15 @@ class DownloadsRepo {
         if (source == null) {
           throw DownloadException('source missing: ${chapter.sourceId}');
         }
-        // Page list is DB-first (same rule as the reader). A chapter that
-        // was NEVER opened has no chapter_pages rows yet — persist them
-        // BEFORE fetching: setPageHash targets those rows, so without this
-        // every hash write is a silent no-op, the blobs land unlinked, and
-        // the "done" download demotes at the next integrity pass.
-        var pages = await chaptersDao.pages(chapterId);
-        if (pages.isEmpty) {
-          final fetched = await source.pages(chapter.url);
-          await chaptersDao.replacePages(chapterId, [
-            for (var i = 0; i < fetched.imageUrls.length; i++)
-              ChapterPage(
-                  chapterId: chapterId, idx: i, url: fetched.imageUrls[i]),
-          ]);
-          await chaptersDao.setPageCount(chapterId, fetched.imageUrls.length);
-          pages = await chaptersDao.pages(chapterId);
-        }
+        // Page list is DB-first (same rule as the reader) — except for
+        // signed-URL sources (nekopost, 2026-11-01), where a cached list
+        // is re-validated so the queue never rides expiring links. A
+        // chapter that was NEVER opened has no chapter_pages rows yet —
+        // persist them BEFORE fetching: setPageHash targets those rows,
+        // so without this every hash write is a silent no-op, the blobs
+        // land unlinked, and the "done" download demotes at the next
+        // integrity pass.
+        final pages = await readerRepo.pageRowsForDownload(chapter, source);
         for (final page in pages) {
           await readerRepo.fetchPage(
             chapterId,

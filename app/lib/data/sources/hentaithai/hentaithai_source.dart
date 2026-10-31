@@ -51,6 +51,10 @@ class HentaiThaiSource implements Source {
   bool get supportsNovels => false;
 
   @override
+  // Interface default spelled out: these sites serve permanent page URLs.
+  bool get pageUrlsExpire => false;
+
+  @override
   Future<List<SourceSeries>> search(String query, {int page = 1}) async {
     throw SourceException(
       id,

@@ -436,7 +436,12 @@ class BrowseController extends StateNotifier<BrowseState> {
     final only = _effectiveSourceIds;
     switch (state.mode) {
       case BrowseMode.search:
-        return _repo.search(state.query, onlySourceIds: only, page: page);
+        return _repo.search(
+          state.query,
+          onlySourceIds: only,
+          page: page,
+          hideYaoi: _hideYaoiResolver(),
+        );
       case BrowseMode.genre:
         final source = state.genreSourceId == null
             ? null

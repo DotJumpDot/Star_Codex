@@ -232,4 +232,71 @@ Future<void> main() async {
       );
     });
   });
+
+  group('nano-manga (classic Madara 6.8 — ajax chapter list)', () {
+    final nanoCfg = madaraConfigs.firstWhere((c) => c.id == 'nano-manga');
+    final dir = '${Directory.current.path}\\test\\fixtures';
+
+    MadaraSource nanoServing() {
+      return MadaraSource(
+        nanoCfg,
+        SafeHttp(
+          rateLimiter: RateLimiter(seed: 1),
+          fetcher: (uri, options) async {
+            final body = uri.toString().contains('ajax/chapters')
+                ? await File('$dir\\nano_ajax_chapters.html')
+                    .readAsString(encoding: utf8)
+                : await File('$dir\\nano_series.html')
+                    .readAsString(encoding: utf8);
+            return Response<List<int>>(
+              requestOptions: RequestOptions(path: uri.toString()),
+              statusCode: 200,
+              data: Uint8List.fromList(const Utf8Encoder().convert(body)),
+            );
+          },
+          delay: (_) async {},
+        ),
+      );
+    }
+
+    test('series page: Summary item supplies the description, meta rows parse',
+        () {
+      final body =
+          File('$dir\\nano_series.html').readAsStringSync(encoding: utf8);
+      final d = nanoServing().parseClassicDetail(
+          body, 'https://nano-manga.com/manga/becoming-necromancer-god/');
+      // The synopsis lives in a plain post-content_item — no
+      // description-summary wrapper on this theme generation.
+      expect(d.description, contains('เนโครแมนเซอร์'));
+      expect(d.description, isNot(contains('Summary')));
+      expect(d.type, 'manhua');
+      expect(d.status, 'ongoing');
+      expect(d.tags, containsAll(['Supernatural', 'ผจญภัย']));
+      expect(d.chapters, isEmpty); // holder is empty server-side
+    });
+
+    test('ajax fragment: rows sorted ascending, dates from release titles',
+        () {
+      final body =
+          File('$dir\\nano_ajax_chapters.html').readAsStringSync(encoding: utf8);
+      final chaps = nanoServing().parseClassicChapters(body);
+      expect(chaps.map((c) => c.number), [23, 24, 25]);
+      expect(chaps.last.url, contains('-25/'));
+      // "9 ชั่วโมง ago" rides in the c-new-tag title attribute.
+      final now = DateTime.now().millisecondsSinceEpoch;
+      expect(
+          chaps.last.uploadedAt, inInclusiveRange(now - 10 * 3600 * 1000, now));
+      expect(chaps[1].uploadedAt, isNotNull); // "3 วัน ago"
+      expect(chaps.first.uploadedAt, isNull); // no title attr → dateless
+    });
+
+    test('detail() fetches {series}ajax/chapters/ when the holder is empty',
+        () async {
+      final d = await nanoServing()
+          .detail('https://nano-manga.com/manga/becoming-necromancer-god');
+      expect(d.chapters, hasLength(3));
+      expect(d.chapters.map((c) => c.number), [23, 24, 25]);
+      expect(d.description, contains('เนโครแมนเซอร์'));
+    });
+  });
 }

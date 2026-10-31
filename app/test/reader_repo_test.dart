@@ -177,6 +177,66 @@ void main() {
     });
   });
 
+  group('signed-URL revalidation (nekopost CDN ?verify=, 2026-11-01)', () {
+    ReaderRepo repoWith(FakeSource s) => ReaderRepo(
+          sources: [s],
+          seriesDao: SeriesDao(db),
+          chaptersDao: chaptersDao,
+          blobs: BlobStore(rootDir: tempRoot, blobsDao: BlobsDao(db)),
+          pipeline: repo.pipeline,
+        );
+
+    test('expiring source: cached rows re-fetched, hash kept by path',
+        () async {
+      final source = FakeSource('nekopost', urlsExpire: true, pagesResults: {
+        'nekopost:chapter:100:5': [
+          'https://cdn/collectManga/100/5/a.jpg?verify=NEW',
+          'https://cdn/collectManga/100/5/b.jpg?verify=NEW',
+        ],
+      });
+      final c = seed(1, 'nekopost', 5, 'nekopost:chapter:100:5');
+      // Pre-rollout cache: UNSIGNED urls (dead since the CDN change) +
+      // one already-downloaded page.
+      final id = await seedChapter(c, pageUrls: [
+        'https://cdn/collectManga/100/5/a.jpg',
+        'https://cdn/collectManga/100/5/b.jpg',
+      ]);
+      await chaptersDao.setPageHash(id, 0, 'hash-a');
+
+      final loaded =
+          await repoWith(source).loadChapter((await chaptersDao.byId(id))!);
+      expect(source.pagesCalls, 1);
+      expect(loaded.pages.first.url, contains('verify=NEW'));
+      // Disk-cache identity carried over by URL PATH -> page 0 stays a
+      // cache hit instead of re-downloading.
+      expect(loaded.pages.first.hash, 'hash-a');
+      // The list expires in minutes -> every open revalidates.
+      await repoWith(source).loadChapter((await chaptersDao.byId(id))!);
+      expect(source.pagesCalls, 2);
+    });
+
+    test('revalidation failure (offline) -> stale rows still serve',
+        () async {
+      // No pagesResults entry -> pages() throws; the reader must not
+      // blank chapters that still have disk-cached pages.
+      final source = FakeSource('nekopost', urlsExpire: true);
+      final c = seed(1, 'nekopost', 6, 'nekopost:chapter:100:6');
+      final id = await seedChapter(c, pageUrls: ['https://cdn/old/1.jpg']);
+      final loaded =
+          await repoWith(source).loadChapter((await chaptersDao.byId(id))!);
+      expect(loaded.pages.first.url, 'https://cdn/old/1.jpg');
+    });
+
+    test('non-expiring source keeps the DB-only contract', () async {
+      final source = FakeSource('slow-manga',
+          pagesResults: {'https://a/ch9': ['https://img/z.jpg']});
+      final c = seed(1, 'slow-manga', 9, 'https://a/ch9');
+      final id = await seedChapter(c, pageUrls: ['https://img/old.jpg']);
+      await repoWith(source).loadChapter((await chaptersDao.byId(id))!);
+      expect(source.pagesCalls, 0); // cached rows win, no network
+    });
+  });
+
   group('fetchPage + TaskQueue', () {
     test('resolvePage fallback: sibling serves once, hash lands on the '
         'ORIGINAL row, second resolve is disk-only', () async {

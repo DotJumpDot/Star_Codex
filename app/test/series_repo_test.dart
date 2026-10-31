@@ -145,6 +145,48 @@ void main() {
           containsAll(['Sci-fi', 'Drama', 'Action']));
     });
 
+    test('mix-source detail CORRECTS a genre-derived manga type (2026-11-01)',
+        () async {
+      // mangary files Korean webtoons under its "Manga" category — a
+      // series first ingested from there shipped type=manga (paged
+      // reader on tall strips). A Toonary refresh is authoritative.
+      const mangaTyped = SourceSeriesDetail(
+        title: 'The Night After the Divorce',
+        type: 'manga',
+        chapters: [
+          SourceChapter(
+              url: 'https://mangary.com/content/night/1',
+              title: 'ตอนที่ 1',
+              number: 1),
+        ],
+      );
+      const manhwaDetail = SourceSeriesDetail(
+        title: 'The Night After the Divorce',
+        type: 'manhwa',
+        chapters: [
+          SourceChapter(
+              url: 'https://whytoon.com/content/night/1',
+              title: 'ตอนที่ 1',
+              number: 1),
+        ],
+      );
+      final mg = FakeSource('mangary', details: {
+        'https://mangary.com/content/night': mangaTyped,
+      });
+      final wt = FakeSource('whytoon', details: {
+        'https://whytoon.com/content/night': manhwaDetail,
+      });
+      final seriesId = await seedSeries(mg, mangaTyped);
+      await seriesDao.upsertSource(SeriesSource(
+        seriesId: seriesId,
+        sourceId: 'whytoon',
+        sourceUrl: 'https://whytoon.com/content/night',
+        fetchedAt: 0, // stale → refresh on load
+      ));
+      final vm = await repoWith([mg, wt]).load(seriesId);
+      expect(vm.series.type, 'manhwa');
+    });
+
     test('one failing source never blanks the screen (doc 09)', () async {
       final a = FakeSource('slow-manga');
       final dead = FakeSource('go-manga', error: 'cloudflare');

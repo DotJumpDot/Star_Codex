@@ -71,13 +71,17 @@ class BrowseRepo {
     String query, {
     Set<String> onlySourceIds = const {},
     int page = 1,
+    bool hideYaoi = false,
   }) async {
     final q = query.trim();
     if (q.isEmpty) return const BrowsePage(groups: []);
-    final results = await _gather(
+    var results = await _gather(
       _active(onlySourceIds),
       (s) => s.search(q, page: page),
     );
+    // Mix-tab parity (user request 2026-11-01): the yaoi filter that
+    // guards the feed also guards search results.
+    if (hideYaoi) _dropYaoi(results);
     // Fire-and-forget: history must never delay results (and a DB write
     // can't complete inside a widget-test FakeAsync zone anyway).
     unawaited(

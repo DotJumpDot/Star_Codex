@@ -20,6 +20,7 @@ import 'reader_actions.dart';
 import 'reader_chrome.dart';
 import 'reader_drawer.dart';
 import 'reader_router.dart';
+import 'reader_screen.dart';
 import 'reader_settings_body.dart';
 
 /// Paged reader (doc 11 A): horizontal PageView for manga-style pages,
@@ -31,6 +32,7 @@ class PagedReaderScreen extends ConsumerStatefulWidget {
     super.key,
     required this.chapter,
     this.chromeVisible = true,
+    this.autoDetectWebtoon = false,
   });
 
   final Chapter chapter;
@@ -39,6 +41,12 @@ class PagedReaderScreen extends ConsumerStatefulWidget {
   /// so hiding it in one chapter keeps it hidden in the next (user
   /// request 2026-10-22).
   final bool chromeVisible;
+
+  /// Auto-shape detection, paged side (user report 2026-11-01): the mode
+  /// came from the series' TYPE tag with nothing explicit chosen, so a
+  /// chapter whose pages are actually tall strips swaps once to the
+  /// webtoon reader. See [_maybeAutoSwitchWebtoon].
+  final bool autoDetectWebtoon;
 
   @override
   ConsumerState<PagedReaderScreen> createState() => _PagedReaderScreenState();
@@ -123,6 +131,14 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
   /// Successes stay memoized for the screen's lifetime; failures are
   /// evicted so Retry works.
   final _inflight = <int, Future<PageFile>>{};
+
+  /// Auto-shape detection state (mirror of the webtoon reader's): pages
+  /// feed their h/w here once resolved; after 3 distinct pages the
+  /// average decides whether this chapter is really a strip.
+  double _observedAspectSum = 0;
+  int _observedAspectCount = 0;
+  bool _autoSwitched = false;
+  final _aspectCounted = <int>{};
 
   int get _prefetchAhead =>
       ref.read(settingsProvider).getInt('reader_prefetch_ahead', 6);
@@ -261,6 +277,50 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
       if (i >= loaded.pages.length) break;
       _resolvePage(i); // memoized — already-fetched pages are free
     }
+  }
+
+  /// A page file resolved: feed its aspect into the auto-shape average.
+  /// Band-sliced pages (over the GPU texture limit) are tall strips by
+  /// definition; pages with no sniffed dims are skipped, not counted as
+  /// zero — they must not dilute the average.
+  void _onPageResolved(int idx, PageFile pf) {
+    if (!_aspectCounted.add(idx)) return;
+    final w = pf.width;
+    final h = pf.height;
+    if (w != null && h != null && w > 0 && h > 0) {
+      _observedAspectSum += h / w;
+    } else if (pf.bands != null && pf.bands!.isNotEmpty) {
+      _observedAspectSum += 3.0;
+    } else {
+      _aspectCounted.remove(idx);
+      return;
+    }
+    _observedAspectCount++;
+    _maybeAutoSwitchWebtoon();
+  }
+
+  /// Auto-shape detection, paged side (user report 2026-11-01): the mode
+  /// came from the series' 'manga' type tag with nothing explicit chosen,
+  /// so after 3 distinct pages an average h/w ≥ 2.2 (real manga pages
+  /// stay under ~2.0; strips run 2.5–10+) means the paged view is wrong
+  /// for this chapter — swap once to the webtoon reader, resuming where
+  /// the user is. Explicitly chosen modes never pass [autoDetectWebtoon].
+  Future<void> _maybeAutoSwitchWebtoon() async {
+    if (_autoSwitched || !widget.autoDetectWebtoon || !mounted) return;
+    if (_observedAspectCount < 3) return;
+    final avg = _observedAspectSum / _observedAspectCount;
+    if (avg < 2.2) return;
+    _autoSwitched = true;
+    await _saveProgress(_page, completed: false);
+    if (!mounted) return;
+    await replaceReaderRoute(
+      context,
+      (_) => ReaderScreen(
+        chapter: widget.chapter,
+        chromeVisible: _chromeVisible,
+        // No reverse swap: the aspect evidence just settled the mode.
+      ),
+    );
   }
 
   void _onPageChanged(int page) {
@@ -605,6 +665,7 @@ class _PagedReaderScreenState extends ConsumerState<PagedReaderScreen> {
                           index: i,
                           resolve: () => _resolvePage(i),
                           register: (i, key) => _slotKeys[i] = key,
+                          onResolved: _onPageResolved,
                         ),
                       ),
                     );
@@ -808,13 +869,17 @@ class _PageSlotPaged extends ConsumerStatefulWidget {
     required this.index,
     required this.resolve,
     required this.register,
+    required this.onResolved,
   });
 
   final ReaderPageRef page;
   final int index;
   final Future<PageFile> Function() resolve;
   final void Function(int index, GlobalKey<ExtendedImageGestureState> key)
-  register;
+      register;
+
+  /// Parent-side aspect feed for the auto-shape detector.
+  final void Function(int index, PageFile pf) onResolved;
 
   @override
   ConsumerState<_PageSlotPaged> createState() => _PageSlotPagedState();
@@ -853,6 +918,7 @@ class _PageSlotPagedState extends ConsumerState<_PageSlotPaged> {
   Future<PageFile?> _load() async {
     try {
       final pf = await widget.resolve();
+      if (mounted) widget.onResolved(widget.index, pf);
       return pf;
     } catch (e) {
       if (mounted) setState(() => _error = e);

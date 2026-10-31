@@ -6,6 +6,7 @@ import '../dao/series_dao.dart';
 import '../dao/settings_dao.dart';
 import '../dao/tags_dao.dart';
 import '../sources/source_api.dart';
+import '../sources/source_registry.dart' show mixSourceIds;
 import 'browse_merge.dart';
 import '../storage/image_pipeline.dart';
 
@@ -413,9 +414,20 @@ class SeriesRepo {
       series = series.copyWith(description: description);
       descriptionSourceId = sourceId;
     }
-    if (type == null && detail.type != null) type = detail.type;
+    if (type == null && detail.type != null) {
+      type = detail.type;
+    } else if (mixSourceIds.contains(sourceId) && detail.type != null) {
+      // Toonary platforms host ONLY vertical webtoons, so their format
+      // tag is authoritative and CORRECTS an earlier genre-derived
+      // mis-type (mangary files Korean webtoons under its
+      // "Manga - มังงะญี่ปุ่น" category — a Mix series shipped
+      // type=manga → paged reader on tall strips; user report
+      // 2026-11-01).
+      type = detail.type;
+    }
     if (status == null && detail.status != null) status = detail.status;
-    if (origin == null && type != null) origin = originForType(type);
+    // Keep origin in sync with the (possibly corrected) type.
+    if (type != null) origin = originForType(type);
     originalTitle ??= pickOriginalTitle(series.titleNorm, detail.altTitles);
 
     await seriesDao.update(

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:html/dom.dart' as html_dom;
 import 'package:html/parser.dart' as html_parser;
@@ -31,6 +33,10 @@ class MadaraSource implements Source {
   String get referer => '$baseUrl/';
   @override
   bool get supportsNovels => false; // §7.6: novels are nekopost-only
+
+  @override
+  // Interface default spelled out: these sites serve permanent page URLs.
+  bool get pageUrlsExpire => false;
 
   /// Page 1 of the update-order feed LEADS with the homepage recent grid
   /// (probed 2026-10-22): the grid is the site's own "updated recently"
@@ -259,12 +265,54 @@ class MadaraSource implements Source {
                 doc.querySelector('.manga-excerpt')?.text ??
                 '')
             .trim();
+    // nano-manga (Madara 6.8) has no description-summary wrapper — the
+    // synopsis is a plain post-content_item whose heading reads
+    // "Summary" (probed live 2026-11-01; user report: intros missing).
+    var descriptionOut = description;
+    if (descriptionOut.isEmpty) {
+      for (final item in doc.querySelectorAll('.post-content_item')) {
+        final heading =
+            item.querySelector('.summary-heading, h5')?.text.trim() ?? '';
+        final hl = heading.toLowerCase();
+        if (hl.startsWith('summary') ||
+            hl.startsWith('synopsis') ||
+            heading.contains('เรื่องย่อ')) {
+          final h5 = item.querySelector('h5');
+          var text = item.text.trim();
+          if (h5 != null && h5.text.trim().isNotEmpty) {
+            text = text.replaceFirst(h5.text.trim(), '').trim();
+          }
+          if (text.isNotEmpty) {
+            descriptionOut = text;
+            break;
+          }
+        }
+      }
+    }
 
     final coverImg =
         doc.querySelector('.summary_image img') ??
         doc.querySelector('img.wp-post-image');
     final cover = _absolutize(_bestCoverUrl(coverImg));
 
+    final chapters = _classicChapters(doc);
+
+    return SourceSeriesDetail(
+      title: title,
+      altTitles: const [],
+      description: descriptionOut.isEmpty ? null : descriptionOut,
+      tags: tags,
+      type: type,
+      status: status,
+      coverUrl: cover,
+      chapters: chapters,
+    );
+  }
+
+  /// Shared classic chapter-list extraction (doujin-lc server-rendered
+  /// rows AND the nano-manga ajax fragment — same `li.wp-manga-chapter`
+  /// markup, probed 2026-11-01).
+  List<SourceChapter> _classicChapters(html_dom.Document doc) {
     final baseUri = Uri.parse(baseUrl);
     final chapterRows = doc.querySelectorAll('li.wp-manga-chapter a[href]');
     final chapters = <SourceChapter>[];
@@ -292,34 +340,47 @@ class MadaraSource implements Source {
       if (label.isEmpty) continue;
       final number =
           parseChapterNumber(label) ?? (chapterRows.length - i).toDouble();
-      final dateText =
-          (dateEl ?? a.parent?.querySelector('.chapter-date, .chapter-format'))
-              ?.text
-              .trim();
       chapters.add(
         SourceChapter(
           url: url.toString(),
           title: label,
           number: number,
-          uploadedAt: dateText == null || dateText.isEmpty
-              ? null
-              : parseSiteDate(dateText),
+          uploadedAt: _classicChapterDate(a, dateEl),
         ),
       );
     }
     chapters.sort((a, b) => a.number.compareTo(b.number));
-
-    return SourceSeriesDetail(
-      title: title,
-      altTitles: const [],
-      description: description.isEmpty ? null : description,
-      tags: tags,
-      type: type,
-      status: status,
-      coverUrl: cover,
-      chapters: chapters,
-    );
+    return chapters;
   }
+
+  /// Chapter date, classic family. doujin-lc renders it as text in
+  /// `.chapter-date`; nano-manga's ajax rows carry it ONLY in the
+  /// sibling `.chapter-release-date` anchor's title attribute
+  /// ("9 ชั่วโมง ago" — probed 2026-11-01; user report: chapter dates
+  /// missing). Relative labels anchor at fetch time.
+  int? _classicChapterDate(html_dom.Element a, html_dom.Element? dateEl) {
+    final text = (dateEl ?? a.parent?.querySelector('.chapter-date, .chapter-format'))
+        ?.text
+        .trim();
+    if (text != null && text.isNotEmpty) {
+      final parsed = parseSiteDate(text);
+      if (parsed != null) return parsed;
+    }
+    final title = a.parent
+        ?.querySelector('.chapter-release-date a')
+        ?.attributes['title']
+        ?.trim();
+    if (title == null || title.isEmpty) return null;
+    final stamp = parseRelativeStamp(
+      title.replaceFirst(RegExp(r'\s+ago$', caseSensitive: false), ''),
+    );
+    return stamp;
+  }
+
+  /// Parses an `ajax/chapters/` fragment (nano-manga shape).
+  @visibleForTesting
+  List<SourceChapter> parseClassicChapters(String fragmentBody) =>
+      _classicChapters(html_parser.parse(fragmentBody));
 
   @override
   Future<SourceSeriesDetail> detail(String sourceUrl) async {
@@ -327,7 +388,29 @@ class MadaraSource implements Source {
     final doc = html_parser.parse(body);
     if (_looksLikeCloudflare(body)) throw SourceException.cloudflare(id);
     if (config.classicLayout) {
-      return parseClassicDetail(body, sourceUrl);
+      final detail = parseClassicDetail(body, sourceUrl);
+      if (detail.chapters.isEmpty && body.contains('manga-chapters-holder')) {
+        // nano-manga shape (Madara 6.8, user report 2026-11-01: detail
+        // always showed 0 chapters): the page ships an EMPTY
+        // #manga-chapters-holder and the theme JS POSTs
+        // {seriesUrl}ajax/chapters/ for the list. doujin-lc rows are
+        // server-rendered, so this fallback only fires for the ajax
+        // shape.
+        final chapters = await _ajaxChapters(sourceUrl);
+        if (chapters.isNotEmpty) {
+          return SourceSeriesDetail(
+            title: detail.title,
+            altTitles: detail.altTitles,
+            description: detail.description,
+            tags: detail.tags,
+            type: detail.type,
+            status: detail.status,
+            coverUrl: detail.coverUrl,
+            chapters: chapters,
+          );
+        }
+      }
+      return detail;
     }
 
     final title = doc.querySelector('h1.entry-title')?.text.trim() ?? '';
@@ -579,6 +662,19 @@ class MadaraSource implements Source {
       );
     }
     return out;
+  }
+
+  /// `{seriesUrl}ajax/chapters/` fragment fetch (nano-manga). Failures
+  /// return an empty list — the server-rendered page stays the answer.
+  Future<List<SourceChapter>> _ajaxChapters(String sourceUrl) async {
+    final base = sourceUrl.endsWith('/') ? sourceUrl : '$sourceUrl/';
+    final uri = Uri.parse('${base}ajax/chapters/');
+    try {
+      final bytes = await _safe(() => http.postJson(uri, const {}), uri);
+      return parseClassicChapters(utf8.decode(bytes, allowMalformed: true));
+    } on Exception {
+      return const [];
+    }
   }
 
   Future<String> _fetch(Uri uri) =>

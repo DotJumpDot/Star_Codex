@@ -157,6 +157,15 @@ Classic Madara layout (same family as doujin-lc): `.c-tabs-item` rows,
 search (probed 2026-10-28). Added as a `madaraConfigs` entry with
 `classicLayout: true` — no dedicated adapter.
 
+Theme is Madara 6.8 (2026-11-01 probes): the detail page ships an EMPTY
+`#manga-chapters-holder` and the chapter list arrives via POST
+`{seriesUrl}ajax/chapters/` (same `li.wp-manga-chapter` rows; the date
+rides in the sibling `.chapter-release-date a` title attribute,
+"9 ชั่วโมง ago"). The synopsis is a plain `post-content_item` whose
+heading reads "Summary" — NOT `.description-summary`. `detail()`
+auto-falls back to the ajax POST when the page has no chapter rows and
+the holder is present.
+
 ### mangary.com / whytoon.com — `app/lib/data/sources/toonary/`
 
 One adapter, per-site configs (`configs.dart`). Both are Next.js
@@ -173,8 +182,13 @@ App-Router sites on the "Toonary" platform:
 - reader: mangary `/content/<slug>/episode/<no>`, whytoon
   `/content/<slug>/<no>`; images from the flight `"images":[…]` array
   (whytoon relative → `https://gd.whytoon.com/`).
-- search: none (404s). Genre pages: mangary `/latest/<term>`, whytoon
-  none.
+- search: server-rendered `?q=` on the listing route (probed 2026-11-01;
+  /search itself 404s) — mangary `/latest?q=…&page=N`, whytoon
+  `/browse(/page/N)?q=…`; same card parser as the feed, yaoi filter
+  applies. Genre pages: mangary `/latest/<term>`, whytoon none.
+- type: ALWAYS 'manhwa' (platform truth — vertical webtoons only). Do
+  not re-introduce a genre-derived type: mangary files Korean webtoons
+  under its "Manga - มังงะญี่ปุ่น" category.
 - toondee.com runs the same platform but ships NO server-side chapter
   or image data (client-only, RSC-header request empty) — not addable
   without a session API; excluded 2026-10-28.

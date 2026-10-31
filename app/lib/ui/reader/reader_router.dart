@@ -37,6 +37,21 @@ String? effectiveModeOverride(String perSeries, String globalDefault) {
   return globalDefault == 'auto' ? null : globalDefault;
 }
 
+/// Aspect-based mode self-correction (user reports 2026-10-28 +
+/// 2026-11-01: type tags are only as good as the SITE's tagging —
+/// nekopost files every comic under 'm', mangary files webtoons under
+/// its "Manga" category). Only when NO explicit override chose the mode:
+///  - untyped OR manhwa-typed series open in the webtoon reader, which
+///    swaps to paged when pages turn out manga-shaped (existing 2026-10-28
+///    behavior, extended to manhwa-typed);
+///  - manga-typed series open in the paged reader, which swaps to
+///    webtoon when pages turn out to be tall strips.
+/// Explicit user/global choices are never second-guessed.
+({bool toPaged, bool toWebtoon}) autoDetectFlags(String? type, String? override) => (
+  toPaged: override == null && (type == null || type == 'manhwa'),
+  toWebtoon: override == null && type == 'manga',
+);
+
 /// The single entry point every chapter tap funnels through (detail rows,
 /// continue button, "read from which site" picker).
 Future<void> openReader(
@@ -48,17 +63,17 @@ Future<void> openReader(
 }) async {
   final series = await seriesDao.byId(chapter.seriesId);
   final mode = resolveReaderMode(series?.type, modeOverride);
-  // Nothing chosen explicitly AND no type on the series (one-shot
-  // sources) → the webtoon reader may auto-swap to paged when the pages
-  // turn out to be manga-shaped (2026-10-28).
-  final autoDetectPaged = modeOverride == null && series?.type == null;
+  final detect = autoDetectFlags(series?.type, modeOverride);
   if (!context.mounted) return;
   await Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (_) => switch (mode) {
-        ReaderMode.webtoon =>
-          ReaderScreen(chapter: chapter, autoDetectPaged: autoDetectPaged),
-        ReaderMode.paged => PagedReaderScreen(chapter: chapter),
+        ReaderMode.webtoon => ReaderScreen(
+          chapter: chapter,
+          autoDetectPaged: detect.toPaged,
+        ),
+        ReaderMode.paged =>
+          PagedReaderScreen(chapter: chapter, autoDetectWebtoon: detect.toWebtoon),
         ReaderMode.novel => NovelReaderScreen(chapter: chapter),
       },
     ),

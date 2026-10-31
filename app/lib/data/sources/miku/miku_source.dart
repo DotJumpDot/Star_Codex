@@ -43,6 +43,10 @@ class MikuDoujinSource implements Source {
   bool get supportsNovels => false;
 
   @override
+  // Interface default spelled out: these sites serve permanent page URLs.
+  bool get pageUrlsExpire => false;
+
+  @override
   Future<List<SourceSeries>> search(String query, {int page = 1}) async {
     // The theme ignores ?s= entirely (probed 2026-10-19).
     throw SourceException(

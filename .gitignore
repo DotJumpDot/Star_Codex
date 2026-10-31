@@ -35,3 +35,11 @@ Thumbs.db
 
 # analyze/test scratch logs (phase work keeps them out of git)
 *.log
+
+# live-probe scratch (repo-root curl/python output — keep out of git)
+/*.html
+/*.js
+/latest.json
+/srch.json
+/s.json
+/sr.json

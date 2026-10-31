@@ -383,6 +383,33 @@ void main() {
       expect(unfiltered.groups, hasLength(2));
     });
 
+    test('search: hideYaoi drops yaoi results (Mix tab, 2026-11-01)',
+        () async {
+      final a = FakeSource(
+        'mangary',
+        searchResults: {
+          'divorce': const [
+            SourceSeries(
+              url: 'https://mangary.com/content/night-after',
+              title: 'The Night After the Divorce',
+              genres: ['Yaoi - มังงะวาย'],
+            ),
+            SourceSeries(
+              url: 'https://mangary.com/content/solo',
+              title: 'Solo Hunter',
+              genres: ['Romance - โรแมนติก'],
+            ),
+          ],
+        },
+      );
+      final repo = repoWith([a]);
+      final filtered = await repo.search('divorce', hideYaoi: true);
+      expect(filtered.groups, hasLength(1));
+      expect(filtered.groups.first.members.first.title, 'Solo Hunter');
+      final unfiltered = await repo.search('divorce');
+      expect(unfiltered.groups, hasLength(2));
+    });
+
     test('progressive onPartial emits before the slow source lands',
         () async {
       final fast = FakeSource(

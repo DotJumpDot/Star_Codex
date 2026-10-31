@@ -58,13 +58,12 @@ class ToonarySource implements Source {
   bool get supportsNovels => false;
 
   @override
-  Future<List<SourceSeries>> search(String query, {int page = 1}) async {
-    throw SourceException(
-      id,
-      SourceErrorKind.notFound,
-      detail: '${config.id} has no working search — browse the feed',
-    );
-  }
+  // Interface default spelled out: these sites serve permanent page URLs.
+  bool get pageUrlsExpire => false;
+
+  @override
+  Future<List<SourceSeries>> search(String query, {int page = 1}) =>
+      _listing(config.searchUri(query, page));
 
   @override
   Future<List<SourceSeries>> latest({int page = 1, bool popular = false}) =>
@@ -327,21 +326,17 @@ SourceSeriesDetail? parseToonaryDetail(
     title: title,
     description: (description == null || description.isEmpty) ? null : description,
     tags: genres,
-    type: _typeFromGenres(genres),
+    // Platform truth, not a genre guess: Toonary sites host ONLY
+    // vertical-scroll webtoons. Deriving the type from category names
+    // misfired in the wild — mangary files Korean webtoons under its
+    // "Manga - มังงะญี่ปุ่น" category, which shipped "The Night After
+    // the Divorce" as type=manga → paged reader default (user report
+    // 2026-11-01).
+    type: 'manhwa',
     status: null,
     coverUrl: (cover == null || cover.isEmpty) ? null : cover,
     chapters: chapters,
   );
-}
-
-String? _typeFromGenres(List<String> genres) {
-  for (final g in genres) {
-    final gl = g.toLowerCase();
-    if (gl.contains('manhwa')) return 'manhwa';
-    if (gl.contains('manhua')) return 'manhua';
-    if (gl.contains('manga')) return 'manga';
-  }
-  return null;
 }
 
 /// Joins the `self.__next_f.push([1,"…"])` chunks into one decoded

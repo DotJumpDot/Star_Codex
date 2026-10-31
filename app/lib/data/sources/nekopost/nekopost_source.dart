@@ -39,6 +39,11 @@ class NekopostSource implements Source {
   @override
   bool get supportsNovels => true;
 
+  /// cinfo's pageName URLs carry a short-lived `?verify=` signature
+  /// (CDN change 2026-11-01) — cached page lists go dead fast.
+  @override
+  bool get pageUrlsExpire => true;
+
   String _fileHost(int pid) => pid > _fileHostThreshold ? _fsFiles : _wwwFiles;
 
   String? _coverUrl(int pid, Object? coverVersion) {

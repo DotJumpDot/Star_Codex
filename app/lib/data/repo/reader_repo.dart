@@ -157,24 +157,29 @@ class ReaderRepo {
   }
 
   Future<List<ReaderPageRef>> _pageList(
-      Chapter chapter, Source? source) async {
+    Chapter chapter, Source? source) async {
     var rows = await chaptersDao.pages(chapter.id!);
+    if (rows.isNotEmpty && source != null && source.pageUrlsExpire) {
+      // Signed-URL sources (nekopost CDN, 2026-11-01): a cached list is
+      // dead the moment its `?verify=` tokens lapse — and rows cached
+      // before the rollout hold UNSIGNED links that 403 forever (user
+      // report: chapters that "keep loading, never done" on titles
+      // opened pre-change, while fresh titles worked). Re-fetch the list
+      // on every open; disk-cached pages still serve instantly via the
+      // by-path hash carry-over in [_fetchPages].
+      try {
+        rows = await _fetchPages(chapter, source, previous: rows);
+      } on Exception {
+        // Offline / source down: stale rows still serve disk-cached
+        // pages; the per-page fetch path surfaces the failure.
+      }
+    }
     if (rows.isEmpty) {
       if (source == null) {
         throw SourceException(chapter.sourceId, SourceErrorKind.notFound,
             detail: 'unknown source, no cached pages');
       }
-      final fetched = await source.pages(chapter.url);
-      if (fetched.imageUrls.isEmpty) {
-        throw SourceException(source.id, SourceErrorKind.parse,
-            detail: 'empty page list');
-      }
-      rows = [
-        for (var i = 0; i < fetched.imageUrls.length; i++)
-          ChapterPage(chapterId: chapter.id!, idx: i, url: fetched.imageUrls[i]),
-      ];
-      await chaptersDao.replacePages(chapter.id!, rows);
-      await chaptersDao.setPageCount(chapter.id!, rows.length);
+      rows = await _fetchPages(chapter, source);
     }
     return [
       for (final r in rows)
@@ -186,6 +191,67 @@ class ReaderRepo {
           height: r.height,
         ),
     ];
+  }
+
+  /// Fetch the page list from [source] and persist it. When [previous]
+  /// rows exist, hash/dims/bytes carry over by URL PATH (the signature
+  /// lives in the query string, so the same image keeps the same path)
+  /// — already-downloaded pages stay disk cache hits.
+  Future<List<ChapterPage>> _fetchPages(
+    Chapter chapter,
+    Source source, {
+    List<ChapterPage>? previous,
+  }) async {
+    final fetched = await source.pages(chapter.url);
+    if (fetched.imageUrls.isEmpty) {
+      throw SourceException(source.id, SourceErrorKind.parse,
+          detail: 'empty page list');
+    }
+    final byPath = <String, ChapterPage>{
+      for (final r in previous ?? const <ChapterPage>[])
+        if (r.contentHash != null) _urlPath(r.url): r,
+    };
+    final rows = <ChapterPage>[];
+    for (var i = 0; i < fetched.imageUrls.length; i++) {
+      final url = fetched.imageUrls[i];
+      final old = byPath[_urlPath(url)];
+      rows.add(ChapterPage(
+        chapterId: chapter.id!,
+        idx: i,
+        url: url,
+        contentHash: old?.contentHash,
+        width: old?.width,
+        height: old?.height,
+        bytes: old?.bytes,
+      ));
+    }
+    await chaptersDao.replacePages(chapter.id!, rows);
+    await chaptersDao.setPageCount(chapter.id!, rows.length);
+    return rows;
+  }
+
+  static String _urlPath(String url) {
+    final q = url.indexOf('?');
+    return q >= 0 ? url.substring(0, q) : url;
+  }
+
+  /// Chapter page rows for the download queue: same revalidation as
+  /// [_pageList] — signed-URL sources get a FRESH list, because a
+  /// multi-hour queue must never ride links that lapse in minutes.
+  Future<List<ChapterPage>> pageRowsForDownload(
+    Chapter chapter, Source source) async {
+    final rows = await chaptersDao.pages(chapter.id!);
+    if (rows.isNotEmpty && source.pageUrlsExpire) {
+      try {
+        return await _fetchPages(chapter, source, previous: rows);
+      } on Exception {
+        return rows; // stale rows still describe the chapter's pages
+      }
+    }
+    if (rows.isEmpty) {
+      return await _fetchPages(chapter, source);
+    }
+    return rows;
   }
 
   /// Other sources' copies of the same chapter number (epsilon match, tab

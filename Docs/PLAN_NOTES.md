@@ -1598,3 +1598,48 @@ repro'd or root-caused from code:
   all → normal → 18+ (library source-scope filter).
 - **Webtoons.com (webtoons.com/th) tab — FUTURE work only** (user
   request, explicitly deferred; a Webtoon tab would slot after Mix).
+
+## 2026-11-01 — nekopost signed CDN + nano-manga ajax chapters + Mix search
+
+- **Nekopost image URLs are now SIGNED and short-lived** (CDN change
+  probed live 2026-11-01 ~06:30 UTC+7): cinfo's `pageName` full URLs
+  carry `?verify=<unix-seconds>-<token>`, unsigned chapter-image URLs
+  403 outright (covers `{pid}_cover.jpg` are still open). Symptom on
+  the phone: titles opened before the rollout "kept loading forever" —
+  their cached `chapter_pages` rows held dead unsigned links, and
+  `chapter_pages` was DB-first with no expiry. Fix: `Source
+  .pageUrlsExpire` (nekopost → true) — `_pageList` and the download
+  queue (`ReaderRepo.pageRowsForDownload`) RE-FETCH the page list on
+  every open for such sources, carrying hash/dims/bytes over by URL
+  PATH (the signature lives in the query, so a carried hash keeps
+  already-downloaded pages as disk hits). Refetch failure (offline)
+  falls back to the stale rows. Do NOT cache nekopost page URLs
+  anywhere else.
+- **nano-manga chapters live behind `{seriesUrl}ajax/chapters/`**
+  (Madara 6.8: the page ships an EMPTY `#manga-chapters-holder` +
+  spinner; theme `madara-core/script.js` POSTs the fragment — probed
+  2026-11-01). `parseClassicDetail` now also reads the synopsis from a
+  `post-content_item` whose heading reads Summary/Synopsis/เรื่องย่อ
+  (no `.description-summary` on this theme), and chapter dates come
+  from the `li.wp-manga-chapter` sibling
+  `.chapter-release-date a[title="9 ชั่วโมง ago"]` (strip ` ago`,
+  parseRelativeStamp). `detail()` falls back to the ajax POST whenever
+  the classic page has no `li.wp-manga-chapter` rows and the holder
+  div is present (doujin-lc rows stay server-rendered).
+- **Toonary search IS server-rendered**: mangary `/latest?q=…&page=N`,
+  whytoon `/browse(/page/N)?q=…` (probed 2026-11-01; /search 404s).
+  `ToonaryConfig.searchUri`; `search()` reuses the listing parser, so
+  Mix-tab search works and the yaoi filter applies to search too
+  (`BrowseRepo.search(hideYaoi:)`).
+- **Toonary type = 'manhwa', always** (platform truth). The old
+  genre-derived `_typeFromGenres` copied mangary's "Manga -
+  มังงะญี่ปุ่น" CATEGORY onto Korean webtoons (user report: "The
+  Night After the Divorce" shipped type=manga → paged reader on tall
+  strips). `_mergeMetadata` lets a mix-source detail CORRECT an
+  existing wrong type (and recomputes `origin` to match).
+- **Reader auto-shape detection is now symmetric**
+  (`autoDetectFlags(type, override)`): webtoon reader swaps to paged
+  when pages are manga-shaped (avg h/w < 1.6 — existing, now also for
+  manhwa-typed series); paged reader swaps to webtoon when avg h/w
+  ≥ 2.2 after 3 pages (manga-typed only). Explicit per-series/global
+  mode choices are never overridden.

@@ -13,6 +13,7 @@ class FakeSource implements Source {
     Map<String, List<String>>? pagesResults,
     Map<String, String>? novelTexts,
     this.error,
+    this.urlsExpire = false,
   }) : searchResults = searchResults ?? {},
        latestResults = latestResults ?? const [],
        genreResults = genreResults ?? {},
@@ -42,6 +43,9 @@ class FakeSource implements Source {
   /// Mutable so tests can flip a source offline mid-run.
   Object? error;
 
+  /// Drives [pageUrlsExpire] (nekopost-style signed-URL sources).
+  final bool urlsExpire;
+
   /// Optional per-source latency for the progressive-feed test (the
   /// repo emits partial pages as each source lands).
   Duration latestDelay = Duration.zero;
@@ -61,6 +65,9 @@ class FakeSource implements Source {
   String get referer => 'https://example.com/$id/';
   @override
   bool get supportsNovels => false;
+
+  @override
+  bool get pageUrlsExpire => urlsExpire;
 
   @override
   Future<List<SourceSeries>> search(String query, {int page = 1}) async {

@@ -50,7 +50,10 @@ void main() {
       expect(d.description, 'เรื่องย่อทดสอบ');
       expect(d.coverUrl, startsWith('https://storage.mangary.com/'));
       expect(d.tags, contains('Yaoi - มังงะวาย'));
-      expect(d.type, isNull); // genres carry no manhwa/manga tag here
+      // Platform truth (2026-11-01): Toonary sites host ONLY vertical
+      // webtoons — the old genre-derived guess mislabeled titles via
+      // mangary's "Manga - มังงะญี่ปุ่น" category.
+      expect(d.type, 'manhwa');
       // Premium (coin) episodes are excluded — no paywall bypass.
       expect(d.chapters, hasLength(2));
       expect(d.chapters.map((c) => c.number), [1, 2]);
@@ -110,6 +113,22 @@ void main() {
       expect(whytoon.listingUri(1).toString(), 'https://whytoon.com/browse');
       expect(whytoon.listingUri(3).toString(),
           'https://whytoon.com/browse/page/3');
+    });
+
+    test('search URLs per site shape (?q= server-side filter, 2026-11-01)',
+        () {
+      final mangary = toonaryConfigs.firstWhere((c) => c.id == 'mangary');
+      final whytoon = toonaryConfigs.firstWhere((c) => c.id == 'whytoon');
+      expect(mangary.searchUri('divorce', 1).toString(),
+          'https://mangary.com/latest?q=divorce');
+      final thai = mangary.searchUri('สายเด็ก อัจฉริยะ', 2);
+      expect(thai.path, '/latest');
+      expect(thai.queryParameters['q'], 'สายเด็ก อัจฉริยะ');
+      expect(thai.queryParameters['page'], '2');
+      expect(whytoon.searchUri('divorce', 1).toString(),
+          'https://whytoon.com/browse?q=divorce');
+      expect(whytoon.searchUri('divorce', 3).toString(),
+          'https://whytoon.com/browse/page/3?q=divorce');
     });
   });
 }

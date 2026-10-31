@@ -25,6 +25,14 @@ abstract class Source {
   /// `novelText` instead.
   Future<ChapterPages> pages(String chapterUrl);
 
+  /// True when the source's page image URLs are SIGNED and SHORT-LIVED
+  /// (nekopost's CDN, 2026-11-01: `?verify=<unix>-<token>` links that
+  /// 403 once lapsed — and the pre-rollout UNSIGNED links 403 outright,
+  /// stranding every chapter whose URL list was cached before). The
+  /// reader then re-fetches the page list on every open instead of
+  /// trusting the cached `chapter_pages` rows.
+  bool get pageUrlsExpire => false;
+
   /// Novel chapter body (nekopost only). Returns null for image sources.
   Future<String?> novelText(String chapterUrl);
 

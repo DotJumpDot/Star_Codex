@@ -885,3 +885,22 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   route-observer refresh, history per-chapter default, library New chip
   above-highest-read, bilingual title merge, reader auto-shape swap,
   library scope cycle. 302 tests green, analyze clean.
+- 2026-11-01 — Post-v1.5.0 fixes: nekopost signed CDN + nano-manga
+  chapters + Mix search + reader auto-detect symmetry. (1) Nekopost's
+  CDN switched chapter images to short-lived signed `?verify=` URLs
+  (2026-11-01) — chapters opened before the rollout "loaded forever"
+  on cached dead links; expiring-URL sources now re-fetch the page
+  list on every open (`Source.pageUrlsExpire`, downloads too), keeping
+  disk-cache hashes by URL path. (2) nano-manga chapters arrive via
+  POST `{seriesUrl}ajax/chapters/` (empty holder server-side) — detail
+  auto-falls back to it; synopsis read from the Summary
+  post-content_item; chapter dates from the `.chapter-release-date`
+  title attribute. (3) Mix tab search now works (mangary
+  `/latest?q=`, whytoon `/browse?q=`, server-rendered) with the yaoi
+  filter applied. (4) Toonary type is always 'manhwa' (platform
+  truth); a mix-source refresh CORRECTS a genre-derived 'manga'
+  mis-type ("The Night After the Divorce"). (5) Reader auto-shape
+  detection is symmetric: manga-typed chapters swap paged→webtoon on
+  tall strips (avg h/w ≥ 2.2), manhwa-typed swap webtoon→paged on
+  manga-shaped pages; explicit mode choices never overridden. 316
+  tests green, analyze clean.

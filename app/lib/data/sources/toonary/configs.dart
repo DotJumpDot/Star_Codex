@@ -42,6 +42,19 @@ class ToonaryConfig {
       ? Uri.parse('$baseUrl/latest${page > 1 ? '?page=$page' : ''}')
       : Uri.parse('$baseUrl/browse${page > 1 ? '/page/$page' : ''}');
 
+  /// Server-rendered search (probed live 2026-11-01): both sites filter
+  /// their listing route with `?q=` — mangary `/latest?q=…(&page=N)`,
+  /// whytoon `/browse(/page/N)?q=…`. Same card markup as the feed.
+  Uri searchUri(String query, int page) {
+    if (listingInQuery) {
+      return Uri.parse('$baseUrl/latest').replace(
+        queryParameters: {'q': query, if (page > 1) 'page': '$page'},
+      );
+    }
+    final base = '$baseUrl/browse${page > 1 ? '/page/$page' : ''}';
+    return Uri.parse(base).replace(queryParameters: {'q': query});
+  }
+
   Uri genreUri(String term, int page) => Uri.parse(
       '$baseUrl/latest/$term${page > 1 ? '?page=$page' : ''}');
 }
