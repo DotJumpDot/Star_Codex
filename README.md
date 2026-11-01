@@ -146,7 +146,7 @@ Requires Android 7.0+ (API 24).
 > **Upgrading from a debug/test build?** Uninstall it first — release
 > builds are signed with a different key.
 
-See [what changed in v1.5.1](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.5.1).
+See [what changed in v1.5.2](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.5.2).
 
 ## 🛠️ Tech stack
 
@@ -202,6 +202,10 @@ Star_Codex/
 ```
 
 ## 📜 Status
+
+**v1.5.2 (2026-11-01)** — search works on every tab: the overlay assumed
+the pre-Mix tab order, so Search Mix did nothing visible and Search 18+
+bounced to the main tab; each tab now searches its own sites.
 
 **v1.5.1 (2026-11-01)** — site-change fixes and feed polish: Nekopost's
 signed-CDN image links re-fetch per open (chapters never strand on dead
