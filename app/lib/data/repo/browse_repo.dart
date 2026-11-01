@@ -102,7 +102,7 @@ class BrowseRepo {
     int page = 1,
     bool popular = false,
     bool hideYaoi = false,
-    void Function(BrowsePage partial)? onPartial,
+    Future<void> Function(BrowsePage partial)? onPartial,
   }) async {
     final active = _active(onlySourceIds);
     // Progressive first paint (user report 2026-10-28: first feed took
@@ -129,7 +129,13 @@ class BrowseRepo {
         results.add(r);
         final snapshot = List.of(results);
         if (hideYaoi) _dropYaoi(snapshot);
-        onPartial(
+        // AWAITED (2026-11-01): the controller hydrates the partial from
+        // the DB before painting, so fast sources' cards show their
+        // cached intro/date immediately instead of waiting for the
+        // slowest site's final emission (user report: "fast sites show
+        // no intro until the slow one fully loads"). enrichGroups is
+        // bulk (4 queries) — the await is milliseconds.
+        await onPartial(
           BrowsePage(
             groups: mergeIntoGroups(const [], _candidates(snapshot)),
             failures: _failures(snapshot),
@@ -294,19 +300,50 @@ class BrowseRepo {
     // 120 (raised from 60, 2026-10-20): DB-only reads, and cards past the
     // window showed no date even when the series row already had one —
     // with unbudgeted date backfill the window must cover deep lists.
-    for (final g in groups.take(120)) {
-      // Row lookup by the primary tile's norm, then its Latin-only
-      // variant — a solo bully card ("English title + Thai subtitle")
-      // materializes under the Latin norm, and the suffixed tile alone
-      // would never find the row again.
-      final row =
-          await _seriesByTileNorm(normalizeTitle(g.primary.title)) ??
-          await _seriesByTileNorm(latinOnlyNorm(g.primary.title));
-      if (row == null) continue;
-      try {
-        await _applyRowToGroup(g, row);
-      } catch (_) {
-        // enrichment is best-effort — never fail a listing over it
+    final targets = groups.take(120).toList();
+    if (targets.isEmpty) return;
+    // BULK hydration (2026-11-01): the per-card await chain (~5 queries
+    // × 120 cards) cost 1-3 s inside the pre-paint hydrate — the user
+    // felt it as "intros need a full wait". Four round-trips total:
+    // rows by norm, stamps, tags, first covers — then in-memory apply.
+    final normGroups = <String, List<SearchGroup>>{};
+    final latinGroups = <String, List<SearchGroup>>{};
+    for (final g in targets) {
+      final norm = normalizeTitle(g.primary.title);
+      normGroups.putIfAbsent(norm, () => []).add(g);
+      // Latin-only variant — a solo bully card ("English + Thai
+      // subtitle") materializes under the Latin norm (2026-10-20).
+      final latin = latinOnlyNorm(g.primary.title);
+      if (latin != null && latin != norm) {
+        latinGroups.putIfAbsent(latin, () => []).add(g);
+      }
+    }
+    final rows = await seriesDao.findByTitleNorms({
+      ...normGroups.keys,
+      ...latinGroups.keys,
+    });
+    if (rows.isEmpty) return;
+    final ids = <int>{
+      for (final r in rows.values)
+        if (r.id != null) r.id!,
+    };
+    final stamps = await seriesDao.lastUpdatedAtMany(ids);
+    final tags = await tagsDao.tagsOfMany(ids);
+    final covers = await seriesDao.firstCoveredBySeries(ids);
+    for (final g in targets) {
+      final norm = normalizeTitle(g.primary.title);
+      final row = rows[norm] ?? rows[latinOnlyNorm(g.primary.title) ?? ''];
+      final id = row?.id;
+      if (row == null || id == null) continue;
+      g.dbStatus = row.status;
+      g.dbType = row.type;
+      g.dbLastUpdatedMs = stamps[id];
+      g.dbTags = tags[id] ?? const [];
+      g.dbDescription = row.description;
+      final link = covers[id];
+      if (link != null && (link.coverUrl ?? '').isNotEmpty) {
+        g.dbCoverUrl = link.coverUrl;
+        g.dbCoverReferer = sourceById(link.sourceId)?.referer;
       }
     }
   }
@@ -333,15 +370,6 @@ class BrowseRepo {
         g.dbCoverReferer = sourceById(link.sourceId)?.referer;
         break;
       }
-    }
-  }
-
-  Future<Series?> _seriesByTileNorm(String? norm) async {
-    if (norm == null || norm.isEmpty) return null;
-    try {
-      return await seriesDao.findByTitleNorm(norm);
-    } catch (_) {
-      return null;
     }
   }
 

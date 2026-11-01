@@ -214,6 +214,56 @@ class SeriesDao {
     return rows.isEmpty ? null : Series.fromRow(rows.first);
   }
 
+  /// Bulk norm lookup for the browse hydration pass (2026-11-01): one
+  /// round-trip for up to N norms instead of N (the per-card await chain
+  /// made the pre-paint hydrate cost 1-3 s on a full feed — the user
+  /// felt it as "intros need a full wait").
+  Future<Map<String, Series>> findByTitleNorms(Set<String> norms) async {
+    if (norms.isEmpty) return const {};
+    final rows = await db.query(
+      'series',
+      where: 'title_norm IN (${List.filled(norms.length, '?').join(',')})',
+      whereArgs: norms.toList(),
+    );
+    return {for (final r in rows) r['title_norm'] as String: Series.fromRow(r)};
+  }
+
+  /// MAX(last_updated_at) per series id — one round-trip.
+  Future<Map<int, int?>> lastUpdatedAtMany(Iterable<int> ids) async {
+    final list = ids.toSet().toList();
+    if (list.isEmpty) return const {};
+    final rows = await db.rawQuery(
+      'SELECT series_id, MAX(last_updated_at) AS m FROM series_sources '
+      'WHERE series_id IN (${List.filled(list.length, '?').join(',')}) '
+      'GROUP BY series_id',
+      list,
+    );
+    return {for (final r in rows) r['series_id'] as int: r['m'] as int?};
+  }
+
+  /// First cover-carrying link (rowid order) per series id — one
+  /// round-trip. Mirrors sourcesOf()'s per-series pick.
+  Future<Map<int, SeriesSource>> firstCoveredBySeries(Iterable<int> ids) async {
+    final list = ids.toSet().toList();
+    if (list.isEmpty) return const {};
+    final rows = await db.query(
+      'series_sources',
+      where:
+          'series_id IN (${List.filled(list.length, '?').join(',')}) '
+          "AND cover_url IS NOT NULL AND cover_url != ''",
+      whereArgs: list,
+      orderBy: 'rowid',
+    );
+    final out = <int, SeriesSource>{};
+    for (final r in rows) {
+      final s = SeriesSource.fromRow(r);
+      // Rows come back in rowid order per SQLite's index scan; keep the
+      // FIRST cover per series (query() has no DISTINCT ON).
+      out.putIfAbsent(s.seriesId, () => s);
+    }
+    return out;
+  }
+
   Future<int> update(Series s) => db.update(
     'series',
     s.toRow()..remove('id'),
@@ -364,8 +414,9 @@ class SeriesDao {
   /// Targeted description write (sibling backfill — browse_repo's
   /// background pass): the rest of the row must not be touched.
   Future<void> setDescription(int id, String description) => db.update(
-      'series',
-      {'description': description},
-      where: 'id = ?',
-      whereArgs: [id]);
+    'series',
+    {'description': description},
+    where: 'id = ?',
+    whereArgs: [id],
+  );
 }

@@ -41,7 +41,8 @@ Future<void> showChapterActions(
           for (final sid in carryingSourceIds)
             ListTile(
               leading: SourceDot(
-                color: sourceDotColor(
+                color: sourceDotColorFor(
+                  sid,
                   vm.links.indexWhere((l) => l.sourceId == sid),
                 ),
                 size: 12,

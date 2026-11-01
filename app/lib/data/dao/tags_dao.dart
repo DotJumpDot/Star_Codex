@@ -8,26 +8,54 @@ class TagsDao {
   final Database db;
 
   Future<int> getOrCreate(String name) async {
-    final id = await db.insert('tags', {'name': name},
-        conflictAlgorithm: ConflictAlgorithm.ignore);
+    final id = await db.insert('tags', {
+      'name': name,
+    }, conflictAlgorithm: ConflictAlgorithm.ignore);
     // QA on-device 2026-10-18: Android's insertWithOnConflict(IGNORE)
     // returns -1 (not 0) when the row already exists — treating anything
     // non-zero as a real rowid made novel detail loads blow up with a
     // series_tags FOREIGN KEY failure (tag_id=-1). Reject <= 0.
     if (id > 0) return id;
-    final rows = await db.query('tags',
-        columns: ['id'], where: 'name = ?', whereArgs: [name], limit: 1);
+    final rows = await db.query(
+      'tags',
+      columns: ['id'],
+      where: 'name = ?',
+      whereArgs: [name],
+      limit: 1,
+    );
     return rows.first['id'] as int;
   }
 
   Future<List<String>> tagsOf(int seriesId) async {
-    final rows = await db.rawQuery('''
+    final rows = await db.rawQuery(
+      '''
       SELECT t.name FROM tags t
       JOIN series_tags st ON st.tag_id = t.id
       WHERE st.series_id = ?
       ORDER BY t.name
-    ''', [seriesId]);
+    ''',
+      [seriesId],
+    );
     return rows.map((r) => r['name'] as String).toList(growable: false);
+  }
+
+  /// Tags per series id for MANY series in one round-trip (browse
+  /// hydration 2026-11-01 — see SeriesDao.findByTitleNorms).
+  Future<Map<int, List<String>>> tagsOfMany(Iterable<int> seriesIds) async {
+    final list = seriesIds.toSet().toList();
+    if (list.isEmpty) return const {};
+    final rows = await db.rawQuery(
+      'SELECT st.series_id AS sid, t.name FROM tags t '
+      'JOIN series_tags st ON st.tag_id = t.id '
+      'WHERE st.series_id IN (${List.filled(list.length, '?').join(',')}) '
+      'ORDER BY st.series_id, t.name',
+      list,
+    );
+    final out = <int, List<String>>{};
+    for (final r in rows) {
+      (out[r['sid'] as int] ??= []).add(r['name'] as String);
+    }
+    return out;
   }
 
   /// Every known tag name (browse filter sheet, Plan/08 §3). Populated
@@ -41,25 +69,35 @@ class TagsDao {
   /// tags in a transaction — used by series_repo in Phase 5+).
   Future<void> setForSeries(int seriesId, List<String> names) {
     return db.transaction((txn) async {
-      await txn
-          .delete('series_tags', where: 'series_id = ?', whereArgs: [seriesId]);
+      await txn.delete(
+        'series_tags',
+        where: 'series_id = ?',
+        whereArgs: [seriesId],
+      );
       for (final name in names) {
         // ConflictIgnored inserts answer -1 on Android (0 under the test
         // shim) — see getOrCreate above; fall back to a name lookup for
         // both so existing tags resolve to their real rowid.
-        final tagId = await txn.insert('tags', {'name': name},
-            conflictAlgorithm: ConflictAlgorithm.ignore);
+        final tagId = await txn.insert('tags', {
+          'name': name,
+        }, conflictAlgorithm: ConflictAlgorithm.ignore);
         int resolvedId;
         if (tagId > 0) {
           resolvedId = tagId;
         } else {
-          final rows = await txn.query('tags',
-              columns: ['id'], where: 'name = ?', whereArgs: [name], limit: 1);
+          final rows = await txn.query(
+            'tags',
+            columns: ['id'],
+            where: 'name = ?',
+            whereArgs: [name],
+            limit: 1,
+          );
           resolvedId = rows.first['id'] as int;
         }
-        await txn.insert('series_tags',
-            {'series_id': seriesId, 'tag_id': resolvedId},
-            conflictAlgorithm: ConflictAlgorithm.ignore);
+        await txn.insert('series_tags', {
+          'series_id': seriesId,
+          'tag_id': resolvedId,
+        }, conflictAlgorithm: ConflictAlgorithm.ignore);
       }
     });
   }

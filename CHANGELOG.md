@@ -924,3 +924,11 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   copies the list shows. (3) db v12: nano-manga chapter lists ingested
   before the date parsers re-fetch on next open — every chapter no
   longer reads ไม่ระบุวันที่. 321 tests green, analyze clean.
+- 2026-11-01 (4) — instant intros + bulk hydration + nano accent. (1)
+  Feed partials are hydrated from the DB BEFORE painting — fast sites'
+  cards show their cached intro immediately instead of waiting for the
+  slowest site (user report). (2) Card hydration is bulk SQL (4
+  round-trips vs ~5-per-card, the 1-3 s pre-paint stall). (3) Nano-Manga
+  site color changed pink → taupe-brown (was indistinguishable from
+  Slow-Manga's red on cards and Dark-Manga's orange on the detail page).
+  321 tests green, analyze clean.

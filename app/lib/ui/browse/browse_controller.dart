@@ -445,11 +445,18 @@ class BrowseController extends StateNotifier<BrowseState> {
   /// replaced the WHOLE feed state with the new page's partial batch,
   /// deleting every previously loaded page (user report 2026-11-01:
   /// scroll on a single-site feed removed the previous titles).
-  void Function(BrowsePage)? get _onPartial {
+  Future<void> Function(BrowsePage)? get _onPartial {
     final seq = _fetchSeq;
-    return (partial) {
+    return (partial) async {
       if (seq != _fetchSeq || !mounted) return;
       if (partial.groups.isEmpty) return;
+      // Hydrate BEFORE painting the partial (repo awaits this): fast
+      // sources' cards then render with their cached intro/date instead
+      // of popping it in later — or waiting for the slowest source's
+      // final emission (user report 2026-11-01). Bulk enrich = ~4 DB
+      // round-trips, milliseconds.
+      await _repo.enrichGroups(partial.groups);
+      if (seq != _fetchSeq || !mounted) return;
       state = state.copyWith(
         groups: partial.groups,
         failedSources: {for (final f in partial.failures) f.sourceId},

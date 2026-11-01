@@ -181,7 +181,9 @@ class _ChapterRow extends ConsumerWidget {
           for (final sid in carrying)
             Padding(
               padding: const EdgeInsets.only(left: 3),
-              child: SourceDot(color: sourceDotColor(registryIndex(sid))),
+              child: SourceDot(
+                color: sourceDotColorFor(sid, registryIndex(sid)),
+              ),
             ),
           if (downloaded) ...[
             const SizedBox(width: 6),

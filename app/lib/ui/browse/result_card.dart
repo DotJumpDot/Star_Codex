@@ -83,7 +83,7 @@ class ResultCard extends StatelessWidget {
       for (final m in group.members)
         m.sourceId: (
           _sourceName(m.sourceId),
-          sourceDotColor(_sourceIndex(m.sourceId)),
+          sourceDotColorFor(m.sourceId, _sourceIndex(m.sourceId)),
         ),
     };
 

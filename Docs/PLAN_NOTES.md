@@ -1688,3 +1688,20 @@ repro'd or root-caused from code:
   dates. Other sources untouched.
 - Controller lint cleanup: `allowedSourceIds` param/field renamed to
   `scopeSourceIds` (initializing formal; nullable semantics preserved).
+
+### 2026-11-01 (4) — instant intros on partials + bulk hydration + nano accent
+
+- **Intro wait root cause #2**: hydration ran only on the FINAL feed
+  emission (after the slowest WAF-ladder source) — fast sources'
+  cards sat intro-less for 10-40 s (user report). Partials are now
+  AWAITED and hydrated BEFORE painting (`BrowseRepo.latest`'s
+  onPartial is `Future<void>`; the controller enriches then emits).
+- **Hydration is BULK** (SeriesDao.findByTitleNorms / lastUpdatedAtMany
+  / firstCoveredBySeries + TagsDao.tagsOfMany — 4 round-trips instead
+  of ~5 per card): the pre-paint hydrate previously cost 1-3 s on a
+  full feed, which the user felt as "intros need a full wait".
+- **nano-manga accent**: the index palette gave 8th-slot nano PINK —
+  read as Slow's red on cards, Dark's orange on the detail page
+  (user report + screenshots). `sourceDotColorFor(id, index)` with a
+  `nano-manga` → taupe-brown override; id-having call sites updated
+  (cards, detail hero, chapter rows, sheet, site list).

@@ -422,7 +422,7 @@ void main() {
       slow.latestDelay = const Duration(milliseconds: 120);
       final partials = <int>[];
       final page = await repoWith([fast, slow]).latest(
-        onPartial: (p) => partials.add(p.groups.length),
+        onPartial: (p) async => partials.add(p.groups.length),
       );
       expect(page.groups, hasLength(1));
       expect(partials.first, 1); // the fast source painted immediately

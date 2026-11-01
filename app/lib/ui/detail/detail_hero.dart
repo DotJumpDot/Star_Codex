@@ -134,52 +134,58 @@ class HeroChips extends ConsumerWidget {
     }
 
     Widget neutral(String label) => Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Text(
-            label,
-            style: theme.textTheme.labelSmall
-                ?.copyWith(fontWeight: FontWeight.w600),
-          ),
-        );
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
 
     Widget tinted(String label, Color color) => Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.16),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: color.withValues(alpha: 0.55)),
-          ),
-          child: Text(
-            label,
-            style: theme.textTheme.labelSmall
-                ?.copyWith(fontWeight: FontWeight.w600, color: color),
-          ),
-        );
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.55)),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
+    );
 
     Widget site(String sourceId) => Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(999),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SourceDot(
+            color: sourceDotColorFor(sourceId, registryIndex(sourceId)),
+            size: 8,
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SourceDot(
-                  color: sourceDotColor(registryIndex(sourceId)), size: 8),
-              const SizedBox(width: 5),
-              Text(
-                vm.sourceNames[sourceId] ?? sourceId,
-                style: theme.textTheme.labelSmall
-                    ?.copyWith(fontWeight: FontWeight.w600),
-              ),
-            ],
+          const SizedBox(width: 5),
+          Text(
+            vm.sourceNames[sourceId] ?? sourceId,
+            style: theme.textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        );
+        ],
+      ),
+    );
 
     return Wrap(
       spacing: 6,
@@ -218,8 +224,9 @@ class DetailActionRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final controller =
-        ref.read(detailControllerProvider(controllerKey).notifier);
+    final controller = ref.read(
+      detailControllerProvider(controllerKey).notifier,
+    );
     final target = continueTarget(vm);
 
     return Padding(
@@ -262,7 +269,9 @@ class DetailActionRow extends ConsumerWidget {
                       // Show the chapter's new state on return.
                       if (!context.mounted) return;
                       await ref
-                          .read(detailControllerProvider(controllerKey).notifier)
+                          .read(
+                            detailControllerProvider(controllerKey).notifier,
+                          )
                           .refreshProgress();
                     },
             ),
@@ -273,8 +282,8 @@ class DetailActionRow extends ConsumerWidget {
               vm.favoriteLevel >= 2
                   ? 'detail.remove_library'
                   : (vm.inLibrary
-                      ? 'detail.super_favorite'
-                      : 'detail.add_library'),
+                        ? 'detail.super_favorite'
+                        : 'detail.add_library'),
             ),
             // Favorite ladder (user request 2026-10-28): outline heart →
             // filled heart → filled STAR (super, pins to the library top)
@@ -342,8 +351,7 @@ class SiteSwitchButton extends ConsumerWidget {
             value: link.sourceId,
             child: Row(
               children: [
-                SourceDot(
-                    color: sourceDotColor(registryIndex(link.sourceId))),
+                SourceDot(color: sourceDotColor(registryIndex(link.sourceId))),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -355,7 +363,8 @@ class SiteSwitchButton extends ConsumerWidget {
                 Text(
                   '${vm.chaptersBySource[link.sourceId]?.length ?? 0}',
                   style: theme.textTheme.labelMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant),
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -370,15 +379,15 @@ class SiteSwitchButton extends ConsumerWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SourceDot(
-                color: sourceDotColor(registryIndex(selectedSourceId))),
+            SourceDot(color: sourceDotColor(registryIndex(selectedSourceId))),
             const SizedBox(width: 6),
             Text(name, style: theme.textTheme.labelMedium),
             const SizedBox(width: 4),
             Text(
               '· $count',
               style: theme.textTheme.labelMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant),
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             const Icon(Icons.arrow_drop_down),
           ],
@@ -483,15 +492,13 @@ class IntroductionExpansion extends StatelessWidget {
               // request 2026-10-28) — the intro is where the whole name
               // is readable.
               vm.displayTitle,
-              style: theme.textTheme.titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w700),
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
             if (description != null && description.isNotEmpty) ...[
               const SizedBox(height: 6),
-              Text(
-                description,
-                style: theme.textTheme.bodySmall,
-              ),
+              Text(description, style: theme.textTheme.bodySmall),
             ],
             if (vm.tags.isNotEmpty) ...[
               const SizedBox(height: 8),
@@ -510,7 +517,9 @@ class IntroductionExpansion extends StatelessWidget {
             ],
             if (captionSource != null)
               Text(
-                tFmt(context, 'detail.description_from', {'source': captionSource}),
+                tFmt(context, 'detail.description_from', {
+                  'source': captionSource,
+                }),
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),

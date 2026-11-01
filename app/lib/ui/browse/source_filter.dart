@@ -145,8 +145,10 @@ class _SourceSheetState extends State<_SourceSheet> {
             Row(
               children: [
                 Expanded(
-                  child: Text(t(context, 'browse.sources'),
-                      style: Theme.of(context).textTheme.titleMedium),
+                  child: Text(
+                    t(context, 'browse.sources'),
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                 ),
                 FilledButton(
                   onPressed: () {
@@ -160,8 +162,8 @@ class _SourceSheetState extends State<_SourceSheet> {
             const SizedBox(height: 4),
             Text(
               t(context, 'browse.sources_hint'),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.outline),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: Theme.of(context).colorScheme.outline),
             ),
             const SizedBox(height: 10),
             Align(
@@ -182,7 +184,8 @@ class _SourceSheetState extends State<_SourceSheet> {
             // flush against the sheet's bottom edge.
             ConstrainedBox(
               constraints: BoxConstraints(
-                  maxHeight: MediaQuery.sizeOf(context).height * 0.5),
+                maxHeight: MediaQuery.sizeOf(context).height * 0.5,
+              ),
               child: SingleChildScrollView(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Column(
@@ -190,10 +193,9 @@ class _SourceSheetState extends State<_SourceSheet> {
                     for (var i = 0; i < widget.sources.length; i++)
                       _SiteRow(
                         source: widget.sources[i],
-                        color: sourceDotColor(i),
+                        color: sourceDotColorFor(widget.sources[i].id, i),
                         selected: _selected.contains(widget.sources[i].id),
-                        failed:
-                            widget.failedIds.contains(widget.sources[i].id),
+                        failed: widget.failedIds.contains(widget.sources[i].id),
                         onToggle: () => setState(() {
                           final id = widget.sources[i].id;
                           if (!_selected.remove(id)) {
@@ -257,8 +259,9 @@ class _SiteRow extends StatelessWidget {
           child: Row(
             children: [
               _SelectDot(
-                  selected: selected,
-                  color: Theme.of(context).colorScheme.primary),
+                selected: selected,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               const SizedBox(width: 10),
               SourceDot(color: color, size: 10),
               const SizedBox(width: 8),
@@ -314,8 +317,11 @@ class _SelectDot extends StatelessWidget {
         ),
       ),
       child: selected
-          ? Icon(Icons.check,
-              size: 15, color: Theme.of(context).colorScheme.onPrimary)
+          ? Icon(
+              Icons.check,
+              size: 15,
+              color: Theme.of(context).colorScheme.onPrimary,
+            )
           : null,
     );
   }

@@ -15,6 +15,16 @@ const _palette = <Color>[
 
 Color sourceDotColor(int index) => _palette[index % _palette.length];
 
+/// Identity-based overrides (user report 2026-11-01): the index palette
+/// gave 8th-slot nano-manga PINK — on cards it read as Slow-Manga's red,
+/// on the detail page as Dark-Manga's orange. Taupe-brown is outside the
+/// palette's hue set entirely (red/blue/green/orange/purple/cyan/
+/// yellow/pink).
+const _sourceColorOverrides = <String, Color>{'nano-manga': Color(0xFFA1887F)};
+
+Color sourceDotColorFor(String sourceId, int index) =>
+    _sourceColorOverrides[sourceId] ?? sourceDotColor(index);
+
 /// Compact site label for the browse card's chips (user request
 /// 2026-10-22: with 3+ merged sites the chip row wrapped to three lines
 /// and pushed the series intro out of the card). "Manga" is the genre
