@@ -4,6 +4,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/i18n/i18n.dart';
 import '../../core/providers.dart';
 import '../browse/browse_controller.dart';
+import '../../data/sources/source_registry.dart';
+
+/// Tab index → browse scope. MUST mirror shell._pages: 0 main,
+/// 1 mix, 2 adult (the pre-Mix hardcoded `adultTab = 1` shipped a
+/// regression — Mix searches landed on the hidden 18+ controller and
+/// 18+ searches bounced to the main tab; user reports 2026-11-01).
+BrowseScope browseScopeForTab(int tab) => switch (tab) {
+  1 => BrowseScope.mix,
+  2 => BrowseScope.adult,
+  _ => BrowseScope.main,
+};
 
 /// Global search overlay: slides in over every tab from the top right,
 /// replacing the old inline browse search field. Submit (or a history
@@ -43,16 +54,21 @@ class _SearchOverlayState extends ConsumerState<SearchOverlay> {
     if (q.isEmpty) return;
     _focus.unfocus();
     ref.read(searchOpenProvider.notifier).state = false;
-    // Scope follows the tab the overlay was opened from: a search started
-    // on the Doujin (18+) page stays in the adult sources, everything
-    // else goes to the main browse.
+    // Scope follows the tab the overlay was opened from: the search runs
+    // on THAT tab's controller. Tab order = shell._pages (0 main, 1 mix,
+    // 2 adult). The pre-Mix hardcoded `adultTab = 1` sent Mix searches
+    // into the hidden 18+ controller (nothing visibly happened) and
+    // bounced 18+ searches to the main tab (user reports 2026-11-01).
     final tab = ref.read(tabIndexProvider);
-    const adultTab = 1;
-    if (tab == adultTab) {
-      ref.read(adultBrowseControllerProvider.notifier).submitSearch(q);
-    } else {
-      ref.read(tabIndexProvider.notifier).state = 0;
-      ref.read(browseControllerProvider.notifier).submitSearch(q);
+    final scope = browseScopeForTab(tab);
+    switch (scope) {
+      case BrowseScope.mix:
+        ref.read(mixBrowseControllerProvider.notifier).submitSearch(q);
+      case BrowseScope.adult:
+        ref.read(adultBrowseControllerProvider.notifier).submitSearch(q);
+      case BrowseScope.main:
+        ref.read(tabIndexProvider.notifier).state = 0;
+        ref.read(browseControllerProvider.notifier).submitSearch(q);
     }
   }
 
@@ -136,11 +152,16 @@ class _SearchOverlayState extends ConsumerState<SearchOverlay> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Divider(
-                                      height: 1,
-                                      color: Theme.of(context).dividerColor),
+                                    height: 1,
+                                    color: Theme.of(context).dividerColor,
+                                  ),
                                   Padding(
                                     padding: const EdgeInsets.fromLTRB(
-                                        16, 8, 16, 4),
+                                      16,
+                                      8,
+                                      16,
+                                      4,
+                                    ),
                                     child: Text(
                                       t(context, 'browse.history'),
                                       style: Theme.of(context)
@@ -153,20 +174,25 @@ class _SearchOverlayState extends ConsumerState<SearchOverlay> {
                                       onTap: () => _submit(q),
                                       child: Padding(
                                         padding: const EdgeInsets.symmetric(
-                                            horizontal: 16, vertical: 9),
+                                          horizontal: 16,
+                                          vertical: 9,
+                                        ),
                                         child: Row(
                                           children: [
-                                            Icon(Icons.history,
-                                                size: 16,
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .outline),
+                                            Icon(
+                                              Icons.history,
+                                              size: 16,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .outline,
+                                            ),
                                             const SizedBox(width: 8),
                                             Expanded(
-                                              child: Text(q,
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis),
+                                              child: Text(
+                                                q,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
                                             ),
                                           ],
                                         ),
