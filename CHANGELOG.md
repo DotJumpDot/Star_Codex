@@ -932,3 +932,10 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   site color changed pink → taupe-brown (was indistinguishable from
   Slow-Manga's red on cards and Dark-Manga's orange on the detail page).
   321 tests green, analyze clean.
+- 2026-11-01 — Release: v1.5.1 — version 1.5.1+24. Nekopost signed-CDN
+  fix (expiring page URLs re-fetched per open), nano-manga ajax chapter
+  lists + full dates + intros, Search Mix tab search (yaoi-filtered),
+  Toonary type=manhwa + correction of mis-typed series, symmetric reader
+  auto-detect, scroll-feed fixes (previous pages kept, intros hydrate
+  instantly via bulk SQL), nano accent color, site-sheet type pills.
+  321 tests green, analyze clean.
