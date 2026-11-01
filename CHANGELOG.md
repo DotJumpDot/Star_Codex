@@ -915,3 +915,12 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   waiting for a "next pass" that never saw them. (4) Browse/search card
   dates use the SAME user-tuned theme hue ladder as the detail chapter
   list (ui/date_age_color.dart). 318 tests green, analyze clean.
+- 2026-11-01 (3) — scroll-load regressions (v1.5.0 progressive feed).
+  (1) Scrolling any feed no longer deletes the previous page's titles —
+  the progressive-paint callback rode every fetch and scroll loads'
+  partial emission replaced the whole list (worst on single-site
+  selection). (2) Scrolled-in cards now display their fetched
+  introduction — enrichment updated the batch objects, not the merged
+  copies the list shows. (3) db v12: nano-manga chapter lists ingested
+  before the date parsers re-fetch on next open — every chapter no
+  longer reads ไม่ระบุวันที่. 321 tests green, analyze clean.

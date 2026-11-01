@@ -17,6 +17,22 @@ import 'package:star_codex/ui/browse/browse_controller.dart';
 import 'fake_source.dart';
 import 'helpers.dart';
 
+/// Distinct results per page — pagination (loadMore) tests.
+class PagedSource extends FakeSource {
+  PagedSource(super.id, {required this.pagesByNo, super.details});
+
+  final Map<int, List<SourceSeries>> pagesByNo;
+
+  @override
+  Future<List<SourceSeries>> latest({
+    int page = 1,
+    bool popular = false,
+  }) async {
+    if (error != null) throw error!;
+    return pagesByNo[page] ?? const [];
+  }
+}
+
 /// Delays only its FIRST latest() call — lets tests force a stale (older)
 /// fetch to complete after a newer one (browse race regression).
 class SlowFirstSource extends FakeSource {
@@ -24,8 +40,10 @@ class SlowFirstSource extends FakeSource {
   var _calls = 0;
 
   @override
-  Future<List<SourceSeries>> latest(
-      {int page = 1, bool popular = false}) async {
+  Future<List<SourceSeries>> latest({
+    int page = 1,
+    bool popular = false,
+  }) async {
     if (_calls++ == 0) {
       await Future<void>.delayed(const Duration(milliseconds: 250));
     }
@@ -41,23 +59,25 @@ void main() {
     final db = await openTestDb();
     seriesDao = SeriesDao(db);
     final sources = [
-      FakeSource('slow-manga',
-          latestResults: const [
-            SourceSeries(url: 'https://a/one/', title: 'Alpha'),
-          ],
-          searchResults: const {
-            'alpha': [SourceSeries(url: 'https://a/one/', title: 'Alpha')],
-          },
-          genreResults: const {
-            'action': [
-              SourceSeries(url: 'https://a/one/', title: 'Alpha'),
-            ],
-          }),
-      FakeSource('go-manga',
-          latestResults: const [
-            SourceSeries(url: 'https://b/one/', title: 'Beta'),
-          ],
-          error: null),
+      FakeSource(
+        'slow-manga',
+        latestResults: const [
+          SourceSeries(url: 'https://a/one/', title: 'Alpha'),
+        ],
+        searchResults: const {
+          'alpha': [SourceSeries(url: 'https://a/one/', title: 'Alpha')],
+        },
+        genreResults: const {
+          'action': [SourceSeries(url: 'https://a/one/', title: 'Alpha')],
+        },
+      ),
+      FakeSource(
+        'go-manga',
+        latestResults: const [
+          SourceSeries(url: 'https://b/one/', title: 'Beta'),
+        ],
+        error: null,
+      ),
     ];
     repo = BrowseRepo(
       sources: sources,
@@ -98,8 +118,11 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     await Future<void>.delayed(Duration.zero);
     expect(c.state.feedPopular, isTrue);
-    expect(src.latestPopular, isTrue,
-        reason: 'the ordering must reach the sources');
+    expect(
+      src.latestPopular,
+      isTrue,
+      reason: 'the ordering must reach the sources',
+    );
 
     // Back to the default sort → refetch without popular.
     c.setFilters(const BrowseFilters());
@@ -109,51 +132,59 @@ void main() {
     expect(src.latestPopular, isFalse);
   });
 
-  test('total feed failure falls back to the offline catalog (2026-10-21)',
-      () async {
-    // Seed one visited series + link so the DB has something to show.
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final sid = await seriesDao.insert(Series(
-      title: 'Cached Series',
-      titleNorm: 'cached series',
-      createdAt: now,
-      updatedAt: now,
-    ));
-    await seriesDao.upsertSource(SeriesSource(
-      seriesId: sid,
-      sourceId: 'slow-manga',
-      sourceUrl: 'https://a/cached/',
-      sourceTitle: 'Cached Series',
-      coverUrl: 'https://a/c.jpg',
-      lastChapterNumber: 12,
-      lastUpdatedAt: now,
-      fetchedAt: now,
-    ));
+  test(
+    'total feed failure falls back to the offline catalog (2026-10-21)',
+    () async {
+      // Seed one visited series + link so the DB has something to show.
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final sid = await seriesDao.insert(
+        Series(
+          title: 'Cached Series',
+          titleNorm: 'cached series',
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      await seriesDao.upsertSource(
+        SeriesSource(
+          seriesId: sid,
+          sourceId: 'slow-manga',
+          sourceUrl: 'https://a/cached/',
+          sourceTitle: 'Cached Series',
+          coverUrl: 'https://a/c.jpg',
+          lastChapterNumber: 12,
+          lastUpdatedAt: now,
+          fetchedAt: now,
+        ),
+      );
 
-    // Every source offline.
-    for (final s in repo.sources.whereType<FakeSource>()) {
-      s.error = StateError('offline');
-    }
-    final c = BrowseController(repo);
-    await c.ensureLoaded();
-    expect(c.state.offline, isTrue, reason: 'banner shows');
-    expect(c.state.groups, hasLength(1));
-    expect(c.state.groups.first.displayTitle, 'Cached Series');
-    expect(c.state.groups.first.dbLastUpdatedMs, now,
-        reason: 'card date from the stored link');
-    expect(c.state.endReached, isTrue, reason: 'no pagination offline');
+      // Every source offline.
+      for (final s in repo.sources.whereType<FakeSource>()) {
+        s.error = StateError('offline');
+      }
+      final c = BrowseController(repo);
+      await c.ensureLoaded();
+      expect(c.state.offline, isTrue, reason: 'banner shows');
+      expect(c.state.groups, hasLength(1));
+      expect(c.state.groups.first.displayTitle, 'Cached Series');
+      expect(
+        c.state.groups.first.dbLastUpdatedMs,
+        now,
+        reason: 'card date from the stored link',
+      );
+      expect(c.state.endReached, isTrue, reason: 'no pagination offline');
 
-    // Recovery: sources back → next refresh clears the offline state.
-    for (final s in repo.sources.whereType<FakeSource>()) {
-      s.error = null;
-    }
-    await c.retry();
-    expect(c.state.offline, isFalse);
-    expect(c.state.groups, isNotEmpty);
-  });
+      // Recovery: sources back → next refresh clears the offline state.
+      for (final s in repo.sources.whereType<FakeSource>()) {
+        s.error = null;
+      }
+      await c.retry();
+      expect(c.state.offline, isFalse);
+      expect(c.state.groups, isNotEmpty);
+    },
+  );
 
-  test('chip toggle while in genre mode returns to latest, filtered',
-      () async {
+  test('chip toggle while in genre mode returns to latest, filtered', () async {
     final c = BrowseController(repo);
     await c.ensureLoaded();
     await c.showGenre('slow-manga', 'action');
@@ -198,16 +229,135 @@ void main() {
     expect(c.state.groups, hasLength(2)); // nothing duplicated
   });
 
+  // Regression (user report 2026-11-01): the progressive-paint callback
+  // was passed on EVERY page, so a scroll load's partial emission
+  // REPLACED the whole feed with the new page's batch — the previous
+  // page's titles vanished (most visible with one site selected).
+  test('loadMore KEEPS the previous pages (no partial on scroll)', () async {
+    final src = PagedSource(
+      'slow-manga',
+      pagesByNo: const {
+        1: [SourceSeries(url: 'https://a/p1/', title: 'Page One Series')],
+        2: [SourceSeries(url: 'https://a/p2/', title: 'Page Two Series')],
+      },
+    );
+    final other = FakeSource('go-manga', latestResults: const []);
+    final db = await openTestDb();
+    final scoped = BrowseRepo(
+      sources: [src, other],
+      seriesDao: SeriesDao(db),
+      chaptersDao: ChaptersDao(db),
+      libraryDao: LibraryDao(db),
+      tagsDao: TagsDao(db),
+      historyDao: SearchHistoryDao(db),
+      seriesRepo: SeriesRepo(
+        sources: [src, other],
+        seriesDao: SeriesDao(db),
+        chaptersDao: ChaptersDao(db),
+        tagsDao: TagsDao(db),
+        libraryDao: LibraryDao(db),
+        downloadsDao: DownloadsDao(db),
+        settingsDao: SettingsDao(db),
+      ),
+    );
+    final c = BrowseController(scoped);
+    await c.ensureLoaded();
+    expect(
+      c.state.groups.map((g) => g.displayTitle),
+      contains('Page One Series'),
+    );
+    await c.loadMore();
+    final titles = c.state.groups.map((g) => g.displayTitle).toSet();
+    expect(titles, containsAll(['Page One Series', 'Page Two Series']));
+  });
+
+  // Regression (user report 2026-11-01): enrichment ran on the BATCH's
+  // group objects while the merged list holds COPIES — scrolled-in cards
+  // never displayed the intro the background fetch had just persisted.
+  test('scrolled-in cards display their intro (enrichment hits the '
+      'merged copies)', () async {
+    final src = PagedSource(
+      'slow-manga',
+      pagesByNo: const {
+        1: [SourceSeries(url: 'https://a/p1/', title: 'Page One Series')],
+        2: [
+          SourceSeries(
+            url: 'https://a/p2/',
+            title: 'Page Two Series',
+            coverUrl: 'https://a/c2.jpg',
+          ),
+        ],
+      },
+      details: const {
+        'https://a/p2/': SourceSeriesDetail(
+          title: 'Page Two Series',
+          description: 'intro p2',
+          chapters: [
+            SourceChapter(
+              url: 'https://a/p2/c1/',
+              title: 'ตอนที่ 1',
+              number: 1,
+            ),
+          ],
+        ),
+      },
+    );
+    final other = FakeSource('go-manga', latestResults: const []);
+    final db = await openTestDb();
+    final scoped = BrowseRepo(
+      sources: [src, other],
+      seriesDao: SeriesDao(db),
+      chaptersDao: ChaptersDao(db),
+      libraryDao: LibraryDao(db),
+      tagsDao: TagsDao(db),
+      historyDao: SearchHistoryDao(db),
+      seriesRepo: SeriesRepo(
+        sources: [src, other],
+        seriesDao: SeriesDao(db),
+        chaptersDao: ChaptersDao(db),
+        tagsDao: TagsDao(db),
+        libraryDao: LibraryDao(db),
+        downloadsDao: DownloadsDao(db),
+        settingsDao: SettingsDao(db),
+      ),
+    );
+    final c = BrowseController(scoped);
+    await c.ensureLoaded();
+    await c.loadMore();
+    // Enrichment is fire-and-forget background — pump until it lands.
+    var landed = false;
+    for (var i = 0; i < 200 && !landed; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      for (final g in c.state.groups) {
+        if (g.displayTitle == 'Page Two Series' &&
+            (g.dbDescription ?? '').isNotEmpty) {
+          landed = true;
+        }
+      }
+    }
+    expect(
+      landed,
+      isTrue,
+      reason: 'the merged (visible) copy must carry the intro',
+    );
+  });
+
   // Regression (on-device 2026-10-19): toggling site filters back-to-back
   // let an OLDER in-flight fetch finish last and overwrite the feed with
   // results for a filter the user had already changed away from.
   test('a stale fetch never overwrites a newer filter result', () async {
-    final slow = SlowFirstSource('slow-manga', latestResults: const [
-      SourceSeries(url: 'https://a/stale/', title: 'Stale Slow Series'),
-    ]);
-    final fast = FakeSource('go-manga', latestResults: const [
-      SourceSeries(url: 'https://b/fresh/', title: 'Fresh Fast Series'),
-    ]);
+    final slow = SlowFirstSource(
+      'slow-manga',
+      latestResults: const [
+        SourceSeries(url: 'https://a/stale/', title: 'Stale Slow Series'),
+      ],
+    );
+    final fast = FakeSource(
+      'go-manga',
+      latestResults: const [
+        SourceSeries(url: 'https://b/fresh/', title: 'Fresh Fast Series'),
+      ],
+    );
     final db = await openTestDb();
     final scopedRepo = BrowseRepo(
       sources: [slow, fast],
@@ -243,15 +393,17 @@ void main() {
     expect(titles, containsAll(['Stale Slow Series', 'Fresh Fast Series']));
   });
 
-  test('scoped controller never queries sources outside its universe',
-      () async {
-    final c = BrowseController(repo, allowedSourceIds: {'go-manga'});
-    await c.ensureLoaded();
-    expect(c.state.groups, hasLength(1));
-    expect(c.state.groups.first.primary.sourceId, 'go-manga');
-    // Selecting only an out-of-scope source yields nothing (never "all").
-    await c.toggleSource('slow-manga');
-    await Future<void>.delayed(const Duration(milliseconds: 50));
-    expect(c.state.groups, isEmpty);
-  });
+  test(
+    'scoped controller never queries sources outside its universe',
+    () async {
+      final c = BrowseController(repo, scopeSourceIds: {'go-manga'});
+      await c.ensureLoaded();
+      expect(c.state.groups, hasLength(1));
+      expect(c.state.groups.first.primary.sourceId, 'go-manga');
+      // Selecting only an out-of-scope source yields nothing (never "all").
+      await c.toggleSource('slow-manga');
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(c.state.groups, isEmpty);
+    },
+  );
 }

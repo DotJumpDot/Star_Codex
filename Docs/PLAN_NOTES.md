@@ -1668,3 +1668,23 @@ repro'd or root-caused from code:
   detail chapter list's user-tuned theme hue ladder
   (`ui/date_age_color.dart`); the old fixed traffic-light
   `relativeAgeColor` remains only for the download sheet rows.
+
+### 2026-11-01 (3) — scroll-load regressions (all feeds, worst on single-site)
+
+- **loadMore partial-clobber**: the progressive-paint callback rode EVERY
+  fetch (v1.5.0 regression, not just nano) — a scroll load's partial
+  emission REPLACED state.groups with the new page's partial batch,
+  deleting the previous pages (user: "always remove the prev one"). Fix:
+  `onPartial` is passed only for page 1; scroll loads append whole
+  batches.
+- **loadMore enrichment missed the visible copies**: enrichment mutated
+  the BATCH's group objects while the merged list (mergeGroupLists)
+  holds re-wrapped COPIES — scrolled-in cards never showed their
+  fetched intro/date. Fix: enrich the merged list.
+- **db v12**: nano-manga links ingested before the d/m/Y + release-date
+  parsers exist carry chapter rows with no uploadedAt ("ไม่ระบุวันที่"
+  on every chapter) — the migration zeroes their series_sources
+  fetched_at so the next detail open re-fetches the chapter list WITH
+  dates. Other sources untouched.
+- Controller lint cleanup: `allowedSourceIds` param/field renamed to
+  `scopeSourceIds` (initializing formal; nullable semantics preserved).

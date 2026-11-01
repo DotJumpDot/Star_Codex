@@ -76,47 +76,49 @@ class BrowseState {
     bool? loadingMore,
     bool? endReached,
     int? page,
-  }) =>
-      BrowseState(
-        initialized: initialized ?? this.initialized,
-        mode: mode ?? this.mode,
-        query: query ?? this.query,
-        genreSourceId:
-            genreSourceId == _keep ? this.genreSourceId : genreSourceId as String?,
-        genreTerm: genreTerm == _keep ? this.genreTerm : genreTerm as String?,
-        offline: offline ?? this.offline,
-        activeSourceIds: activeSourceIds ?? this.activeSourceIds,
-        filters: filters ?? this.filters,
-        groups: groups ?? this.groups,
-        failedSources: failedSources ?? this.failedSources,
-        loading: loading ?? this.loading,
-        loadingMore: loadingMore ?? this.loadingMore,
-        endReached: endReached ?? this.endReached,
-        page: page ?? this.page,
-      );
+  }) => BrowseState(
+    initialized: initialized ?? this.initialized,
+    mode: mode ?? this.mode,
+    query: query ?? this.query,
+    genreSourceId: genreSourceId == _keep
+        ? this.genreSourceId
+        : genreSourceId as String?,
+    genreTerm: genreTerm == _keep ? this.genreTerm : genreTerm as String?,
+    offline: offline ?? this.offline,
+    activeSourceIds: activeSourceIds ?? this.activeSourceIds,
+    filters: filters ?? this.filters,
+    groups: groups ?? this.groups,
+    failedSources: failedSources ?? this.failedSources,
+    loading: loading ?? this.loading,
+    loadingMore: loadingMore ?? this.loadingMore,
+    endReached: endReached ?? this.endReached,
+    page: page ?? this.page,
+  );
 }
 
 /// Browse tab state machine (Plan/08): latest feed ⇄ merged search ⇄
 /// single-source genre view, with session-only filters and per-site chips.
 class BrowseController extends StateNotifier<BrowseState> {
-  BrowseController(this._repo,
-      {Set<String>? allowedSourceIds,
-      this.initialFeedPopular = false,
-      this.onFeedPopularChanged,
-      bool Function()? hideYaoiResolver})
-      : _allowedSourceIds = allowedSourceIds, // ignore: prefer_initializing_formals
-        _hideYaoiResolver = hideYaoiResolver ?? _neverHide,
-        super(BrowseState(
-          filters: initialFeedPopular
-              ? const BrowseFilters(sort: BrowseSortOrder.popular)
-              : const BrowseFilters(),
-        ));
+  BrowseController(
+    this._repo, {
+    this.scopeSourceIds,
+    this.initialFeedPopular = false,
+    this.onFeedPopularChanged,
+    bool Function()? hideYaoiResolver,
+  }) : _hideYaoiResolver = hideYaoiResolver ?? _neverHide,
+       super(
+         BrowseState(
+           filters: initialFeedPopular
+               ? const BrowseFilters(sort: BrowseSortOrder.popular)
+               : const BrowseFilters(),
+         ),
+       );
 
   final BrowseRepo _repo;
 
   /// Optional universe for scoped controllers (the adult page): the feed
   /// and the site sheet only ever see these sources. Null = all.
-  final Set<String>? _allowedSourceIds;
+  final Set<String>? scopeSourceIds;
 
   /// Mix tab (2026-10-28): drop yaoi-tagged titles from the feed — the
   /// mix catalogs carry a heavy yaoi share (user preference; yuri stays;
@@ -143,7 +145,7 @@ class BrowseController extends StateNotifier<BrowseState> {
   /// An out-of-scope-only selection must never fall back to "all" (the
   /// repo treats an empty set as no filter) — the sentinel queries nothing.
   Set<String> get _effectiveSourceIds {
-    final allowed = _allowedSourceIds;
+    final allowed = scopeSourceIds;
     if (allowed == null) return state.activeSourceIds;
     if (state.activeSourceIds.isEmpty) return allowed;
     final scoped = state.activeSourceIds.where(allowed.contains).toSet();
@@ -317,7 +319,13 @@ class BrowseController extends StateNotifier<BrowseState> {
         // Batch empty → no more pages from any source.
         endReached: batch.groups.isEmpty,
       );
-      _enrichInBackground(batch.groups);
+      // Enrich the MERGED list, not the batch: mergeGroupLists returns
+      // COPIES (existing groups re-wrapped with carried enrichment, new
+      // groups re-built from ig.members) — mutating the batch's objects
+      // updated nothing the list actually shows, so scrolled-in cards
+      // never displayed their fetched intro/date (user report
+      // 2026-11-01). Complete copies skip the sweep cheaply.
+      _enrichInBackground(groups);
     } catch (_) {
       state = state.copyWith(loadingMore: false, endReached: true);
     }
@@ -328,7 +336,8 @@ class BrowseController extends StateNotifier<BrowseState> {
     try {
       final result = await _fetch(page);
       if (seq != _fetchSeq) return; // superseded — a newer fetch owns state
-      if (result.groups.isEmpty && result.failures.isNotEmpty &&
+      if (result.groups.isEmpty &&
+          result.failures.isNotEmpty &&
           await _offlineFallback(seq)) {
         return;
       }
@@ -336,6 +345,15 @@ class BrowseController extends StateNotifier<BrowseState> {
       // ensureLoaded on mount) — its false return must NOT fall through
       // to a stale emission that clobbers the newer fetch's offline
       // state (observed on-device 2026-10-21).
+      if (seq != _fetchSeq) return;
+      // Hydrate the DB cache BEFORE first paint (user report 2026-11-01:
+      // on filter toggles/refreshes known titles showed covers but no
+      // intro until the background pass landed — the intro only exists
+      // in the DB, unlike the cover which rides the listing). One local
+      // read per card against a multi-second network fetch: invisible.
+      // First paint of a COLD start still stays instant (partials emit
+      // un-enriched; this final emission is the complete page).
+      await _repo.enrichGroups(result.groups);
       if (seq != _fetchSeq) return;
       state = state.copyWith(
         groups: result.groups,
@@ -354,7 +372,10 @@ class BrowseController extends StateNotifier<BrowseState> {
       if (seq != _fetchSeq) return;
       if (!await _offlineFallback(seq)) {
         state = state.copyWith(
-            loading: false, endReached: true, offline: false);
+          loading: false,
+          endReached: true,
+          offline: false,
+        );
       }
     }
   }
@@ -367,8 +388,10 @@ class BrowseController extends StateNotifier<BrowseState> {
     try {
       final cached = await _repo.cachedCatalog();
       if (kDebugMode) {
-        debugPrint('OFFLINE FB mode=latest cached=${cached.length} '
-            'seq=$seq fetchSeq=$_fetchSeq');
+        debugPrint(
+          'OFFLINE FB mode=latest cached=${cached.length} '
+          'seq=$seq fetchSeq=$_fetchSeq',
+        );
       }
       if (seq != _fetchSeq || cached.isEmpty) return false;
       state = state.copyWith(
@@ -400,11 +423,13 @@ class BrowseController extends StateNotifier<BrowseState> {
         // the newest chapter's stamp becomes the card date; the
         // cross-source probe stays budgeted) — re-enriching JUST the
         // finished card each time so its date/cover pops in.
-        await _repo.materializeIncompleteGroups(groups,
-            onCardDone: (done) async {
-          await _repo.enrichGroups([done]);
-          if (mounted) state = state.copyWith();
-        });
+        await _repo.materializeIncompleteGroups(
+          groups,
+          onCardDone: (done) async {
+            await _repo.enrichGroups([done]);
+            if (mounted) state = state.copyWith();
+          },
+        );
         await _repo.enrichGroups(groups);
         if (mounted) state = state.copyWith();
       } catch (_) {
@@ -416,8 +441,10 @@ class BrowseController extends StateNotifier<BrowseState> {
   /// Progressive first paint (2026-10-28): the repo emits the merged
   /// feed after EACH source lands; page-1 fetches show partial results
   /// immediately instead of waiting 10+ s for the slowest (WAF-ladder)
-  /// host. Only used by _replace (page 1 / refreshes) — loadMore still
-  /// appends whole batches.
+  /// host. Page-1 REPLACES only — a partial callback during loadMore
+  /// replaced the WHOLE feed state with the new page's partial batch,
+  /// deleting every previously loaded page (user report 2026-11-01:
+  /// scroll on a single-site feed removed the previous titles).
   void Function(BrowsePage)? get _onPartial {
     final seq = _fetchSeq;
     return (partial) {
@@ -453,63 +480,82 @@ class BrowseController extends StateNotifier<BrowseState> {
         return _repo.genre(source, term, page: page);
       case BrowseMode.latest:
         return _repo.latest(
-            onlySourceIds: only,
-            page: page,
-            popular: state.feedPopular,
-            hideYaoi: _hideYaoiResolver(),
-            onPartial: _onPartial);
+          onlySourceIds: only,
+          page: page,
+          popular: state.feedPopular,
+          hideYaoi: _hideYaoiResolver(),
+          // Page-1 replaces only (see [_onPartial]) — scroll loads
+          // append whole batches and must never emit partials.
+          onPartial: page == 1 ? _onPartial : null,
+        );
     }
   }
 }
 
 final browseControllerProvider =
     StateNotifierProvider<BrowseController, BrowseState>((ref) {
-  final repo = ref.watch(browseRepoProvider);
-  final settings = ref.read(settingsProvider);
-  return BrowseController(repo,
-      allowedSourceIds: {
-        // The main feed/search never touch the 18+ or mix sources —
-        // they live on their own tabs' controllers (user request
-        // 2026-10-19 + 2026-10-28).
-        for (final s in repo.sources)
-          if (!adultSourceIds.contains(s.id) && !mixSourceIds.contains(s.id))
-            s.id,
-      },
-      initialFeedPopular: settings.getBool('browse_feed_popular', false),
-      onFeedPopularChanged: (popular) => unawaited(ref
-          .read(settingsProvider.notifier)
-          .set('browse_feed_popular', popular ? '1' : '0')));
-});
+      final repo = ref.watch(browseRepoProvider);
+      final settings = ref.read(settingsProvider);
+      return BrowseController(
+        repo,
+        scopeSourceIds: {
+          // The main feed/search never touch the 18+ or mix sources —
+          // they live on their own tabs' controllers (user request
+          // 2026-10-19 + 2026-10-28).
+          for (final s in repo.sources)
+            if (!adultSourceIds.contains(s.id) && !mixSourceIds.contains(s.id))
+              s.id,
+        },
+        initialFeedPopular: settings.getBool('browse_feed_popular', false),
+        onFeedPopularChanged: (popular) => unawaited(
+          ref
+              .read(settingsProvider.notifier)
+              .set('browse_feed_popular', popular ? '1' : '0'),
+        ),
+      );
+    });
 
 /// Doujin (18+) page — same repo, universe = the adult sources only.
 final adultBrowseControllerProvider =
     StateNotifierProvider<BrowseController, BrowseState>(
-        (ref) => BrowseController(ref.watch(browseRepoProvider),
-            allowedSourceIds: adultSourceIds,
-            initialFeedPopular:
-                ref.read(settingsProvider).getBool('browse_feed_popular', false),
-            onFeedPopularChanged: (popular) => unawaited(ref
-                .read(settingsProvider.notifier)
-                .set('browse_feed_popular', popular ? '1' : '0'))));
+      (ref) => BrowseController(
+        ref.watch(browseRepoProvider),
+        scopeSourceIds: adultSourceIds,
+        initialFeedPopular: ref
+            .read(settingsProvider)
+            .getBool('browse_feed_popular', false),
+        onFeedPopularChanged: (popular) => unawaited(
+          ref
+              .read(settingsProvider.notifier)
+              .set('browse_feed_popular', popular ? '1' : '0'),
+        ),
+      ),
+    );
 
 /// Search Mix page (2026-10-28) — universe = the mix sources only
 /// (mangary/whytoon: normal + 18+ mixed catalogs). Yaoi titles are
 /// dropped while the setting allows (default on).
 final mixBrowseControllerProvider =
     StateNotifierProvider<BrowseController, BrowseState>(
-        (ref) => BrowseController(ref.watch(browseRepoProvider),
-            allowedSourceIds: mixSourceIds,
-            initialFeedPopular:
-                ref.read(settingsProvider).getBool('browse_feed_popular', false),
-            hideYaoiResolver: () =>
-                ref.read(settingsProvider).getBool('mix_hide_yaoi', true),
-            onFeedPopularChanged: (popular) => unawaited(ref
-                .read(settingsProvider.notifier)
-                .set('browse_feed_popular', popular ? '1' : '0'))));
+      (ref) => BrowseController(
+        ref.watch(browseRepoProvider),
+        scopeSourceIds: mixSourceIds,
+        initialFeedPopular: ref
+            .read(settingsProvider)
+            .getBool('browse_feed_popular', false),
+        hideYaoiResolver: () =>
+            ref.read(settingsProvider).getBool('mix_hide_yaoi', true),
+        onFeedPopularChanged: (popular) => unawaited(
+          ref
+              .read(settingsProvider.notifier)
+              .set('browse_feed_popular', popular ? '1' : '0'),
+        ),
+      ),
+    );
 
 /// Scope → controller provider (BrowseScreen picks its provider by tab).
-StateNotifierProvider<BrowseController, BrowseState> browseControllerProviderFor(
-    BrowseScope scope) {
+StateNotifierProvider<BrowseController, BrowseState>
+browseControllerProviderFor(BrowseScope scope) {
   switch (scope) {
     case BrowseScope.main:
       return browseControllerProvider;

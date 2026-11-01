@@ -67,8 +67,13 @@ Future<void> main() async {
       ],
       child: const StarCodexApp(),
     ));
+    // Post-frame ensureLoaded → fetch → DB-hydrate-before-paint
+    // (2026-11-01) → frame. The hydrate step rides the sqflite ffi
+    // isolate — FakeAsync can't complete it without a runAsync drain.
     await tester.pump(); // post-frame ensureLoaded
-    await tester.pump(); // latest fetch microtasks + frame
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 100)));
+    await tester.pump();
 
     // Latest feed (default view) shows the fake series.
     expect(find.text('Other Series'), findsOneWidget);
@@ -79,7 +84,9 @@ Future<void> main() async {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.enterText(find.byType(TextField), 'nano machine');
     await tester.testTextInput.receiveAction(TextInputAction.search);
-    await tester.pump();
+    await tester.pump(); // submit → _replace
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 100)));
     await tester.pump();
     await tester.pump();
 

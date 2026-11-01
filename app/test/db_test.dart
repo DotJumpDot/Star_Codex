@@ -17,9 +17,11 @@ void main() {
   });
 
   test('opens and creates every v1 table', () async {
-    final tables = await db.query('sqlite_master',
-        columns: ['name'],
-        where: "type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'android_%'");
+    final tables = await db.query(
+      'sqlite_master',
+      columns: ['name'],
+      where: "type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'android_%'",
+    );
     final names = tables.map((t) => t['name'] as String).toSet();
     const expected = {
       'sources',
@@ -43,10 +45,12 @@ void main() {
       'search_history',
       'feed_anchors',
     };
-    expect(names.difference(expected), isEmpty,
-        reason: 'unexpected extra tables');
-    expect(expected.difference(names), isEmpty,
-        reason: 'missing tables');
+    expect(
+      names.difference(expected),
+      isEmpty,
+      reason: 'unexpected extra tables',
+    );
+    expect(expected.difference(names), isEmpty, reason: 'missing tables');
   });
 
   test('seeds all fourteen sources', () async {
@@ -72,30 +76,94 @@ void main() {
     expect(byId['whytoon']!['adapter'], 'toonary');
     // db v9 (2026-10-23): every source seeds ON — the WAF ladder made
     // the last two Cloudflare-blocked ones reachable.
-    expect(byId['doujin-lc']!['enabled'], 1,
-        reason: 'v9 re-enabled the WAF-unlocked sources');
-    expect(byId['miku-doujin']!['enabled'], 1,
-        reason: 'v9 re-enabled the WAF-unlocked sources');
+    expect(
+      byId['doujin-lc']!['enabled'],
+      1,
+      reason: 'v9 re-enabled the WAF-unlocked sources',
+    );
+    expect(
+      byId['miku-doujin']!['enabled'],
+      1,
+      reason: 'v9 re-enabled the WAF-unlocked sources',
+    );
     expect(byId['ntr-manga']!['enabled'], 1);
     expect(byId['hentaithai']!['enabled'], 1);
   });
 
+  test(
+    'v11→v12: nano-manga links go stale so chapter dates re-fetch',
+    () async {
+      await openTestDb(); // init sqflite ffi for direct file opens
+      final dbPath = p.join(
+        Directory.systemTemp.createTempSync('sc_mig12').path,
+        'mig.db',
+      );
+      final v11 = await openDb(
+        path: dbPath,
+        factory: databaseFactoryFfi,
+        singleInstance: false,
+      );
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await v11.execute(
+        "INSERT INTO series(title, title_norm, created_at, updated_at) "
+        "VALUES('T','t',$now,$now)",
+      );
+      await v11.execute(
+        "INSERT INTO series_sources(series_id, source_id, source_url, "
+        "fetched_at) VALUES(1,'nano-manga','https://nano-manga.com/m/x/',$now)",
+      );
+      await v11.execute(
+        "INSERT INTO series_sources(series_id, source_id, source_url, "
+        "fetched_at) VALUES(1,'slow-manga','https://s.net/manga/y/',$now)",
+      );
+      await v11.setVersion(11);
+      await v11.close();
+
+      final db = await openDb(
+        path: dbPath,
+        factory: databaseFactoryFfi,
+        singleInstance: false,
+      );
+      final bySrc = {
+        for (final r in await db.query('series_sources'))
+          r['source_id'] as String: r['fetched_at'] as int,
+      };
+      expect(
+        bySrc['nano-manga'],
+        0,
+        reason:
+            'pre-v12 nano rows predate the date parsers — next detail '
+            'open must re-fetch the chapter list',
+      );
+      expect(bySrc['slow-manga'], now, reason: 'other sources stay fresh');
+    },
+  );
+
   test('v1→v5 migration adds the new sources + quota + last_seen_at', () async {
     await openTestDb(); // init sqflite ffi for direct file opens
-    final dbPath =
-        p.join(Directory.systemTemp.createTempSync('sc_mig').path, 'mig.db');
+    final dbPath = p.join(
+      Directory.systemTemp.createTempSync('sc_mig').path,
+      'mig.db',
+    );
     // Build a pretend-v1 install: fresh current-version DB rolled back to
     // version 1, with the v1-era rows (5 sources, 100 GB quota default)
     // and the v1-era library table (no last_seen_at — the v4 ALTER must
     // be the one adding it, and SQLite refuses a duplicate column).
     final v1 = await openDb(
-        path: dbPath, factory: databaseFactoryFfi, singleInstance: false);
-    await v1.delete('sources',
-        where: "id IN ('fin-manga','bully-manga',"
-            "'ntr-manga','doujin-lc','hentaithai','miku-doujin')");
+      path: dbPath,
+      factory: databaseFactoryFfi,
+      singleInstance: false,
+    );
+    await v1.delete(
+      'sources',
+      where:
+          "id IN ('fin-manga','bully-manga',"
+          "'ntr-manga','doujin-lc','hentaithai','miku-doujin')",
+    );
     await v1.execute(
-        "UPDATE settings SET value = '107374182400' "
-        "WHERE key = 'total_quota_bytes'");
+      "UPDATE settings SET value = '107374182400' "
+      "WHERE key = 'total_quota_bytes'",
+    );
     await v1.execute('DROP TABLE library');
     await v1.execute('''
       CREATE TABLE library(
@@ -115,26 +183,38 @@ void main() {
 
     // Reopen at the current version → onUpgrade chains case 1 → 2 → 3.
     final db = await openDb(
-        path: dbPath, factory: databaseFactoryFfi, singleInstance: false);
+      path: dbPath,
+      factory: databaseFactoryFfi,
+      singleInstance: false,
+    );
     final rows = await db.query('sources');
-    expect(rows.length, 14,
-        reason: 'migration must (re)insert every post-v1 source row');
+    expect(
+      rows.length,
+      14,
+      reason: 'migration must (re)insert every post-v1 source row',
+    );
     // The v1→v9 chain inserts the adult rows (v5), v6 disables the two
     // Cloudflare-blocked ones, and v9 re-enables them (WAF ladder,
     // 2026-10-23) — end state matches fresh seeds.
     final byId = {for (final r in rows) r['id'] as String: r};
-    expect(byId['doujin-lc']!['enabled'], 1,
-        reason: 'v9 must re-enable the sources v6 disabled');
+    expect(
+      byId['doujin-lc']!['enabled'],
+      1,
+      reason: 'v9 must re-enable the sources v6 disabled',
+    );
     expect(byId['miku-doujin']!['enabled'], 1);
     expect(byId['ntr-manga']!['enabled'], 1);
-    final quota =
-        await db.query('settings', where: "key = 'total_quota_bytes'");
+    final quota = await db.query(
+      'settings',
+      where: "key = 'total_quota_bytes'",
+    );
     expect(quota.first['value'], '21474836480');
     final libCols = await db.rawQuery('PRAGMA table_info(library)');
     expect(
       libCols.where((c) => c['name'] == 'last_seen_at'),
       isNotEmpty,
-      reason: 'v4 adds the last_seen_at visit stamp for the New chip');
+      reason: 'v4 adds the last_seen_at visit stamp for the New chip',
+    );
     // v7 creates the cover URL→blob index (fetchAndStoreIndexed).
     await db.insert('blob_urls', {
       'url': 'https://x/c.jpg',
@@ -156,7 +236,9 @@ void main() {
 
   test('seeds the default settings rows', () async {
     final rows = await db.query('settings');
-    final map = {for (final r in rows) r['key'] as String: r['value'] as String};
+    final map = {
+      for (final r in rows) r['key'] as String: r['value'] as String,
+    };
     expect(map['language'], 'th');
     expect(map['theme'], 'stardust');
     expect(map['cache_limit_bytes'], '5368709120'); // 5 GiB

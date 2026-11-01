@@ -5,7 +5,7 @@ import 'package:sqflite/sqflite.dart';
 /// Single SQLite database (Plan/02). All timestamps are milliseconds since
 /// epoch (int). Migrations append only: bump [dbVersion], add a `case` in
 /// [onUpgrade] — never edit v1 statements after shipping.
-const dbVersion = 11;
+const dbVersion = 12;
 const dbFileName = 'manga_reader.db';
 
 class DbException implements Exception {
@@ -23,8 +23,11 @@ Future<String> defaultDbPath() async {
 /// [path] and [factory] are injectable for tests (in-memory / temp file via
 /// sqflite_common_ffi). Tests must pass [singleInstance] false so each
 /// `:memory:` open creates an independent database.
-Future<Database> openDb(
-    {String? path, DatabaseFactory? factory, bool singleInstance = true}) async {
+Future<Database> openDb({
+  String? path,
+  DatabaseFactory? factory,
+  bool singleInstance = true,
+}) async {
   final dbPath = path ?? await defaultDbPath();
   return (factory ?? databaseFactory).openDatabase(
     dbPath,
@@ -46,8 +49,9 @@ Future<Database> openDb(
           // themeById(), no row rewrite needed.
           case 1:
             await db.execute(
-                "UPDATE settings SET value = '21474836480' "
-                "WHERE key = 'total_quota_bytes' AND value = '107374182400'");
+              "UPDATE settings SET value = '21474836480' "
+              "WHERE key = 'total_quota_bytes' AND value = '107374182400'",
+            );
             continue next; // Dart cases don't fall through — chain to v3
           // v3 (2026-10-18, new sources): fin-manga + bully-manga rows for
           // installs seeded before they existed. INSERT OR IGNORE keeps it
@@ -56,17 +60,14 @@ Future<Database> openDb(
           case 2:
             for (var i = 0; i < _seededSources.length; i++) {
               final s = _seededSources[i];
-              await db.insert(
-                  'sources',
-                  {
-                    'id': s.$1,
-                    'name': s.$2,
-                    'base_url': s.$3,
-                    'adapter': s.$4,
-                    'enabled': 1,
-                    'sort': i,
-                  },
-                  conflictAlgorithm: ConflictAlgorithm.ignore);
+              await db.insert('sources', {
+                'id': s.$1,
+                'name': s.$2,
+                'base_url': s.$3,
+                'adapter': s.$4,
+                'enabled': 1,
+                'sort': i,
+              }, conflictAlgorithm: ConflictAlgorithm.ignore);
             }
             continue next2; // Dart cases don't fall through — chain to v4
           // v4 (2026-10-18, library New chip): per-series last-visit stamp.
@@ -77,8 +78,9 @@ Future<Database> openDb(
           next2:
           case 3:
             await db.execute(
-                'ALTER TABLE library ADD COLUMN last_seen_at INTEGER '
-                'NOT NULL DEFAULT 0');
+              'ALTER TABLE library ADD COLUMN last_seen_at INTEGER '
+              'NOT NULL DEFAULT 0',
+            );
             continue next3; // Dart cases don't fall through — chain to v5
           // v5 (2026-10-19, adult doujin sites): the four 18+ source rows
           // for installs seeded before they existed. INSERT OR IGNORE is
@@ -88,17 +90,14 @@ Future<Database> openDb(
             for (var i = 0; i < _seededSources.length; i++) {
               final s = _seededSources[i];
               if (i < 7) continue; // rows 0-6 predate v5 and already exist
-              await db.insert(
-                  'sources',
-                  {
-                    'id': s.$1,
-                    'name': s.$2,
-                    'base_url': s.$3,
-                    'adapter': s.$4,
-                    'enabled': 1,
-                    'sort': i,
-                  },
-                  conflictAlgorithm: ConflictAlgorithm.ignore);
+              await db.insert('sources', {
+                'id': s.$1,
+                'name': s.$2,
+                'base_url': s.$3,
+                'adapter': s.$4,
+                'enabled': 1,
+                'sort': i,
+              }, conflictAlgorithm: ConflictAlgorithm.ignore);
             }
             continue next4; // chain to v6
           // v6 (2026-10-19): doujin-lc + miku-doujin sit behind a
@@ -111,8 +110,9 @@ Future<Database> openDb(
           next4:
           case 5:
             await db.execute(
-                "UPDATE sources SET enabled = 0 "
-                "WHERE id IN ('doujin-lc', 'miku-doujin') AND enabled = 1");
+              "UPDATE sources SET enabled = 0 "
+              "WHERE id IN ('doujin-lc', 'miku-doujin') AND enabled = 1",
+            );
             continue next5; // chain to v7
           // v7 (2026-10-20, cover disk cache): URL → blob-hash index so
           // covers load from disk on warm starts. fetchAndStore always
@@ -158,8 +158,9 @@ Future<Database> openDb(
           next7:
           case 8:
             await db.execute(
-                "UPDATE sources SET enabled = 1 "
-                "WHERE id IN ('doujin-lc', 'miku-doujin')");
+              "UPDATE sources SET enabled = 1 "
+              "WHERE id IN ('doujin-lc', 'miku-doujin')",
+            );
             continue next8; // chain to v10
           // v10 (2026-10-24, sticky feed time anchors): per (source,
           // series) the latest-chapter hint + update stamp the feed last
@@ -191,24 +192,31 @@ Future<Database> openDb(
             for (var i = 0; i < _seededSources.length; i++) {
               final s = _seededSources[i];
               if (i < 11) continue; // rows 0-10 predate v11
-              await db.insert(
-                  'sources',
-                  {
-                    'id': s.$1,
-                    'name': s.$2,
-                    'base_url': s.$3,
-                    'adapter': s.$4,
-                    'enabled': 1,
-                    'sort': i,
-                  },
-                  conflictAlgorithm: ConflictAlgorithm.ignore);
+              await db.insert('sources', {
+                'id': s.$1,
+                'name': s.$2,
+                'base_url': s.$3,
+                'adapter': s.$4,
+                'enabled': 1,
+                'sort': i,
+              }, conflictAlgorithm: ConflictAlgorithm.ignore);
             }
             await db.execute(
-                'ALTER TABLE library ADD COLUMN favorite INTEGER NOT NULL '
-                'DEFAULT 0');
+              'ALTER TABLE library ADD COLUMN favorite INTEGER NOT NULL '
+              'DEFAULT 0',
+            );
             // Existing rows ARE favorites (library membership = the old
             // single-step favorite) — ladder: 1 favorite, 2 super.
             await db.execute('UPDATE library SET favorite = 1');
+          // v12 (2026-11-01): nano-manga chapter rows ingested before the
+          // d/m/Y + release-date parsers existed carry no uploadedAt
+          // (every chapter read "ไม่ระบุวันที่"). Their links go stale so
+          // the next detail open re-fetches the chapter list WITH dates.
+          case 11:
+            await db.execute(
+              "UPDATE series_sources SET fetched_at = 0 "
+              "WHERE source_id = 'nano-manga'",
+            );
           // Future migrations append cases here: `case 1: ...; continue next;`
           default:
             break;
