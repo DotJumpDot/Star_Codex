@@ -115,7 +115,11 @@ class BrowseRepo {
       Future<void> run(Source src) async {
         _SourceResult r;
         try {
-          r = _SourceResult(src, await src.latest(page: page, popular: popular), null);
+          r = _SourceResult(
+            src,
+            await src.latest(page: page, popular: popular),
+            null,
+          );
         } catch (e) {
           r = _SourceResult(src, const [], e);
         }
@@ -125,10 +129,12 @@ class BrowseRepo {
         results.add(r);
         final snapshot = List.of(results);
         if (hideYaoi) _dropYaoi(snapshot);
-        onPartial(BrowsePage(
-          groups: mergeIntoGroups(const [], _candidates(snapshot)),
-          failures: _failures(snapshot),
-        ));
+        onPartial(
+          BrowsePage(
+            groups: mergeIntoGroups(const [], _candidates(snapshot)),
+            failures: _failures(snapshot),
+          ),
+        );
       }
 
       await Future.wait(active.map(run));
@@ -161,8 +167,10 @@ class BrowseRepo {
   /// any earlier detail fetch. Best-effort — never a feed failure.
   /// Rebuilds each result (the adapter's list may be unmodifiable).
   void _dropYaoi(List<_SourceResult> results) {
-    final markers =
-        RegExp(r'yaoi|shounen ai|boys love|มังงะวาย|วาย', caseSensitive: false);
+    final markers = RegExp(
+      r'yaoi|shounen ai|boys love|มังงะวาย|วาย',
+      caseSensitive: false,
+    );
     for (var i = 0; i < results.length; i++) {
       final r = results[i];
       if (r.error != null) continue;
@@ -386,84 +394,99 @@ class BrowseRepo {
   }) async {
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     final staleMs = staleAfter.inMilliseconds;
-    final pending = <({SearchGroup group, bool crossProbe})>[];
-    var descriptionBackfill = 0;
-    for (final g in groups) {
-      final crossProbe = g.needsMaterialization;
-      var descriptionOnly = false;
-      if (!crossProbe) {
-        final date = g.lastUpdatedMs;
-        final dated = date != null && nowMs - date < staleMs;
-        final described = (g.dbDescription ?? '').trim().isNotEmpty;
-        if (dated && described) continue; // complete — nothing to fetch
-        descriptionOnly = dated && !described; // class 3 (see doc above)
-        if (descriptionOnly && descriptionBackfill >= maxDescriptionBackfill) {
-          // Over the cap — left UNMEMOIZED so the next pass picks it up.
-          continue;
-        }
-      }
-      final url = g.primary.url;
-      final at = _materializedAt[url];
-      if (at != null && nowMs - at < staleMs) continue;
-      _materializedAt[url] = nowMs;
-      if (descriptionOnly) descriptionBackfill++;
-      pending.add((group: g, crossProbe: crossProbe));
-    }
-    var next = 0;
-    Future<void> worker() async {
-      while (true) {
-        if (next >= pending.length) return;
-        final rec = pending[next++];
-        final g = rec.group;
-        try {
-          final primary = g.primary;
-          final source = sourceById(primary.sourceId);
-          if (source == null) continue;
-          final seriesId = rec.crossProbe
-              ? await seriesRepo.ensureSeries(g)
-              : await _refreshStale(g, source);
-          final row = await seriesDao.byId(seriesId);
-          if (row != null) {
-            // EXACT row → card (no title-norm guessing): this is what puts
-            // the newest-chapter date on a tile that carries none.
-            var fresh = row;
-            if (!rec.crossProbe && (row.description ?? '').trim().isEmpty) {
-              // Primary site writes no synopsis — try a sibling member's
-              // (user ask 2026-10-24: go-manga empty, bully/up have one).
-              await _backfillSiblingDescription(g, seriesId);
-              fresh = await seriesDao.byId(seriesId) ?? row;
-            }
-            await _applyRowToGroup(g, fresh);
-            if (rec.crossProbe && budget > 0) {
-              budget--;
-              await seriesRepo.probeOtherSources(
-                seriesId,
-                candidate: TitleCandidate(
-                  norm: row.titleNorm,
-                  altNorms: [
-                    for (final m in g.members) normalizeTitle(m.title),
-                  ],
-                ),
-                // One query per unlinked source — the interactive open path
-                // can afford retries with alternates, the background pass
-                // must stay polite (probeOtherSources tries queries.take(3)
-                // per source).
-                queries: <String>[g.displayTitle],
-              );
-            }
+    // Drain in ROUNDS (user report 2026-11-01): a scroll batch can top
+    // the per-round description cap, and cap-skipped cards used to wait
+    // for a "later pass" that only ever saw the NEXT batch — so their
+    // intros never landed in-session. Rounds re-sweep the same list
+    // (done cards skip via the dated+described check and the attempt
+    // memo); the cap still bounds each round's burst, and the round
+    // count bounds the call.
+    var capSkipped = 1; // enter the first round
+    for (var round = 0; round < 6 && capSkipped > 0; round++) {
+      final pending = <({SearchGroup group, bool crossProbe})>[];
+      var descriptionBackfill = 0;
+      capSkipped = 0;
+      for (final g in groups) {
+        final crossProbe = g.needsMaterialization;
+        var descriptionOnly = false;
+        if (!crossProbe) {
+          final date = g.lastUpdatedMs;
+          final dated = date != null && nowMs - date < staleMs;
+          final described = (g.dbDescription ?? '').trim().isNotEmpty;
+          if (dated && described) continue; // complete — nothing to fetch
+          descriptionOnly = dated && !described; // class 3 (see doc above)
+          if (descriptionOnly &&
+              descriptionBackfill >= maxDescriptionBackfill) {
+            // Over the cap — left UNMEMOIZED so the next round picks it
+            // up.
+            capSkipped++;
+            continue;
           }
-        } catch (_) {
-          // best-effort — an unreachable source never breaks the feed
         }
-        if (onCardDone != null) {
+        final url = g.primary.url;
+        final at = _materializedAt[url];
+        if (at != null && nowMs - at < staleMs) continue;
+        _materializedAt[url] = nowMs;
+        if (descriptionOnly) descriptionBackfill++;
+        pending.add((group: g, crossProbe: crossProbe));
+      }
+      if (pending.isEmpty) return;
+      var next = 0;
+      Future<void> worker() async {
+        while (true) {
+          if (next >= pending.length) return;
+          final rec = pending[next++];
+          final g = rec.group;
           try {
-            await onCardDone(g);
-          } catch (_) {}
+            final primary = g.primary;
+            final source = sourceById(primary.sourceId);
+            if (source == null) continue;
+            final seriesId = rec.crossProbe
+                ? await seriesRepo.ensureSeries(g)
+                : await _refreshStale(g, source);
+            final row = await seriesDao.byId(seriesId);
+            if (row != null) {
+              // EXACT row → card (no title-norm guessing): this is what puts
+              // the newest-chapter date on a tile that carries none.
+              var fresh = row;
+              if (!rec.crossProbe && (row.description ?? '').trim().isEmpty) {
+                // Primary site writes no synopsis — try a sibling member's
+                // (user ask 2026-10-24: go-manga empty, bully/up have one).
+                await _backfillSiblingDescription(g, seriesId);
+                fresh = await seriesDao.byId(seriesId) ?? row;
+              }
+              await _applyRowToGroup(g, fresh);
+              if (rec.crossProbe && budget > 0) {
+                budget--;
+                await seriesRepo.probeOtherSources(
+                  seriesId,
+                  candidate: TitleCandidate(
+                    norm: row.titleNorm,
+                    altNorms: [
+                      for (final m in g.members) normalizeTitle(m.title),
+                    ],
+                  ),
+                  // One query per unlinked source — the interactive open path
+                  // can afford retries with alternates, the background pass
+                  // must stay polite (probeOtherSources tries queries.take(3)
+                  // per source).
+                  queries: <String>[g.displayTitle],
+                );
+              }
+            }
+          } catch (_) {
+            // best-effort — an unreachable source never breaks the feed
+          }
+          if (onCardDone != null) {
+            try {
+              await onCardDone(g);
+            } catch (_) {}
+          }
         }
       }
-    }
 
-    await Future.wait([for (var i = 0; i < 6; i++) worker()]);
+      await Future.wait([for (var i = 0; i < 6; i++) worker()]);
+    }
   }
 
   /// How old a card's date may get before the background pass re-checks

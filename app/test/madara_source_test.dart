@@ -57,12 +57,10 @@ Future<void> main() async {
       expect(mixed.coverUrl, endsWith('mixed-cover-197x300.jpg'));
     });
 
-    test(
-      'WP Fastest Cache lazy attribute (data-wpfc-original-src) wins over '
-      'the base64 src placeholder — fin-manga enabled it 2026-10-23 and '
-      'every Fin cover went placeholder',
-      () async {
-        const wpfc = '''
+    test('WP Fastest Cache lazy attribute (data-wpfc-original-src) wins over '
+        'the base64 src placeholder — fin-manga enabled it 2026-10-23 and '
+        'every Fin cover went placeholder', () async {
+      const wpfc = '''
 <div class="listupd"><div class="bs"><div class="bsx">
   <a href="https://www.fin-manga.com/wpfc-title/" title="WPFC Title">
    <div class="limit"><img onload="Wpfcll.r(this,true);"
@@ -70,14 +68,13 @@ Future<void> main() async {
         data-wpfc-original-src="https://www.fin-manga.com/wp-content/uploads/2026/06/real-cover.jpg"/></div>
   </a>
  </div></div></div>''';
-        final items = await slowMangaServing(wpfc).latest();
-        expect(items, hasLength(1));
-        expect(
-          items.single.coverUrl,
-          'https://www.fin-manga.com/wp-content/uploads/2026/06/real-cover.jpg',
-        );
-      },
-    );
+      final items = await slowMangaServing(wpfc).latest();
+      expect(items, hasLength(1));
+      expect(
+        items.single.coverUrl,
+        'https://www.fin-manga.com/wp-content/uploads/2026/06/real-cover.jpg',
+      );
+    });
   });
 
   group('latest() leads with the homepage grid (2026-10-22)', () {
@@ -164,8 +161,7 @@ Future<void> main() async {
     });
   });
 
-  group('grid labels anchor at the cache-generation time (2026-10-23)',
-      () {
+  group('grid labels anchor at the cache-generation time (2026-10-23)', () {
     // WP Fastest Cache + the CF edge serve the homepage ~a day old; a
     // "24 วินาที" label inside is true only at page generation (user
     // report: fin/up cards stuck at "24 วินาที" for days).
@@ -181,34 +177,42 @@ Future<void> main() async {
  </div></div>
 </div>''';
 
-    MadaraSource serving({Map<String, List<String>>? headers}) =>
-        MadaraSource(
-          madaraConfigs.firstWhere((c) => c.id == 'fin-manga'),
-          SafeHttp(
-            rateLimiter: RateLimiter(seed: 1),
-            fetcher: (uri, options) async => Response<List<int>>(
-              requestOptions: RequestOptions(path: uri.toString()),
-              statusCode: 200,
-              data: Uint8List.fromList(const Utf8Encoder().convert(home)),
-              headers: Headers.fromMap(headers ?? const {}),
-            ),
-            delay: (_) async {},
-          ),
-        );
+    MadaraSource serving({Map<String, List<String>>? headers}) => MadaraSource(
+      madaraConfigs.firstWhere((c) => c.id == 'fin-manga'),
+      SafeHttp(
+        rateLimiter: RateLimiter(seed: 1),
+        fetcher: (uri, options) async => Response<List<int>>(
+          requestOptions: RequestOptions(path: uri.toString()),
+          statusCode: 200,
+          data: Uint8List.fromList(const Utf8Encoder().convert(home)),
+          headers: Headers.fromMap(headers ?? const {}),
+        ),
+        delay: (_) async {},
+      ),
+    );
 
-    test('Last-Modified anchors the label exactly (not at fetch-now)',
-        () async {
-      // 21 h stale, second-truncated (HttpDate carries no sub-seconds).
-      final utcNow = DateTime.now().toUtc();
-      final lm = DateTime.utc(utcNow.year, utcNow.month, utcNow.day,
-              utcNow.hour, utcNow.minute, utcNow.second)
-          .subtract(const Duration(hours: 21));
-      final stamps = await serving(headers: {
-        'Last-Modified': [HttpDate.format(lm)],
-      }).recentStamps();
-      expect(stamps, hasLength(1));
-      expect(stamps.single.stampMs, lm.millisecondsSinceEpoch - 24 * 1000);
-    });
+    test(
+      'Last-Modified anchors the label exactly (not at fetch-now)',
+      () async {
+        // 21 h stale, second-truncated (HttpDate carries no sub-seconds).
+        final utcNow = DateTime.now().toUtc();
+        final lm = DateTime.utc(
+          utcNow.year,
+          utcNow.month,
+          utcNow.day,
+          utcNow.hour,
+          utcNow.minute,
+          utcNow.second,
+        ).subtract(const Duration(hours: 21));
+        final stamps = await serving(
+          headers: {
+            'Last-Modified': [HttpDate.format(lm)],
+          },
+        ).recentStamps();
+        expect(stamps, hasLength(1));
+        expect(stamps.single.stampMs, lm.millisecondsSinceEpoch - 24 * 1000);
+      },
+    );
 
     test('no anchor header keeps the old fetch-now behavior', () async {
       final before = DateTime.now().millisecondsSinceEpoch;
@@ -222,10 +226,16 @@ Future<void> main() async {
 
     test('Date − Age anchors when Last-Modified is absent', () async {
       final now = DateTime.now().millisecondsSinceEpoch;
-      final stamps = await serving(headers: {
-        'Date': [HttpDate.format(DateTime.fromMillisecondsSinceEpoch(now, isUtc: true))],
-        'Age': ['900'],
-      }).recentStamps();
+      final stamps = await serving(
+        headers: {
+          'Date': [
+            HttpDate.format(
+              DateTime.fromMillisecondsSinceEpoch(now, isUtc: true),
+            ),
+          ],
+          'Age': ['900'],
+        },
+      ).recentStamps();
       expect(
         stamps.single.stampMs,
         inInclusiveRange(now - 900 * 1000 - 24 * 1000 - 2000, now - 900 * 1000),
@@ -245,9 +255,9 @@ Future<void> main() async {
           fetcher: (uri, options) async {
             final body = uri.toString().contains('ajax/chapters')
                 ? await File('$dir\\nano_ajax_chapters.html')
-                    .readAsString(encoding: utf8)
+                      .readAsString(encoding: utf8)
                 : await File('$dir\\nano_series.html')
-                    .readAsString(encoding: utf8);
+                      .readAsString(encoding: utf8);
             return Response<List<int>>(
               requestOptions: RequestOptions(path: uri.toString()),
               statusCode: 200,
@@ -259,44 +269,79 @@ Future<void> main() async {
       );
     }
 
-    test('series page: Summary item supplies the description, meta rows parse',
-        () {
-      final body =
-          File('$dir\\nano_series.html').readAsStringSync(encoding: utf8);
-      final d = nanoServing().parseClassicDetail(
-          body, 'https://nano-manga.com/manga/becoming-necromancer-god/');
-      // The synopsis lives in a plain post-content_item — no
-      // description-summary wrapper on this theme generation.
-      expect(d.description, contains('เนโครแมนเซอร์'));
-      expect(d.description, isNot(contains('Summary')));
-      expect(d.type, 'manhua');
-      expect(d.status, 'ongoing');
-      expect(d.tags, containsAll(['Supernatural', 'ผจญภัย']));
-      expect(d.chapters, isEmpty); // holder is empty server-side
-    });
+    test(
+      'series page: Summary item supplies the description, meta rows parse',
+      () {
+        final body = File('$dir\\nano_series.html')
+            .readAsStringSync(encoding: utf8);
+        final d = nanoServing().parseClassicDetail(
+          body,
+          'https://nano-manga.com/manga/becoming-necromancer-god/',
+        );
+        // The synopsis lives in a plain post-content_item — no
+        // description-summary wrapper on this theme generation.
+        expect(d.description, contains('เนโครแมนเซอร์'));
+        expect(d.description, isNot(contains('Summary')));
+        expect(d.type, 'manhua');
+        expect(d.status, 'ongoing');
+        expect(d.tags, containsAll(['Supernatural', 'ผจญภัย']));
+        expect(d.chapters, isEmpty); // holder is empty server-side
+      },
+    );
 
-    test('ajax fragment: rows sorted ascending, dates from release titles',
-        () {
-      final body =
-          File('$dir\\nano_ajax_chapters.html').readAsStringSync(encoding: utf8);
+    test('ajax fragment: rows sorted ascending, dates from release titles', () {
+      final body = File('$dir\\nano_ajax_chapters.html')
+          .readAsStringSync(encoding: utf8);
       final chaps = nanoServing().parseClassicChapters(body);
-      expect(chaps.map((c) => c.number), [23, 24, 25]);
+      expect(chaps.map((c) => c.number), [22, 23, 24, 25]);
       expect(chaps.last.url, contains('-25/'));
       // "9 ชั่วโมง ago" rides in the c-new-tag title attribute.
       final now = DateTime.now().millisecondsSinceEpoch;
       expect(
-          chaps.last.uploadedAt, inInclusiveRange(now - 10 * 3600 * 1000, now));
-      expect(chaps[1].uploadedAt, isNotNull); // "3 วัน ago"
-      expect(chaps.first.uploadedAt, isNull); // no title attr → dateless
+        chaps.last.uploadedAt,
+        inInclusiveRange(now - 10 * 3600 * 1000, now),
+      );
+      expect(chaps[2].uploadedAt, isNotNull); // "3 วัน ago"
+      expect(chaps[1].uploadedAt, isNull); // no date at all → dateless
+      // Older rows carry "17/10/2026" as plain span text (user report:
+      // only the newest chapter showed a date).
+      final dmy = chaps.first.uploadedAt;
+      expect(dmy, isNotNull);
+      final d = DateTime.fromMillisecondsSinceEpoch(dmy!);
+      expect((d.year, d.month, d.day), (2026, 10, 17));
     });
 
-    test('detail() fetches {series}ajax/chapters/ when the holder is empty',
-        () async {
-      final d = await nanoServing()
-          .detail('https://nano-manga.com/manga/becoming-necromancer-god');
-      expect(d.chapters, hasLength(3));
-      expect(d.chapters.map((c) => c.number), [23, 24, 25]);
-      expect(d.description, contains('เนโครแมนเซอร์'));
+    test('archive rows: chapter hint + update stamp ride the tile '
+        '(feed dates without a detail fetch)', () {
+      final body = File('$dir\\nano_archive_rows.html')
+          .readAsStringSync(encoding: utf8);
+      final rows = nanoServing().parseClassicRows(body);
+      expect(rows, hasLength(2));
+      final healing = rows.firstWhere((s) => s.title.contains('Healing'));
+      expect(healing.chapterCountHint, 22);
+      // "1 วัน ago" title attribute → precise-ish stamp.
+      final now = DateTime.now().millisecondsSinceEpoch;
+      expect(
+        healing.lastUpdatedMs,
+        inInclusiveRange(now - 2 * 24 * 3600 * 1000, now),
+      );
+      final haze = rows.firstWhere((s) => s.title == 'Black Haze');
+      expect(haze.chapterCountHint, 175);
+      // "17/10/2026" plain text → absolute stamp.
+      final d = DateTime.fromMillisecondsSinceEpoch(haze.lastUpdatedMs!);
+      expect((d.year, d.month, d.day), (2026, 10, 17));
     });
+
+    test(
+      'detail() fetches {series}ajax/chapters/ when the holder is empty',
+      () async {
+        final d = await nanoServing().detail(
+          'https://nano-manga.com/manga/becoming-necromancer-god',
+        );
+        expect(d.chapters, hasLength(4));
+        expect(d.chapters.map((c) => c.number), [22, 23, 24, 25]);
+        expect(d.description, contains('เนโครแมนเซอร์'));
+      },
+    );
   });
 }

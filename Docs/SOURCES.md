@@ -164,7 +164,12 @@ rides in the sibling `.chapter-release-date a` title attribute,
 "9 ชั่วโมง ago"). The synopsis is a plain `post-content_item` whose
 heading reads "Summary" — NOT `.description-summary`. `detail()`
 auto-falls back to the ajax POST when the page has no chapter rows and
-the holder is present.
+the holder is present. Dates: newest ~2 rows carry the relative
+`c-new-tag` title attribute ("9 ชั่วโมง ago"), older rows the span text
+`17/10/2026` (d/m/Y). The `/manga/` archive tiles themselves list each
+series' newest 1-2 chapters with ages (`.chapter` + `.post-on`) —
+`parseClassicRows` stamps chapterCountHint + lastUpdatedMs from the
+tile, so the feed shows dates without a detail fetch.
 
 ### mangary.com / whytoon.com — `app/lib/data/sources/toonary/`
 

@@ -9,6 +9,7 @@ import '../../core/utils/thai.dart';
 import '../../data/dao/chapters_dao.dart';
 import '../../data/repo/series_repo.dart';
 import '../browse/source_palette.dart';
+import '../date_age_color.dart';
 import '../reader/reader_router.dart';
 import 'chapter_indicator.dart';
 import 'chapter_sheet.dart';
@@ -40,9 +41,7 @@ class ChapterList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    var chapters = [
-      ...(vm.chaptersBySource[sourceId] ?? const <Chapter>[]),
-    ];
+    var chapters = [...(vm.chaptersBySource[sourceId] ?? const <Chapter>[])];
     chapters.sort(
       (a, b) => vm.sortOldestFirst
           ? a.number.compareTo(b.number)
@@ -232,65 +231,18 @@ class _ChapterRow extends ConsumerWidget {
   /// - completed=1 → finished → solid dot with a check.
   static ChapterReadState _readState(ChapterProgress? progress) {
     if (progress == null) return ChapterReadState.unread;
-    return progress.completed ? ChapterReadState.read : ChapterReadState.reading;
+    return progress.completed
+        ? ChapterReadState.read
+        : ChapterReadState.reading;
   }
 
   /// Chapter titles repeat the number (`ตอนที่ 155`) — strip it so the row
   /// doesn't read "ตอนที่ 155  ตอนที่ 155" (shared with the reader chrome).
   String? _stripNumberPrefix(String? title) => stripChapterNumberPrefix(title);
 
-  /// Age-coded date color (user request 2026-10-24: "old to new need
-  /// unique color"). A HUE LADDER derived from the theme's accent, not
-  /// a grey fade: fresh = the accent itself, then the hue drifts toward
-  /// yellow → orange → red as the chapter ages (classic heatmap), and
-  /// only truly ANCIENT chapters (1 year+) grey out. Boundaries are
-  /// wide enough for real libraries — user follow-up: months-old vs
-  /// 3-4-YEAR-old chapters must not share a bucket, and the old end
-  /// must stay colorful instead of two indistinguishable greys (the
-  /// OLED outline/variant greys were twins).
-  /// Age-coded date color (user request 2026-10-24). RAW theme accent
-  /// for under-a-day (user: "my theme color fully, not brighter"), then
-  /// a hue ladder in even steps toward red with NO lightening, and
-  /// three distinct red variants for the year bands (user: 1 year /
-  /// 2-3 years / 4 years+ need their own red). 4+ years eventually
-  /// greys out — nothing stays colorful forever.
-  Color _dateColor(BuildContext context, int? uploadedAtMs) {
-    final scheme = Theme.of(context).colorScheme;
-    if (uploadedAtMs == null) {
-      return scheme.onSurfaceVariant.withValues(alpha: 0.45);
-    }
-    final ageMs = DateTime.now().millisecondsSinceEpoch - uploadedAtMs;
-    final hsl = HSLColor.fromColor(scheme.primary);
-    Color drift(double degrees) =>
-        hsl.withHue((hsl.hue + degrees + 360) % 360).toColor();
-
-    final day = const Duration(days: 1).inMilliseconds;
-    final week = const Duration(days: 7).inMilliseconds;
-    final month = const Duration(days: 30).inMilliseconds;
-    final threeMonths = const Duration(days: 91).inMilliseconds;
-    final sixMonths = const Duration(days: 182).inMilliseconds;
-    final year = const Duration(days: 365).inMilliseconds;
-    final twoYears = const Duration(days: 730).inMilliseconds;
-    final threeYears = const Duration(days: 1095).inMilliseconds;
-
-    if (ageMs < day) return scheme.primary; // theme color, full strength
-    if (ageMs < week) return drift(-30);
-    if (ageMs < month) return drift(-60);
-    if (ageMs < threeMonths) return drift(-85); // yellow
-    if (ageMs < sixMonths) return drift(-105); // orange
-    if (ageMs < year) return drift(-120); // deep orange
-    if (ageMs < twoYears) return drift(-140); // red
-    if (ageMs < threeYears) {
-      // darker red
-      final c = hsl.withHue((hsl.hue - 150 + 360) % 360);
-      return c.withLightness((c.lightness - 0.06).clamp(0.0, 1.0)).toColor();
-    }
-    if (ageMs < const Duration(days: 1460).inMilliseconds) {
-      // 3-4 years: deepest red
-      final c = hsl.withHue((hsl.hue - 155 + 360) % 360);
-      return c.withLightness((c.lightness - 0.12).clamp(0.0, 1.0)).toColor();
-    }
-    // 4+ years: greyed out
-    return scheme.onSurfaceVariant.withValues(alpha: 0.45);
-  }
+  /// Age-coded date color — the SHARED ladder (date_age_color.dart,
+  /// user request 2026-11-01: search/browse cards and this list must
+  /// color dates identically).
+  Color _dateColor(BuildContext context, int? uploadedAtMs) =>
+      dateAgeColor(Theme.of(context).colorScheme, uploadedAtMs);
 }

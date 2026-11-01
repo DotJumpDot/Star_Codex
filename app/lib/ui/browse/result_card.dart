@@ -5,6 +5,7 @@ import '../../core/utils/relative_time.dart';
 import '../../data/repo/browse_repo.dart';
 import '../../data/sources/source_api.dart';
 import 'age_colors.dart';
+import '../date_age_color.dart';
 import 'cover_thumb.dart';
 import 'source_palette.dart';
 
@@ -55,14 +56,12 @@ class ResultCard extends StatelessWidget {
     final typeLabel = _typeLabel(context, type);
 
     String? updated;
-    String updatedKey = '';
     final lastMs = group.lastUpdatedMs;
     if (lastMs != null) {
       final parts = relativeParts(
         lastMs,
         nowMs: DateTime.now().millisecondsSinceEpoch,
       );
-      updatedKey = parts.key;
       updated = tFmt(context, parts.key, parts.params);
     }
 
@@ -135,11 +134,17 @@ class ResultCard extends StatelessWidget {
                                     const TextSpan(text: ' · '),
                                   if (updated != null)
                                     TextSpan(
+                                      // Same age ladder as the detail
+                                      // chapter list (user request
+                                      // 2026-11-01: one palette
+                                      // everywhere, theme-derived —
+                                      // the old fixed traffic-light
+                                      // set clashed with it).
                                       text: updated,
                                       style: TextStyle(
-                                        color: relativeAgeColor(
+                                        color: dateAgeColor(
                                           theme.colorScheme,
-                                          updatedKey,
+                                          lastMs,
                                         ),
                                       ),
                                     ),

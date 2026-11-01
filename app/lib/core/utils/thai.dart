@@ -105,6 +105,18 @@ int? parseSiteDate(String raw, {int? nowMs}) {
       );
     }
   }
+  // Numeric day/month/year — Thai convention (nano-manga's classic
+  // chapter rows render "17/10/2026", probed 2026-11-01). Requires the
+  // 4-digit year so partial dates never match; day/month validity keeps
+  // stray ratios from parsing.
+  final dmY = RegExp(r'\b(\d{1,2})/(\d{1,2})/(\d{4})\b').firstMatch(s);
+  if (dmY != null) {
+    final d = int.parse(dmY.group(1)!);
+    final m = int.parse(dmY.group(2)!);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      return _dateOnlyMs(int.parse(dmY.group(3)!), m, d);
+    }
+  }
   return null;
 }
 

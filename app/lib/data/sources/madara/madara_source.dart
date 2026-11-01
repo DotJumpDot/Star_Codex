@@ -210,10 +210,21 @@ class MadaraSource implements Source {
       final title = (a?.attributes['title'] ?? a?.text ?? '').trim();
       if (href.isEmpty || title.isEmpty || !seen.add(href)) continue;
       final cover = _bestCoverUrl(row.querySelector('img'));
-      final chap = row
-          .querySelector('.quick-chapter-link, .chapter-item a, .latest-chap a')
-          ?.text
-          .trim();
+      // Chapter hint + update stamp straight off the row (nano-manga
+      // archive rows, probed 2026-11-01): each tile lists its newest 1-2
+      // chapters — `.chapter` link text is the number, `.post-on` carries
+      // the age ("1 วัน ago" title attr, or "17/10/2026" text). Without
+      // this every nano feed card arrived DATELESS and only got a date
+      // after the background detail fetch (user report 2026-11-01: the
+      // dateless scroll batch leapt around the feed once stamped).
+      final firstChapter = row.querySelector(
+        '.list-chapter .chapter-item, .chapter-item',
+      );
+      final chap =
+          (firstChapter?.querySelector('.chapter a') ??
+                  row.querySelector('.quick-chapter-link, .latest-chap a'))
+              ?.text
+              .trim();
       final type = row.querySelector('.manga-title-badges')?.text.trim();
       out.add(
         SourceSeries(
@@ -222,10 +233,27 @@ class MadaraSource implements Source {
           coverUrl: _absolutize(cover),
           chapterCountHint: parseChapterNumber(chap ?? '')?.toInt(),
           type: _normalizeType(type),
+          lastUpdatedMs: _classicRowStamp(firstChapter),
         ),
       );
     }
     return out;
+  }
+
+  /// The row's newest-chapter age: `.post-on` title attribute first
+  /// (relative, precise), then its text ("17/10/2026").
+  int? _classicRowStamp(html_dom.Element? chapterItem) {
+    final postOn = chapterItem?.querySelector('.post-on');
+    if (postOn == null) return null;
+    final title = postOn.querySelector('a')?.attributes['title']?.trim();
+    if (title != null && title.isNotEmpty) {
+      final stamp = parseRelativeStamp(
+        title.replaceFirst(RegExp(r'\s+ago$', caseSensitive: false), ''),
+      );
+      if (stamp != null) return stamp;
+    }
+    final text = postOn.text.trim();
+    return text.isEmpty ? null : parseSiteDate(text);
   }
 
   /// CLASSIC Madara detail page (doujin-lc): post-title h1,
@@ -354,27 +382,37 @@ class MadaraSource implements Source {
   }
 
   /// Chapter date, classic family. doujin-lc renders it as text in
-  /// `.chapter-date`; nano-manga's ajax rows carry it ONLY in the
-  /// sibling `.chapter-release-date` anchor's title attribute
-  /// ("9 ชั่วโมง ago" — probed 2026-11-01; user report: chapter dates
-  /// missing). Relative labels anchor at fetch time.
+  /// `.chapter-date`; nano-manga's ajax rows carry the NEWEST ~two as a
+  /// relative label in the sibling `.chapter-release-date` anchor's
+  /// title attribute ("9 ชั่วโมง ago") and everything older as plain
+  /// text in the span itself ("17/10/2026" — probed 2026-11-01; user
+  /// report: only the newest chapter carried a date). Relative labels
+  /// anchor at fetch time.
   int? _classicChapterDate(html_dom.Element a, html_dom.Element? dateEl) {
-    final text = (dateEl ?? a.parent?.querySelector('.chapter-date, .chapter-format'))
-        ?.text
-        .trim();
+    final text =
+        (dateEl ?? a.parent?.querySelector('.chapter-date, .chapter-format'))
+            ?.text
+            .trim();
     if (text != null && text.isNotEmpty) {
       final parsed = parseSiteDate(text);
       if (parsed != null) return parsed;
     }
-    final title = a.parent
-        ?.querySelector('.chapter-release-date a')
-        ?.attributes['title']
-        ?.trim();
-    if (title == null || title.isEmpty) return null;
-    final stamp = parseRelativeStamp(
-      title.replaceFirst(RegExp(r'\s+ago$', caseSensitive: false), ''),
-    );
-    return stamp;
+    final rel = a.parent?.querySelector('.chapter-release-date');
+    if (rel != null) {
+      final title = rel.querySelector('a')?.attributes['title']?.trim();
+      if (title != null && title.isNotEmpty) {
+        final stamp = parseRelativeStamp(
+          title.replaceFirst(RegExp(r'\s+ago$', caseSensitive: false), ''),
+        );
+        if (stamp != null) return stamp;
+      }
+      final spanText = rel.text.trim();
+      if (spanText.isNotEmpty) {
+        final parsed = parseSiteDate(spanText);
+        if (parsed != null) return parsed;
+      }
+    }
+    return null;
   }
 
   /// Parses an `ajax/chapters/` fragment (nano-manga shape).
@@ -520,14 +558,18 @@ class MadaraSource implements Source {
     // a base64 svg placeholder in `src` — prefer the lazy attributes and
     // drop data: URIs either way.
     final doc = html_parser.parse(body);
-    final imgs = doc.querySelectorAll('.reading-content img').map((img) {
-      final raw = img.attributes['data-src'] ??
-          img.attributes['data-wpfc-original-src'] ??
-          img.attributes['src'];
-      return _absolutize(raw);
-    }).where(
-      (u) => u != null && u.isNotEmpty && !u.startsWith('data:'),
-    ).cast<String>().toList();
+    final imgs = doc
+        .querySelectorAll('.reading-content img')
+        .map((img) {
+          final raw =
+              img.attributes['data-src'] ??
+              img.attributes['data-wpfc-original-src'] ??
+              img.attributes['src'];
+          return _absolutize(raw);
+        })
+        .where((u) => u != null && u.isNotEmpty && !u.startsWith('data:'))
+        .cast<String>()
+        .toList();
     if (imgs.isEmpty) {
       throw SourceException(
         id,

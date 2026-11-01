@@ -1060,8 +1060,9 @@ void main() {
         });
 
     test(
-        'class 3 cap: at most maxDescriptionBackfill per pass, rest on '
-        'the next pass (unmemoized)', () async {
+        'class 3 cap: the drain rounds finish the whole batch in ONE '
+        'call (2026-11-01: cap-skipped cards used to wait for a next '
+        'pass that never saw them again)', () async {
           final now = DateTime.now().millisecondsSinceEpoch;
           const total = BrowseRepo.maxDescriptionBackfill + 5;
           // Deliberately DISSIMILAR titles — jaro-winkler fuses "Cap Card
@@ -1106,12 +1107,12 @@ void main() {
           final page = await repo.search('q');
           expect(page.groups, hasLength(total));
           await repo.materializeIncompleteGroups(page.groups, budget: 0);
-          expect(src.detailCalls, BrowseRepo.maxDescriptionBackfill,
-              reason: 'the pass stops at the cap');
-          await repo.materializeIncompleteGroups(page.groups, budget: 0);
           expect(src.detailCalls, total,
-              reason: 'capped cards were NOT memoized — the next pass '
-                  'picks up the remainder');
+              reason: 'round 1 stops at the per-round cap, round 2 drains '
+                  'the remainder — no card left intro-less');
+          // A re-presented batch is fully complete + memoized: no churn.
+          await repo.materializeIncompleteGroups(page.groups, budget: 0);
+          expect(src.detailCalls, total);
         });
   });
 }

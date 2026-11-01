@@ -1643,3 +1643,28 @@ repro'd or root-caused from code:
   manhwa-typed series); paged reader swaps to webtoon when avg h/w
   ≥ 2.2 after 3 pages (manga-typed only). Explicit per-series/global
   mode choices are never overridden.
+
+### 2026-11-01 (2) — nano round 2: full chapter dates, feed stamps, one date palette
+
+- **nano chapter dates**: only the newest ~2 ajax rows carry the relative
+  `c-new-tag` title ("9 ชั่วโมง ago"); every older row carries the date
+  as plain SPAN text `17/10/2026`. `_classicChapterDate` reads both, and
+  `parseSiteDate` gained a numeric d/m/Y matcher (Thai convention,
+  4-digit-year required, month/day range-checked).
+- **nano archive rows carry the feed stamp**: each `/manga/` tile lists
+  its newest 1-2 chapters — `.chapter` link = number, `.post-on` =
+  age (title attr or d/m/Y text). `parseClassicRows` now sets
+  chapterCountHint + lastUpdatedMs from the tile, so nano feed cards
+  arrive DATED (no background detail fetch needed, no late re-sort
+  leap-frogging — user report: the dateless scroll batch jumped the
+  feed once enrichment stamped it).
+- **Description backfill drains in rounds** (user report: scroll-batch
+  cards past the cap never got intros — the "next pass" only ever saw
+  the NEXT batch): `materializeIncompleteGroups` re-sweeps (≤6 rounds,
+  per-round cap kept) while cards were cap-skipped. Cap-skipped cards
+  stay unmemoized; a round with zero cap-skips ends the call (the
+  `staleAfter: Duration.zero` re-attempt semantics are unchanged).
+- **ONE date palette everywhere**: browse/search card dates now use the
+  detail chapter list's user-tuned theme hue ladder
+  (`ui/date_age_color.dart`); the old fixed traffic-light
+  `relativeAgeColor` remains only for the download sheet rows.

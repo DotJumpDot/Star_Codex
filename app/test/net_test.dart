@@ -347,6 +347,16 @@ void main() {
       expect(parseSiteDate('3 วันก่อน'), isNull);
       expect(parseSiteDate(''), isNull);
     });
+    test('numeric day/month/year (nano-manga classic rows, 2026-11-01)', () {
+      final dt = DateTime.fromMillisecondsSinceEpoch(
+        parseSiteDate('17/10/2026')!,
+      );
+      expect((dt.year, dt.month, dt.day, dt.hour), (2026, 10, 17, 20));
+      // Partial / invalid ratios never parse.
+      expect(parseSiteDate('17/13/2026'), isNull); // month 13
+      expect(parseSiteDate('3/10'), isNull); // no year
+      expect(parseSiteDate('17/10/26'), isNull); // 2-digit year
+    });
   });
 
   group('parseRelativeStamp (homepage grid labels, 2026-10-22)', () {

@@ -904,3 +904,14 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   tall strips (avg h/w ≥ 2.2), manhwa-typed swap webtoon→paged on
   manga-shaped pages; explicit mode choices never overridden. 316
   tests green, analyze clean.
+- 2026-11-01 (2) — nano-manga round 2 + one date palette. (1) All nano
+  chapters dated: older rows carry "17/10/2026" span text (d/m/Y parser
+  added to parseSiteDate); newest rows keep the relative title attr.
+  (2) nano feed cards arrive DATED — the /manga/ archive tiles list
+  each series' newest chapter + age, parsed straight onto the card (no
+  more dateless scroll batches re-sorting after background enrichment).
+  (3) Description backfill drains in rounds — scroll-batch cards past
+  the per-round cap now get their intro in the same pass instead of
+  waiting for a "next pass" that never saw them. (4) Browse/search card
+  dates use the SAME user-tuned theme hue ladder as the detail chapter
+  list (ui/date_age_color.dart). 318 tests green, analyze clean.
