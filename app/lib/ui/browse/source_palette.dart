@@ -46,10 +46,14 @@ const sourceContentTypes = <String, List<String>>{
   'dark-manga': ['manhwa'],
   'fin-manga': ['manhwa'],
   'bully-manga': ['manhwa', 'manhua'], // DB: 24 / 6 / 5
+  'nano-manga': ['manhwa', 'manhua'], // user-confirmed 2026-11-01
   'ntr-manga': ['manga'], // JP NTR translations; no badges, untyped details
   'doujin-lc': ['manhwa'], // every archive badge reads Manhwa
   'hentaithai': ['manga'],
   'miku-doujin': ['manga'],
+  // Mix tab (2026-11-01): Toonary platforms host vertical webtoons only.
+  'mangary': ['manhwa'],
+  'whytoon': ['manhwa'],
 };
 
 /// The little colored identity dot used on browse badges, detail source
