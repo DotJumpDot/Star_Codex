@@ -146,7 +146,7 @@ Requires Android 7.0+ (API 24).
 > **Upgrading from a debug/test build?** Uninstall it first — release
 > builds are signed with a different key.
 
-See [what changed in v1.5.0](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.5.0).
+See [what changed in v1.5.1](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.5.1).
 
 ## 🛠️ Tech stack
 
@@ -202,6 +202,15 @@ Star_Codex/
 ```
 
 ## 📜 Status
+
+**v1.5.1 (2026-11-01)** — site-change fixes and feed polish: Nekopost's
+signed-CDN image links re-fetch per open (chapters never strand on dead
+cached links again), nano-manga chapter lists/dates/intros work (the site
+moved its chapter list behind a background request), the Search Mix tab is
+searchable (yaoi-filtered), Toonary series always read as manhwa with
+mis-types auto-corrected, the reader self-corrects its mode by page shape,
+scrolling keeps previous pages, cached intros render instantly (bulk DB
+hydration), and Nano-Manga got its own accent color.
 
 **v1.5.0 (2026-10-28)** — a Search Mix tab (mangary + whytoon,
 normal and 18+ catalogs side by side with yaoi hidden by default),
