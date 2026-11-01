@@ -43,3 +43,7 @@ Thumbs.db
 /srch.json
 /s.json
 /sr.json
+
+# emulator QA artifacts (screens/dumps — never in git)
+/emu_*.png
+/ui_dump.xml
