@@ -939,3 +939,9 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   auto-detect, scroll-feed fixes (previous pages kept, intros hydrate
   instantly via bulk SQL), nano accent color, site-sheet type pills.
   321 tests green, analyze clean.
+- 2026-11-01 — Release: v1.5.2 — version 1.5.2+25. Scoped-tab search
+  fix: the search overlay still hardcoded the pre-Mix tab order, so
+  searching on Search Mix did nothing visible and Search 18+ bounced to
+  the main tab; searches now run on the tab's own controller (mix/adult
+  scope mapping extracted + unit-tested). 322 tests green, analyze
+  clean.
