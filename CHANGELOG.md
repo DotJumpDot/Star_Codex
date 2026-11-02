@@ -945,3 +945,11 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   the main tab; searches now run on the tab's own controller (mix/adult
   scope mapping extracted + unit-tested). 322 tests green, analyze
   clean.
+- 2026-11-03 — Five new sources (db v13) + Library Mix scope step.
+  manghaha.com joins Search 18+ (manhwa pills), niceoppai.net joins
+  Search Mix (POST-only search → new SafeHttp.postForm + POST-capable
+  cronet lane), oremanga.net / madoo-manga.com / 1668manga.com join the
+  normal Search feed (madoo + 1668 are Madara ts configs; 1668's reader
+  payload decodes from base64 CF scripts). Library's rightmost header
+  cycle is now All → Normal Search → Search Mix → Search 18+ → All
+  (mirrors the three browse universes). 356 tests green, analyze clean.

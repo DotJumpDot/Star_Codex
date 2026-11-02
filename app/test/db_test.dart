@@ -53,9 +53,9 @@ void main() {
     expect(expected.difference(names), isEmpty, reason: 'missing tables');
   });
 
-  test('seeds all fourteen sources', () async {
+  test('seeds all nineteen sources', () async {
     final rows = await db.query('sources', orderBy: 'sort');
-    expect(rows.length, 14);
+    expect(rows.length, 19);
     final byId = {for (final r in rows) r['id'] as String: r};
     expect(byId['slow-manga']!['base_url'], 'https://www.slow-manga.net');
     expect(byId['go-manga']!['adapter'], 'madara');
@@ -74,6 +74,14 @@ void main() {
     expect(byId['nano-manga']!['adapter'], 'madara');
     expect(byId['mangary']!['adapter'], 'toonary');
     expect(byId['whytoon']!['adapter'], 'toonary');
+    // db v13 (2026-11-03): five new sources across the three universes.
+    expect(byId['manghaha']!['adapter'], 'manghaha');
+    expect(byId['niceoppai']!['adapter'], 'niceoppai');
+    expect(byId['oremanga']!['adapter'], 'oremanga');
+    expect(byId['madoo-manga']!['adapter'], 'madara');
+    expect(byId['1668manga']!['adapter'], 'madara');
+    expect(byId['manghaha']!['enabled'], 1);
+    expect(byId['niceoppai']!['enabled'], 1);
     // db v9 (2026-10-23): every source seeds ON — the WAF ladder made
     // the last two Cloudflare-blocked ones reachable.
     expect(
@@ -128,14 +136,51 @@ void main() {
         for (final r in await db.query('series_sources'))
           r['source_id'] as String: r['fetched_at'] as int,
       };
-      expect(
-        bySrc['nano-manga'],
+      expect(bySrc['nano-manga'],
         0,
         reason:
             'pre-v12 nano rows predate the date parsers — next detail '
             'open must re-fetch the chapter list',
       );
       expect(bySrc['slow-manga'], now, reason: 'other sources stay fresh');
+    },
+  );
+
+  test(
+    'v12→v13: the five v13 sources appear on old installs (and chain '
+    'from v11 seeds them too)',
+    () async {
+      await openTestDb(); // init sqflite ffi for direct file opens
+      for (final fromVersion in [11, 12]) {
+        final dbPath = p.join(
+          Directory.systemTemp.createTempSync('sc_mig13').path,
+          'mig.db',
+        );
+        final old = await openDb(
+          path: dbPath,
+          factory: databaseFactoryFfi,
+          singleInstance: false,
+        );
+        await old.setVersion(fromVersion);
+        await old.close();
+
+        final db = await openDb(
+          path: dbPath,
+          factory: databaseFactoryFfi,
+          singleInstance: false,
+        );
+        final ids = {
+          for (final r in await db.query('sources')) r['id'] as String,
+        };
+        expect(ids, containsAll(['manghaha', 'niceoppai', 'oremanga',
+            'madoo-manga', '1668manga']),
+            reason: 'v$fromVersion install must gain the v13 sources');
+        // v13 rows seed ENABLED like everything since v9.
+        final manghaha = (await db.query('sources',
+            where: "id = 'manghaha'")).single;
+        expect(manghaha['enabled'], 1);
+        await db.close();
+      }
     },
   );
 
@@ -190,7 +235,7 @@ void main() {
     final rows = await db.query('sources');
     expect(
       rows.length,
-      14,
+      19,
       reason: 'migration must (re)insert every post-v1 source row',
     );
     // The v1→v9 chain inserts the adult rows (v5), v6 disables the two

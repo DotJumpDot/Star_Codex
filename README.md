@@ -46,13 +46,13 @@ One app instead of seven websites — read like a site, cache like an app.
   site's copy of the same chapter loads instead, badged with its origin
 
 ### Browsing & discovery
-- **All 7 live sources in the main feed** — search everything at once,
+- **All 11 live sources in the main feed** — search everything at once,
   filter by site, browse per-site genres, sort the results (latest/oldest
   update, most/fewest chapters — latest update by default), and flip
   the feed between ล่าสุด and ยอดนิยม (server-side popularity on the
   sites that support it); the same title on several sites merges into a
-  single card (Thai title kept, original as subtitle). The Doujin page
-  adds 2 more live sites of its own
+  single card (Thai title kept, original as subtitle). The Search Mix
+  tab adds 3 mixed-catalog sites and the Doujin page 5 more of its own
 - **Works offline** — airplane mode shows your visited series from the
   on-device catalog instead of a blank page, downloaded chapters read
   anywhere, and covers/last-update dates persist to disk

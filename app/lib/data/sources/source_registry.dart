@@ -5,27 +5,34 @@ import 'bully/bully_source.dart';
 import 'hentaithai/hentaithai_source.dart';
 import 'madara/configs.dart';
 import 'madara/madara_source.dart';
+import 'manghaha/manghaha_source.dart';
 import 'miku/miku_source.dart';
 import 'nekopost/nekopost_source.dart';
+import 'niceoppai/niceoppai_source.dart';
+import 'oremanga/oremanga_source.dart';
 import 'source_api.dart';
 import 'toonary/configs.dart';
 import 'toonary/toonary_source.dart';
 
 /// Adult (18+) sources — shown ONLY on the dedicated Doujin page, never
-/// in the main browse feed/search (user request 2026-10-19).
+/// in the main browse feed/search (user request 2026-10-19; manghaha
+/// joined 2026-11-03).
 const adultSourceIds = <String>{
   'ntr-manga',
   'doujin-lc',
   'hentaithai',
   'miku-doujin',
+  'manghaha',
 };
 
 /// MIX sources (2026-10-28): sites whose catalogs mix normal AND 18+
 /// content (plus a heavy yaoi share — the Mix tab filters yaoi by
 /// default). Own tab; never in the main feed or the Doujin page.
+/// niceoppai joined 2026-11-03 (its category cloud includes Adult/yaoi).
 const mixSourceIds = <String>{
   'mangary',
   'whytoon',
+  'niceoppai',
 };
 
 /// Feed universes: main = everything except adult + mix; mix = mix only;
@@ -76,6 +83,12 @@ Future<List<Source>> loadSources(Database db, SafeHttp http,
         for (final config in toonaryConfigs) {
           if (config.id == id) sources.add(ToonarySource(config, http));
         }
+      case 'manghaha':
+        sources.add(ManghahaSource(http));
+      case 'niceoppai':
+        sources.add(NiceoppaiSource(http));
+      case 'oremanga':
+        sources.add(OremangaSource(http));
     }
   }
   return sources;

@@ -5,11 +5,12 @@ looks like, and what breaks on it. Everything here was probed against the
 live sites; when a site changes, update this file **and**
 [PLAN_NOTES.md](./PLAN_NOTES.md) in the same batch.
 
-11 sources are seeded and since db v9 (2026-10-23) **all 11 ship
+19 sources are seeded and since db v9 (2026-10-23) **all 19 ship
 enabled** — the WAF ladder made the last two Cloudflare-blocked ones
-reachable. The Doujin (18+) page holds 4 of them; the main feed holds
-the other 7. Adult sources never appear in the main feed and vice versa
-(`adultSourceIds` in `app/lib/data/sources/source_registry.dart`).
+reachable. The Doujin (18+) page holds 5 of them, the Search Mix tab 3,
+and the main feed the other 11. Adult/mix sources never appear in the
+main feed and vice versa (`adultSourceIds` / `mixSourceIds` in
+`app/lib/data/sources/source_registry.dart`).
 
 ## At a glance
 
@@ -23,12 +24,17 @@ the other 7. Adult sources never appear in the main feed and vice versa
 | bully-manga.com | main | custom static | ✅ | ❌ **open** | ✅ | needs its own grid port |
 | nekopost.net | main | JSON API | ✅ | n/a (API) | ✅ | the only novel carrier |
 | nano-manga.com | main | Madara (classic) | ✅ | ✅ | ✅ | added 2026-10-28 |
+| oremanga.net | main | custom WP | ✅ | ✅ (tile stamps) | ✅ | added 2026-11-03; explicit type badge on tiles + detail |
+| madoo-manga.com | main | Madara (ts) | ✅ | ❌ (no time labels) | ✅ | added 2026-11-03; archive-order feed |
+| 1668manga.com | main | Madara (ts) | ✅ | ✅ family B | ✅ | added 2026-11-03; reader data hides in base64 CF scripts |
 | mangary.com | MIX | Toonary (Next.js) | ❌ | ✅ | ✅ | normal+18+ mixed; yaoi filtered by default |
 | whytoon.com | MIX | Toonary (Next.js) | ❌ | ❌ (no genre pages) | ✅ | BL-heavy; same adapter as mangary |
+| niceoppai.net | MIX | custom WP | ✅ | ✅ (unix-sec data-ago) | ✅ POST-only | added 2026-11-03; Adult category in catalog → Mix scope |
 | ntr-manga.net | Doujin | Madara (ts) | ✅ | ❌ custom grid | ✅ | its own grid markup — not parsed |
 | hentaithai.net | Doujin | custom one-shot | ✅ | n/a | ❌ | one-shot; thread page = reader |
 | doujin-lc.net | Doujin | Madara (classic) | ✅ | n/a | ✅ | cronet lane unlocks it (2026-10-23); enabled since db v9 |
 | miku-doujin.com | Doujin | custom one-shot | ✅ | n/a | ❌ | cronet lane unlocks it (2026-10-23); enabled since db v9 |
+| manghaha.com | Doujin | custom WP | ✅ | ✅ (relative stamps) | ✅ | added 2026-11-03; manhwa-heavy |
 
 "Grid feed" = whether the site renders a server-side recent-updates grid
 that the v1.3.0 grid-head feed can read for exact order + live relative
@@ -197,6 +203,99 @@ App-Router sites on the "Toonary" platform:
 - toondee.com runs the same platform but ships NO server-side chapter
   or image data (client-only, RSC-header request empty) — not addable
   without a session API; excluded 2026-10-28.
+
+### oremanga.net — `app/lib/data/sources/oremanga/` (main feed)
+
+Custom WP theme (added 2026-11-03, probed live). The ONLY custom-engine
+main-feed site whose tiles carry an explicit type badge (`span.type`
+under the thumb → `/genre/manga|manhwa|manhua/`), so feed cards type
+themselves without a detail fetch.
+
+- feed: homepage `//page/N/` — several "มาใหม่" sections of
+  `.flexbox4-item` tiles (thumb link = series URL, `.title a`, first
+  `ul.chapter li` = chapter hint + relative `.date` stamp); union
+  deduped by URL. Series URLs keep MIXED CASE (`/series/Momiji-to-Kouyou/`)
+  — never lowercase them.
+- search: GET `/?s=<q>` → `.flexbox2-item` cards (big cover link with
+  `title` attr, `.type <Name>` div, `.genres` chips). Same tile family
+  on `/genre/<term>/page/N/` (browseGenre + genres() from homepage
+  `/genre/` links).
+- detail `/series/<slug>/`: `.series-thumb img` cover, `.series-titlex
+  h2` title, `span.type` / `span.status` (class-suffixed English
+  values), `.series-genres a`, `.series-synops`; chapters
+  `ul.series-chapterlist .flexch-infoz a` — the date span nests INSIDE
+  the label span (strip before number parsing), Thai month dates
+  ("2 พฤศจิกายน 2026").
+- reader: `/<series-slug>/<n>-<series-slug>/` — plain `img` tags inside
+  `div.reader-area-main` (host `img.oremanga.net`), server-rendered in
+  order.
+
+### madoo-manga.com / 1668manga.com — Madara configs (main feed)
+
+Same ts family as slow/up/dark/fin end to end (added 2026-11-03,
+probed live): `/manga/` `.listupd .bsx` archive + `/manga/page/N/`,
+`?s=&post_type=wp-manga` search, `h1.entry-title` / `.tsinfo .imptdt` /
+`.mgen` / `.eph-num .chapternum|.chapterdate` detail. Plain `madaraConfigs`
+entries — no dedicated adapter.
+
+- madoo labels its imptdt rows in ENGLISH ("Status/Type"); 1668
+  LOCALIZES them ("สถานะ/ประเภท") — the ts detail parser accepts both.
+- 1668's chapter page hides the reader payload in Cloudflare data-URI
+  scripts (`<script src="data:text/javascript;base64,…">` containing
+  `ts_reader.run(… "images":[…])`); `pages()` decodes every base64
+  blob on the page and scans the decoded text too. Images live on
+  `img.168toon.com`.
+- 1668's homepage grid renders `.epxdate` stamps (family B); madoo's
+  grid carries no time labels → archive-order feed for it.
+
+### niceoppai.net — `app/lib/data/sources/niceoppai/` (MIX scope)
+
+NOPOrange theme (added 2026-11-03, probed live). Mix scope because the
+category cloud includes Adult/yaoi — the yaoi filter applies to its
+searches like every Mix source (tiles carry no genres, so the filter
+only matches after detail data lands).
+
+- feed: `/manga_list/all/any/last-updated/<page>/` — `.fcard.panel`
+  tiles; the newest `.fcard__ch` row's `.ago` carries an ABSOLUTE
+  unix-seconds stamp in `data-ago` (parse × 1000). Cover paths contain
+  literal spaces → encode as %20.
+- search: POST `/manga_list/search/` with
+  `cmd_wpm_wgt_mng_sch_sbm=Search` + `txt_wpm_wgt_mng_sch_nme=<q>` —
+  the theme reads `$_POST` only (GET variants render "Search result of
+  ''"). Cloudflare challenges non-browser POSTs, so this rides
+  `SafeHttp.postForm` → the cronet lane (Chrome TLS) when the direct
+  lane is blocked. Single page.
+- detail `/<Title-Slug>/`: `h1`, itemprop cover img, `.chip--genre`
+  genres (exact Manhwa/Manhua/Manga chip = type), `p.series__syn`,
+  `.series__facts .fact` rows (สถานะ/ตอนทั้งหมด), `.chrow` chapter rows
+  (`data-ch` = number, `.chrow__d` "Sep 20, 2026"). NOTE: the page
+  server-renders only the newest ~70 rows; a longer series' older
+  chapters arrive via the site's own JS and are NOT fetched (v1
+  limitation).
+- reader `/<Title-Slug>/<n>/`: `#image-container img[src]` on
+  `image7.niceoppai.net`, server-rendered.
+- genres: `/manga_list/` sidebar `a[href*="/manga_list/category/"]`;
+  browseGenre `/manga_list/category/<Term>/` (single page).
+
+### manghaha.com — `app/lib/data/sources/manghaha/` (Doujin 18+)
+
+"obito" bootstrap theme (added 2026-11-03, probed live). Manhwa-heavy
+adult site.
+
+- feed: homepage grid `/?page=N` — `.latest-item-contain` tiles (thumb
+  link, `.title a`, newest `.last .d-flex` row = chapter label + Thai
+  relative `<small>` stamp). The SAME tile family serves
+  `/search/?s=<q>` and `/tag/<name>/` pages — one parser for all three.
+- detail `/<slug>/`: `h1.manga-title` reads "อ่านมังงะ <title> แปลไทย"
+  (strip prefix/suffix), `img.manga-thumb` cover,
+  `.manga-content-heading/.manga-content-value` label rows (สถานะ),
+  `.description` (text OUTSIDE the embedded `.tag-list`; "No Story" =
+  empty), chapters `.ep-list .ep-item` (`.ep-heading` label,
+  `.ep-time` relative stamp).
+- reader `/<series>/<chapter>/`: `.manga-image-contain img.page-img`,
+  server-rendered, in order.
+- genres: homepage `/tag/` links; browseGenre `/tag/<name>/` (single
+  page).
 
 ### hentaithai.net — `app/lib/data/sources/hentaithai/`
 

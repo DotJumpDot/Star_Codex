@@ -382,13 +382,16 @@ class _Toolbar extends ConsumerWidget {
               onPressed: () => showLibraryFilterSheet(context, ref),
             ),
           ),
-          // Source-scope cycle (user request 2026-10-28): all → normal →
-          // 18+ → all. Fills the empty slot right of the filter.
+          // Source-scope cycle (user request 2026-10-28; Mix step added
+          // 2026-11-03): all → normal → mix → 18+ → all. Fills the empty
+          // slot right of the filter; icons match the nav drawer's tabs
+          // (blur_on = Search Mix).
           IconButton(
             tooltip: t(context, 'library.scope_cycle'),
             icon: Icon(switch (state.scope) {
               LibraryScope.all => Icons.all_inclusive,
               LibraryScope.normal => Icons.auto_stories_outlined,
+              LibraryScope.mix => Icons.blur_on_outlined,
               LibraryScope.adult => Icons.eighteen_up_rating_outlined,
             }),
             onPressed: controller.cycleScope,

@@ -1,6 +1,7 @@
 # HANDOFF — read this first in a new conversation
 
-> Last updated 2026-11-01 (v1.5.2 release). Written originally 2026-10-17
+> Last updated 2026-11-03 (five new sources, db v13 — post-v1.5.2
+> dev batch, unreleased). Written originally 2026-10-17
 > when the folder was renamed `C:\Code\Manga_Reader` → `C:\Code\StarCodex`.
 
 ## Where things stand
@@ -20,6 +21,16 @@
   green, analyze clean. Invariants: PLAN_NOTES 2026-10-23 (four
   sections: WAF ladder, hentaithai /page-N, tooling note, grid-label
   generation-time anchor).
+- **2026-11-03 batch (unreleased)**: five new sources across the three
+  universes (manghaha → Search 18+, niceoppai → Search Mix, oremanga +
+  madoo-manga + 1668manga → normal Search; db v13, 19 sources total) +
+  the Library header scope cycle gained a Search Mix step
+  (all → normal → mix → 18+). New plumbing: `SafeHttp.postForm` with a
+  POST-capable cronet lane (niceoppai's POST-only search behind CF),
+  Madara ts detail accepts Thai imptdt labels, `pages()` decodes base64
+  data-URI scripts (1668), `parseSiteDate` accepts bare 3-letter
+  English months, and the db migration chain got its missing
+  v11→v12 `continue` fixed. 356 tests green. See PLAN_NOTES 2026-11-03.
 - **v1.5.2 (7b8fe77, rel c182979)**: scoped-tab search fix — overlay
   hardcoded pre-Mix tab order (adultTab = 1): Mix searches landed on the
   hidden 18+ controller, 18+ searches bounced to main; browseScopeForTab

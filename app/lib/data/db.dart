@@ -5,7 +5,7 @@ import 'package:sqflite/sqflite.dart';
 /// Single SQLite database (Plan/02). All timestamps are milliseconds since
 /// epoch (int). Migrations append only: bump [dbVersion], add a `case` in
 /// [onUpgrade] — never edit v1 statements after shipping.
-const dbVersion = 12;
+const dbVersion = 13;
 const dbFileName = 'manga_reader.db';
 
 class DbException implements Exception {
@@ -208,15 +208,37 @@ Future<Database> openDb({
             // Existing rows ARE favorites (library membership = the old
             // single-step favorite) — ladder: 1 favorite, 2 super.
             await db.execute('UPDATE library SET favorite = 1');
+            continue next10; // chain to v12
           // v12 (2026-11-01): nano-manga chapter rows ingested before the
           // d/m/Y + release-date parsers existed carry no uploadedAt
           // (every chapter read "ไม่ระบุวันที่"). Their links go stale so
           // the next detail open re-fetches the chapter list WITH dates.
+          next10:
           case 11:
             await db.execute(
               "UPDATE series_sources SET fetched_at = 0 "
               "WHERE source_id = 'nano-manga'",
             );
+            continue next11; // chain to v13
+          // v13 (2026-11-03): five new sources — manghaha joins the
+          // Doujin (18+) page (adultSourceIds), niceoppai is MIX-scope
+          // (own tab), oremanga + madoo-manga + 1668manga join the main
+          // feed (madoo/1668 are Madara ts configs). All seed ENABLED —
+          // every probe of all five passed plain GETs with no WAF.
+          next11:
+          case 12:
+            for (var i = 0; i < _seededSources.length; i++) {
+              final s = _seededSources[i];
+              if (i < 14) continue; // rows 0-13 predate v13
+              await db.insert('sources', {
+                'id': s.$1,
+                'name': s.$2,
+                'base_url': s.$3,
+                'adapter': s.$4,
+                'enabled': 1,
+                'sort': i,
+              }, conflictAlgorithm: ConflictAlgorithm.ignore);
+            }
           // Future migrations append cases here: `case 1: ...; continue next;`
           default:
             break;
@@ -419,6 +441,13 @@ const _seededSources = [
   ('nano-manga', 'Nano-Manga', 'https://nano-manga.com', 'madara'),
   ('mangary', 'Mangary', 'https://mangary.com', 'toonary'),
   ('whytoon', 'WhyToon', 'https://whytoon.com', 'toonary'),
+  // v13 (2026-11-03): five new sources across the three feed universes
+  // (manghaha 18+ / niceoppai mix / oremanga + madoo + 1668 main).
+  ('manghaha', 'Manghaha', 'https://manghaha.com', 'manghaha'),
+  ('niceoppai', 'Niceoppai', 'https://www.niceoppai.net', 'niceoppai'),
+  ('oremanga', 'Oremanga', 'https://www.oremanga.net', 'oremanga'),
+  ('madoo-manga', 'Madoo-Manga', 'https://www.madoo-manga.com', 'madara'),
+  ('1668manga', '1668Manga', 'https://1668manga.com', 'madara'),
 ];
 
 const _defaultSettings = {

@@ -89,6 +89,23 @@ const madaraConfigs = [
     searchSupported: true,
     classicLayout: true,
   ),
+  // v13 (2026-11-03): user-added main-feed sites (probed live 2026-11-03)
+  // — same ts family end to end: /manga/ .listupd .bsx archive,
+  // ?s=&post_type=wp-manga search, entry-title/tsinfo/mgen/eph-num
+  // detail. madoo is manhwa-heavy; 1668 is manhua+manhwa and wraps its
+  // ts_reader payload in base64 data-URI scripts (pages() decodes them).
+  MadaraSiteConfig(
+    id: 'madoo-manga',
+    name: 'Madoo-Manga',
+    baseUrl: 'https://www.madoo-manga.com',
+    seriesUnderMangaPrefix: true, // /manga/<slug>/ (probed 2026-11-03)
+  ),
+  MadaraSiteConfig(
+    id: '1668manga',
+    name: '1668Manga',
+    baseUrl: 'https://1668manga.com',
+    seriesUnderMangaPrefix: true, // /manga/<slug>/ (probed 2026-11-03)
+  ),
   // --- adult (18+), scoped to the Doujin page only ---
   MadaraSiteConfig(
     id: 'ntr-manga',

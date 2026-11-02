@@ -41,14 +41,21 @@ class CronetLane {
     }
   }
 
-  /// Single GET, no redirect following. [extraHeaders] carries the
+  /// Single request, no redirect following. [extraHeaders] carries the
   /// WebView-relayed Cookie/User-Agent when a challenge host serves
-  /// post-clearance traffic through this lane.
-  Future<LaneResponse> fetch(Uri uri, {Map<String, String>? extraHeaders}) async {
+  /// post-clearance traffic through this lane. [method]/[body] carry
+  /// POSTs (niceoppai search, 2026-11-03): this engine is Chromium's own
+  /// network stack, so a form POST handshakes exactly like Chrome's —
+  /// the fingerprint checks that challenge Dart/curl POSTs pass it.
+  Future<LaneResponse> fetch(Uri uri,
+      {Map<String, String>? extraHeaders,
+      String method = 'GET',
+      String? body}) async {
     if (!await ensure()) {
       throw NetException('cronet engine unavailable', uri: uri);
     }
-    final request = http.Request('GET', uri)..followRedirects = false;
+    final request = http.Request(method, uri)..followRedirects = false;
+    if (body != null) request.body = body;
     extraHeaders?.forEach((name, value) => request.headers[name] = value);
     request.headers['accept-language'] = 'th,en;q=0.8';
     final streamed = await _client!.send(request).timeout(

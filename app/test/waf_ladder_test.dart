@@ -46,7 +46,9 @@ class FakeCronet extends CronetLane {
 
   @override
   Future<LaneResponse> fetch(Uri uri,
-          {Map<String, String>? extraHeaders}) =>
+          {Map<String, String>? extraHeaders,
+          String method = 'GET',
+          String? body}) =>
       handler(uri, extraHeaders).whenComplete(() => calls++);
 }
 

@@ -461,14 +461,20 @@ class MadaraSource implements Source {
     }
 
     // Status/Type rows: `<div class="imptdt">Status <i>Ongoing</i></div>`
+    // — the newer ts forks (madoo-manga, 1668manga, probed 2026-11-03)
+    // localize the labels: "สถานะ Ongoing" / "ประเภท Manhwa".
     String? status;
     String? type;
     for (final row in doc.querySelectorAll('.tsinfo .imptdt')) {
       final text = row.text.trim();
       final value =
           row.querySelector('i, a')?.text.trim() ?? text.split(' ').last;
-      if (text.startsWith('Status')) status = _normalizeStatus(value);
-      if (text.startsWith('Type')) type = _normalizeType(value);
+      if (text.startsWith('Status') || text.startsWith('สถานะ')) {
+        status = _normalizeStatus(value);
+      }
+      if (text.startsWith('Type') || text.startsWith('ประเภท')) {
+        type = _normalizeType(value);
+      }
     }
 
     final genres = doc
@@ -544,7 +550,11 @@ class MadaraSource implements Source {
   Future<ChapterPages> pages(String chapterUrl) async {
     final body = await _fetch(Uri.parse(chapterUrl));
     // ts_reader.run({... "images":["...","..."] ...}) — keep given order.
-    final m = RegExp(r'"images"\s*:\s*\[([^\]]*)\]').firstMatch(body);
+    // Some ts forks (1668manga, probed 2026-11-03) ship that script inside
+    // Cloudflare's data-URI tags (`src="data:text/javascript;base64,…"`),
+    // so decode every base64 payload on the page and scan those too.
+    final scanBody = _withDecodedDataScripts(body);
+    final m = RegExp(r'"images"\s*:\s*\[([^\]]*)\]').firstMatch(scanBody);
     if (m != null) {
       final urls = m
           .group(1)!
@@ -584,6 +594,28 @@ class MadaraSource implements Source {
 
   @override
   Future<String?> novelText(String chapterUrl) async => null;
+
+  /// Appends every base64 data-URI **script** payload on the page
+  /// (decoded) to the body, so regex scanners see CF-rocket-wrapped JS
+  /// (`src="data:text/javascript;base64,…"`). Non-script data URIs
+  /// (inline images) are ignored; payloads that fail to decode are
+  /// skipped — they were never scripts.
+  String _withDecodedDataScripts(String body) {
+    final decoded = StringBuffer();
+    for (final m in RegExp(
+      r'data:text/javascript;base64,([A-Za-z0-9+/=]{80,})',
+    ).allMatches(body)) {
+      try {
+        decoded.write(
+            utf8.decode(base64.decode(m.group(1)!), allowMalformed: true));
+        decoded.write('\n');
+      } on FormatException {
+        // not a script payload — ignore
+      }
+    }
+    if (decoded.isEmpty) return body;
+    return '$body\n$decoded';
+  }
 
   /// Genre cloud scraped from the homepage (drift 2026-10-17: the theme
   /// renders `a[href*="/genres/"]` links — both English slugs and Thai-named

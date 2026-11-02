@@ -127,16 +127,33 @@ class SafeHttp {
         .bytes;
   }
 
+  /// Form-urlencoded POST (niceoppai's `manga_list/search/` endpoint,
+  /// 2026-11-03: the theme reads `$_POST` only — every GET variant renders
+  /// "Search result of ''"). Same validation / rate limit / retry ladder
+  /// as every other request. A Cloudflare-shaped failure escalates the
+  /// host and retries the POST on the cronet lane (real Chrome TLS); the
+  /// webview tier is GET-only, so a challenge there surfaces the 403.
+  Future<Uint8List> postForm(Uri uri, Map<String, String> fields,
+      {String? referer}) async {
+    final body = Uri(queryParameters: fields).query;
+    return (await _loopFull(uri,
+            referer: referer,
+            method: 'POST',
+            data: body,
+            contentType: 'application/x-www-form-urlencoded'))
+        .bytes;
+  }
+
   Future<Uint8List> getBytes(Uri uri, {String? referer}) async {
     return (await _loopFull(uri, referer: referer)).bytes;
   }
 
   Future<({Uint8List bytes, Map<String, String> headers})> _loopFull(Uri uri,
-      {String? referer, String method = 'GET', Object? data}) async {
+      {String? referer, String method = 'GET', Object? data, String? contentType}) async {
     var current = uri;
     for (var hop = 0; hop <= 8; hop++) {
       final response = await _run(current,
-          referer: referer, method: method, data: data);
+          referer: referer, method: method, data: data, contentType: contentType);
       final status = response.statusCode ?? 0;
       if (status >= 300 && status < 400) {
         final location = response.headers.value(HttpHeaders.locationHeader);
@@ -167,28 +184,45 @@ class SafeHttp {
   }
 
   Future<Response<List<int>>> _run(Uri uri,
-      {String? referer, String method = 'GET', Object? data}) async {
+      {String? referer, String method = 'GET', Object? data, String? contentType}) async {
     await _validate(uri);
     final release = await _rateLimiter.acquire(uri.host);
     try {
-      // WAF ladder: POST (nekopost API) and gate-less instances always
-      // take the direct Dio lane. GETs on a lane the gate learned for
-      // this host go straight there.
+      // WAF ladder: gate-less instances (tests) always take the direct
+      // Dio lane. GETs on a lane the gate learned for this host go
+      // straight there; POSTs ride a learned CRONET lane directly (the
+      // engine carries method+body) but can never ride the webview tier,
+      // which only fetches documents via GET.
       final lane = _gate?.laneFor(uri.host) ?? WafLane.direct;
-      if (method != 'GET' || lane == WafLane.direct) {
-        try {
-          return await _withRetries(uri,
-              referer: referer, method: method, data: data);
-        } on _CloudflareBlock catch (e) {
-          final next = _gate?.laneFor(uri.host) ?? WafLane.direct;
-          if (next == WafLane.direct) {
-            throw NetException('HTTP ${e.statusCode}',
-                uri: uri, statusCode: e.statusCode);
-          }
-          return await _laneFetch(uri, referer: referer);
-        }
+      if (method == 'GET' && lane != WafLane.direct) {
+        return await _laneFetch(uri, referer: referer);
       }
-      return await _laneFetch(uri, referer: referer);
+      if (method != 'GET' && lane == WafLane.cronet) {
+        return await _laneFetch(uri,
+            referer: referer,
+            method: method,
+            body: data,
+            contentType: contentType);
+      }
+      try {
+        return await _withRetries(uri,
+            referer: referer, method: method, data: data, contentType: contentType);
+      } on _CloudflareBlock catch (e) {
+        final next = _gate?.laneFor(uri.host) ?? WafLane.direct;
+        // A POST challenged on the direct lane retries on cronet (Chrome
+        // TLS passes fingerprint checks curl/Dart fail); the webview tier
+        // has no POST path, so that combination surfaces the 403.
+        if (next == WafLane.direct ||
+            (method != 'GET' && next == WafLane.webview)) {
+          throw NetException('HTTP ${e.statusCode}',
+              uri: uri, statusCode: e.statusCode);
+        }
+        return await _laneFetch(uri,
+            referer: referer,
+            method: method,
+            body: data,
+            contentType: contentType);
+      }
     } finally {
       release();
     }
@@ -197,8 +231,13 @@ class SafeHttp {
   /// Fetch through a learned WAF lane (cronet or webview). 3xx responses
   /// are returned unwrapped so `_loop` follows + re-validates every hop
   /// exactly as on the direct lane. A Cloudflare-shaped failure promotes
-  /// the host one tier; exhausting the ladder throws.
-  Future<Response<List<int>>> _laneFetch(Uri uri, {String? referer}) async {
+  /// the host one tier; exhausting the ladder throws. POSTs can only ride
+  /// the cronet engine — the webview tier fetches documents via GET.
+  Future<Response<List<int>>> _laneFetch(Uri uri,
+      {String? referer,
+      String method = 'GET',
+      Object? body,
+      String? contentType}) async {
     final gate = _gate!;
     var lane = gate.laneFor(uri.host);
     while (true) {
@@ -212,12 +251,20 @@ class SafeHttp {
         lane = next;
         continue;
       }
-      final extra = {
+      if (lane == WafLane.webview && method != 'GET') {
+        throw NetException('webview lane cannot carry a $method',
+            uri: uri, statusCode: 403);
+      }
+      final extra = <String, String>{
         'referer': ?referer,
+        'content-type': ?contentType,
       };
       LaneResponse r;
       if (lane == WafLane.cronet) {
-        r = await gate.cronet!.fetch(uri, extraHeaders: extra);
+        r = await gate.cronet!.fetch(uri,
+            extraHeaders: extra,
+            method: method,
+            body: body is String ? body : null);
       } else {
         // WebView tier: byte traffic rides cronet at native speed with
         // the relayed clearance cookie + WebView UA; a Cloudflare-shaped
@@ -267,7 +314,7 @@ class SafeHttp {
   }
 
   Future<Response<List<int>>> _withRetries(Uri uri,
-      {String? referer, String method = 'GET', Object? data}) async {
+      {String? referer, String method = 'GET', Object? data, String? contentType}) async {
     var backoff = const Duration(seconds: 1);
     for (var attempt = 1; attempt <= 3; attempt++) {
       try {
@@ -276,7 +323,8 @@ class SafeHttp {
             Options(
               responseType: ResponseType.bytes,
               method: method,
-              contentType: method == 'POST' ? 'application/json' : null,
+              contentType: contentType ??
+                  (method == 'POST' ? 'application/json' : null),
               headers: {
                 'Referer': ?referer,
               },
@@ -291,9 +339,11 @@ class SafeHttp {
             status == 429;
         if (!retryable || attempt == 3) {
           if (e.type == DioExceptionType.badResponse) {
-            // WAF ladder hook: a Cloudflare-shaped 403/429/503 on a GET
-            // promotes the host to the next lane before surfacing.
-            if (_gate != null && method == 'GET' && status != null) {
+            // WAF ladder hook: a Cloudflare-shaped 403/429/503 promotes
+            // the host to the next lane before surfacing. GETs retry on
+            // any lane; POSTs (niceoppai search) only have cronet —
+            // `_run` decides whether the new lane can carry the method.
+            if (_gate != null && status != null) {
               final body = e.response?.data;
               final headers = <String, String>{
                 for (final entry

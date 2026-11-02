@@ -4,10 +4,13 @@ import '../../core/providers.dart';
 import '../../core/settings_provider.dart';
 import '../../data/dao/library_dao.dart';
 import '../../data/repo/library_cards.dart';
-import '../../data/sources/source_registry.dart' show adultSourceIds;
+import '../../data/sources/source_registry.dart'
+    show adultSourceIds, mixSourceIds;
 
-/// Library source-scope cycle (2026-10-28): all → normal → 18+ → all.
-enum LibraryScope { all, normal, adult }
+/// Library source-scope cycle (2026-10-28; Mix step added 2026-11-03 so
+/// the cycle mirrors the three browse universes):
+/// all → normal → mix → 18+ → all.
+enum LibraryScope { all, normal, mix, adult }
 
 /// Library tab state (Plan/12): the full card list stays in memory;
 /// tab/filter/search/sort apply over it via the pure
@@ -43,16 +46,21 @@ class LibraryState {
   /// (Plan/12 §4: "target = the one user tapped first").
   final List<int> selection;
 
-  /// Source-scope filter (user request 2026-10-28, toolbar cycle button):
-  /// all → non-18+ → 18+ only.
+  /// Source-scope filter (user request 2026-10-28, toolbar cycle button;
+  /// Mix step 2026-11-03): all → normal → mix → 18+ only. "normal" is the
+  /// main browse universe — neither adult nor mix sources.
   final LibraryScope scope;
 
   List<LibraryCard> get visible => filterAndSortCards(
         cards
             .where((c) => switch (scope) {
                   LibraryScope.all => true,
-                  LibraryScope.normal =>
-                    c.sources.any((s) => !adultSourceIds.contains(s)),
+                  LibraryScope.normal => c.sources
+                      .any((s) =>
+                          !adultSourceIds.contains(s) &&
+                          !mixSourceIds.contains(s)),
+                  LibraryScope.mix =>
+                    c.sources.any(mixSourceIds.contains),
                   LibraryScope.adult =>
                     c.sources.any(adultSourceIds.contains),
                 })
@@ -128,11 +136,12 @@ class LibraryController extends StateNotifier<LibraryState> {
 
   void setTab(LibraryTab tab) => state = state.copyWith(tab: tab);
 
-  /// Cycles all → normal → 18+ → all (library toolbar button).
+  /// Cycles all → normal → mix → 18+ → all (library toolbar button).
   void cycleScope() {
     final next = switch (state.scope) {
       LibraryScope.all => LibraryScope.normal,
-      LibraryScope.normal => LibraryScope.adult,
+      LibraryScope.normal => LibraryScope.mix,
+      LibraryScope.mix => LibraryScope.adult,
       LibraryScope.adult => LibraryScope.all,
     };
     state = state.copyWith(scope: next);

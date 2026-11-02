@@ -1705,3 +1705,43 @@ repro'd or root-caused from code:
   (user report + screenshots). `sourceDotColorFor(id, index)` with a
   `nano-manga` → taupe-brown override; id-having call sites updated
   (cards, detail hero, chapter rows, sheet, site list).
+
+## 2026-11-03 — Five new sources (db v13) + Library Mix scope step + postForm lane
+
+User batch: manghaha (Search 18+), niceoppai (Search Mix), oremanga +
+madoo-manga + 1668manga (normal Search). 19 seeded sources total
+(11 main / 3 mix / 5 adult). Invariants established:
+
+- **`SafeHttp.postForm` + POST-capable cronet lane** (niceoppai's theme
+  reads `$_POST` only). The ladder rule now: a Cloudflare-blocked POST
+  escalates the host and retries on the CRONET lane (Chrome TLS — the
+  fingerprint checks that challenge Dart/curl POSTs pass it); the
+  webview tier stays GET-only and a challenged POST there surfaces the
+  403. `_withRetries` escalates for every method now (was GET-only),
+  `_run` decides whether the new lane can carry the method.
+- **Madara ts detail accepts Thai imptdt labels** (1668: "สถานะ/
+  ประเภท"; madoo ships English ones) — label checks are OR'd, value
+  normalization unchanged.
+- **Madara pages() decodes base64 data-URI scripts** before the
+  ts_reader regex (1668 hides its whole reader payload in
+  `src="data:text/javascript;base64,…"` tags). Decode failures are
+  skipped, never fatal.
+- **`parseSiteDate` accepts bare 3-letter English months** ("Sep 20,
+  2026" — niceoppai chapter rows; previously only full names or dotted
+  abbreviations parsed).
+- **db migration chaining fixed**: `case 10` (v11) lacked a `continue`
+  into `case 11` — a pre-v11 install upgrading to v12+ silently skipped
+  the nano fetched_at reset; the chain now runs 10 → 11 → 12 (labels
+  `next10:`/`next11:`). Any future case MUST end with a `continue` to
+  the next label or older installs lose every later migration.
+- **Library scope cycle is all → normal → mix → adult → all**
+  (user-specified order; `LibraryScope.mix` between normal and adult).
+  "normal" now EXCLUDES mix sources (mirrors BrowseScope.main — the
+  three-universe split the user keeps re-confirming).
+- **niceoppai series pages server-render only the newest ~70 chapter
+  rows** — older chapters of longer series are JS-loaded and not
+  fetched (v1 limitation, documented in SOURCES.md).
+- **oremanga series URLs are case-sensitive** (`/series/Momiji-to-Kouyou/`)
+  — never normalize case on URLs from tiles.
+- **niceoppai cover paths contain literal spaces** — adapters must
+  encode them (%20) before handing URLs to the image pipeline.

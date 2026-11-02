@@ -8,13 +8,14 @@ never mirror hook/system text language).
 
 ## Project
 
-**Star Codex** — Flutter Android app (Thai-first UI) reading from 8 live
-Thai manga/novel sources in the main feed (6× WordPress-Madara + bully-
-manga custom engine + nekopost API incl. novels), a **Search Mix tab**
-with 2 normal+18+-mixed sites (mangary, whytoon — Toonary platform, yaoi
-filtered by default) and a separate **Doujin 18+ page** with 4 more
-(ntr-manga, hentaithai, doujin-lc, miku-doujin) — since db v11
-(2026-10-28) ALL 14 sources ship enabled: the WAF ladder
+**Star Codex** — Flutter Android app (Thai-first UI) reading from 11 live
+Thai manga/novel sources in the main feed (6× WordPress-Madara + madoo +
+1668 ts-family + bully-manga custom engine + nekopost API incl. novels +
+oremanga custom), a **Search Mix tab** with 3 normal+18+-mixed sites
+(mangary, whytoon, niceoppai — yaoi filtered by default) and a separate
+**Doujin 18+ page** with 5 more (ntr-manga, hentaithai, doujin-lc,
+miku-doujin, manghaha) — since db v11
+(2026-10-28) and v13 (2026-11-03) ALL 19 sources ship enabled: the WAF ladder
 (dio → cronet → webview, PLAN_NOTES 2026-10-23) gets through every
 Cloudflare block. A Webtoons.com (webtoons.com/th) tab is FUTURE work,
 explicitly deferred by the user. Streaming

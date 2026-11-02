@@ -344,4 +344,64 @@ Future<void> main() async {
       },
     );
   });
+
+  group('ts forks v13 (madoo-manga / 1668manga, probed 2026-11-03)', () {
+    final dir = '${Directory.current.path}\\test\\fixtures';
+
+    MadaraSource serving(String fixtureBody, {String configId = 'madoo-manga'}) {
+      return MadaraSource(
+        madaraConfigs.firstWhere((c) => c.id == configId),
+        SafeHttp(
+          rateLimiter: RateLimiter(seed: 1),
+          fetcher: (uri, options) async => Response<List<int>>(
+            requestOptions: RequestOptions(path: uri.toString()),
+            statusCode: 200,
+            data: Uint8List.fromList(const Utf8Encoder().convert(fixtureBody)),
+          ),
+          delay: (_) async {},
+        ),
+      );
+    }
+
+    test('madoo: English-label tsinfo, eph-num chapters parse', () async {
+      final body =
+          File('$dir\\madoo_series.html').readAsStringSync(encoding: utf8);
+      final d = await serving(body).detail(
+          'https://www.madoo-manga.com/manga/flow-the-river-of-destiny/');
+      expect(d.title, '(Flow) The River of Destiny');
+      expect(d.status, 'ongoing'); // "Status <i>Ongoing</i>"
+      expect(d.type, 'manhwa'); // "Type Manhwa"
+      expect(d.tags, isNotEmpty); // .mgen chips
+      expect(d.chapters, hasLength(99));
+      expect(d.chapters.last.number, 97);
+      // "July 8, 2025" chapterdate parses (English month).
+      expect(d.chapters.last.uploadedAt, isNotNull);
+    });
+
+    test('1668: THAI-label tsinfo rows parse (สถานะ/ประเภท)', () async {
+      final body =
+          File('$dir\\m1668_series.html').readAsStringSync(encoding: utf8);
+      final d = await serving(body, configId: '1668manga').detail(
+          'https://1668manga.com/manga/99-wooden-stick/');
+      expect(d.title, '+99 Wooden Stick');
+      expect(d.status, 'ongoing'); // "สถานะ <i>Ongoing</i>"
+      expect(d.type, isNotNull); // "ประเภท <a>Manhua</a>" (or Manhwa)
+      expect(d.chapters, hasLength(216));
+      expect(d.chapters.last.number, 217); // newest chapter
+      expect(d.chapters.last.uploadedAt, isNotNull); // "October 30, 2026"
+    });
+
+    test(
+      '1668 chapter: ts_reader images decode out of base64 data-URI '
+      'scripts',
+      () async {
+        final body =
+            File('$dir\\m1668_chapter.html').readAsStringSync(encoding: utf8);
+        final pages = await serving(body, configId: '1668manga')
+            .pages('https://1668manga.com/99-wooden-stick-x-217/');
+        expect(pages.imageUrls, isNotEmpty);
+        expect(pages.imageUrls.first, startsWith('https://img.168toon.com/'));
+      },
+    );
+  });
 }

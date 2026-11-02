@@ -150,6 +150,35 @@ void main() {
       );
       expect(calls, 3);
     });
+
+    test('postForm sends an urlencoded body with the form content type',
+        () async {
+      Options? opts;
+      Uri? posted;
+      final http = httpWith((uri, options) async {
+        posted = uri;
+        opts = options;
+        return Response<List<int>>(
+          requestOptions: RequestOptions(path: uri.toString()),
+          statusCode: 200,
+          data: const Utf8Encoder().convert('ok'),
+        );
+      });
+
+      final bytes = await http.postForm(
+        Uri.parse('https://www.example.com/search'),
+        {'q': 'lazy prince', 'cmd': 'Search'},
+      );
+      expect(utf8.decode(bytes), 'ok');
+      expect(posted.toString(), 'https://www.example.com/search');
+      expect(opts!.method, 'POST');
+      expect(opts!.contentType, 'application/x-www-form-urlencoded');
+      final body = opts!.extra?['safe_http_body'] as String;
+      // Dart's Uri.queryParameters form-encodes spaces as '+' (HTML form
+      // convention — servers decode both this and %20).
+      expect(body, contains('q=lazy+prince'));
+      expect(body, contains('cmd=Search'));
+    });
   });
 
   group('SafeHttp URL validation (Plan/04 §2)', () {

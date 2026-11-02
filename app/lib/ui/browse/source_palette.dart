@@ -64,6 +64,14 @@ const sourceContentTypes = <String, List<String>>{
   // Mix tab (2026-11-01): Toonary platforms host vertical webtoons only.
   'mangary': ['manhwa'],
   'whytoon': ['manhwa'],
+  // v13 additions (2026-11-03, user-specified): manghaha (18+ page) and
+  // niceoppai (Mix) are manhwa-heavy; oremanga leads with manga;
+  // madoo-manga manhwa; 1668manga carries manhua + manhwa.
+  'manghaha': ['manhwa'],
+  'niceoppai': ['manhwa'],
+  'oremanga': ['manga'],
+  'madoo-manga': ['manhwa'],
+  '1668manga': ['manhua', 'manhwa'],
 };
 
 /// The little colored identity dot used on browse badges, detail source

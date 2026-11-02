@@ -187,7 +187,8 @@ int? _monthFromName(String name) {
     'november',
     'december',
   ];
-  final exact = en.indexWhere((m) => n == m || n == '${m.substring(0, 3)}.');
+  final exact = en.indexWhere(
+      (m) => n == m || n == m.substring(0, 3) || n == '${m.substring(0, 3)}.');
   return exact >= 0 ? exact + 1 : null;
 }
 
