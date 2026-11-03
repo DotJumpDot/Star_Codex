@@ -1,14 +1,13 @@
 # HANDOFF — read this first in a new conversation
 
-> Last updated 2026-11-03 (five new sources, db v13 — post-v1.5.2
-> dev batch, unreleased). Written originally 2026-10-17
+> Last updated 2026-11-03 (v1.6.0 release). Written originally 2026-10-17
 > when the folder was renamed `C:\Code\Manga_Reader` → `C:\Code\StarCodex`.
 
 ## Where things stand
 
 - **The app is built, QA'd, and released.** All 11 plan phases completed
   (2026-10-17), four user-driven UX rounds + the Doujin (18+) page
-  landed (2026-10-18/19), and **v1.0.0 → v1.5.2 are live on GitHub
+  landed (2026-10-18/19), and **v1.0.0 → v1.6.0 are live on GitHub
   Releases** (release-signed `StarCodex-<version>.apk`).
 - **ALL 11 sources are live and enabled by default** (db v9): main feed
   = go-manga, slow-manga, up-manga, dark-manga, fin-manga (Madara/ts),
@@ -21,7 +20,7 @@
   green, analyze clean. Invariants: PLAN_NOTES 2026-10-23 (four
   sections: WAF ladder, hentaithai /page-N, tooling note, grid-label
   generation-time anchor).
-- **2026-11-03 batch (unreleased)**: five new sources across the three
+- **v1.6.0 (8b41195, rel 651ebeb)**: five new sources across the three
   universes (manghaha → Search 18+, niceoppai → Search Mix, oremanga +
   madoo-manga + 1668manga → normal Search; db v13, 19 sources total) +
   the Library header scope cycle gained a Search Mix step
@@ -30,7 +29,8 @@
   Madara ts detail accepts Thai imptdt labels, `pages()` decodes base64
   data-URI scripts (1668), `parseSiteDate` accepts bare 3-letter
   English months, and the db migration chain got its missing
-  v11→v12 `continue` fixed. 356 tests green. See PLAN_NOTES 2026-11-03.
+  v11→v12 `continue` fixed. 356 tests green. Released as v1.6.0
+  (StarCodex-1.6.0.apk, versionCode 26). See PLAN_NOTES 2026-11-03.
 - **v1.5.2 (7b8fe77, rel c182979)**: scoped-tab search fix — overlay
   hardcoded pre-Mix tab order (adultTab = 1): Mix searches landed on the
   hidden 18+ controller, 18+ searches bounced to main; browseScopeForTab
