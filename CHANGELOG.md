@@ -953,3 +953,8 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   payload decodes from base64 CF scripts). Library's rightmost header
   cycle is now All → Normal Search → Search Mix → Search 18+ → All
   (mirrors the three browse universes). 356 tests green, analyze clean.
+- 2026-11-03 — Release: v1.6.0 — version 1.6.0+26. Five new sources
+  (manghaha → Search 18+, niceoppai → Search Mix, oremanga +
+  madoo-manga + 1668manga → normal Search; db v13, 19 sources) and the
+  Library scope cycle gained the Search Mix step. 356 tests green,
+  analyze clean.
