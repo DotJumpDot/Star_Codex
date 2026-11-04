@@ -8,7 +8,7 @@
 
 - **The app is built, QA'd, and released.** All 11 plan phases completed
   (2026-10-17), four user-driven UX rounds + the Doujin (18+) page
-  landed (2026-10-18/19), and **v1.0.0 → v1.6.0 are live on GitHub
+  landed (2026-10-18/19), and **v1.0.0 → v1.7.0 are live on GitHub
   Releases** (release-signed `StarCodex-<version>.apk`).
 - **ALL 11 sources are live and enabled by default** (db v9): main feed
   = go-manga, slow-manga, up-manga, dark-manga, fin-manga (Madara/ts),
@@ -21,7 +21,9 @@
   green, analyze clean. Invariants: PLAN_NOTES 2026-10-23 (four
   sections: WAF ladder, hentaithai /page-N, tooling note, grid-label
   generation-time anchor).
-- **Post-v1.6.0 (451c033 + inu batch)**: 1668manga old chapters read
+- **Post-v1.6.0 (451c033 + 010542b + 8c71f16) — RELEASED in v1.7.0
+  (rel b84aefe, StarCodex-1.7.0.apk, versionCode 27)**: 1668manga old
+  chapters read
   again — its page CDN (img.168toon.com) 403s (CF 1011) any
   Referer-bearing request on the legacy `/Manga/` paths; page images now
   fetch referer-less via `Source.imageReferer` (+ `MadaraSiteConfig
@@ -31,8 +33,9 @@
   rides POST all the way to a real WebView form post (`WebviewGate
   .postForm`) — Cloudflare challenges POSTs from every non-browser
   client there. **inu-manga.net joins Search Mix (db v14, 20 sources)**
-  — plain Madara-ts config. 368 tests green. See PLAN_NOTES 2026-11-04
-  (two sections).
+  — plain Madara-ts config. Miku-Doujin search implemented via the
+  theme's ajax POST (/controller/search/general/). 368 tests green.
+  See PLAN_NOTES 2026-11-04 (two sections).
 - **v1.6.0 (8b41195, rel 651ebeb)**: five new sources across the three
   universes (manghaha → Search 18+, niceoppai → Search Mix, oremanga +
   madoo-manga + 1668manga → normal Search; db v13, 19 sources total) +

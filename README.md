@@ -146,13 +146,13 @@ Requires Android 7.0+ (API 24).
 > **Upgrading from a debug/test build?** Uninstall it first — release
 > builds are signed with a different key.
 
-See [what changed in v1.6.0](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.6.0).
+See [what changed in v1.7.0](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.7.0).
 
 ## 🛠️ Tech stack
 
 - **Flutter 3.47 / Dart** — Material 3, no codegen (plain classes, manual
   Riverpod providers)
-- **SQLite** (sqflite) — append-only migrations, currently v9
+- **SQLite** (sqflite) — append-only migrations, currently v14
 - **Image pipeline** — download → magic-byte validation → SHA-256 dedup →
   WebP q80 recompress (flutter_image_compress) → atomic write; hashing
   and oversized-strip slicing run on background threads/isolates so
@@ -202,6 +202,11 @@ Star_Codex/
 ```
 
 ## 📜 Status
+
+**v1.7.0 (2026-11-04)** — 1668Manga's older chapters read again (its
+image CDN rejects Referer-bearing requests), Inu-Manga joins Search Mix
+(20 sources total), Miku-Doujin search works, and searchless Doujin
+sites stop showing a red error dot.
 
 **v1.6.0 (2026-11-03)** — five new sites (19 total): Oremanga,
 Madoo-Manga and 1668Manga in the main search, Niceoppai on Search Mix,
