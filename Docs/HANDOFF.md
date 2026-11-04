@@ -8,7 +8,7 @@
 
 - **The app is built, QA'd, and released.** All 11 plan phases completed
   (2026-10-17), four user-driven UX rounds + the Doujin (18+) page
-  landed (2026-10-18/19), and **v1.0.0 → v1.7.0 are live on GitHub
+  landed (2026-10-18/19), and **v1.0.0 → v1.7.1 are live on GitHub
   Releases** (release-signed `StarCodex-<version>.apk`).
 - **ALL 11 sources are live and enabled by default** (db v9): main feed
   = go-manga, slow-manga, up-manga, dark-manga, fin-manga (Madara/ts),
@@ -21,6 +21,15 @@
   green, analyze clean. Invariants: PLAN_NOTES 2026-10-23 (four
   sections: WAF ladder, hentaithai /page-N, tooling note, grid-label
   generation-time anchor).
+- **v1.7.1 (05a8dc3, rel c69dc18)**: Inu-Manga serves TWO reader
+  layouts — pre-migration uploads ship plain `<img>` tags in the
+  original `#readerarea` div with NO ts_reader payload, so `pages()`
+  threw and the reader silently served a sibling source's copy (user
+  saw "จาก niceoppai" with Inu selected). `pages()` fallback chain is
+  now ts_reader → `.reading-content` → `#readerarea`. Triage rule
+  recorded: a whole-chapter fallback is silent by design — suspect an
+  own-source parse failure FIRST (device DB pull: `run-as … cat
+  files/manga_reader.db`, NOT databases/). 369 tests green.
 - **Post-v1.6.0 (451c033 + 010542b + 8c71f16) — RELEASED in v1.7.0
   (rel b84aefe, StarCodex-1.7.0.apk, versionCode 27)**: 1668manga old
   chapters read

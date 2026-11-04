@@ -146,7 +146,7 @@ Requires Android 7.0+ (API 24).
 > **Upgrading from a debug/test build?** Uninstall it first — release
 > builds are signed with a different key.
 
-See [what changed in v1.7.0](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.7.0).
+See [what changed in v1.7.1](https://github.com/DotJumpDot/Star_Codex/releases/tag/v1.7.1).
 
 ## 🛠️ Tech stack
 
@@ -202,6 +202,10 @@ Star_Codex/
 ```
 
 ## 📜 Status
+
+**v1.7.1 (2026-11-05)** — Inu-Manga's pre-migration chapters now read
+from Inu (the app learned the site's second, older reader layout; these
+chapters used to silently load another site's copy).
 
 **v1.7.0 (2026-11-04)** — 1668Manga's older chapters read again (its
 image CDN rejects Referer-bearing requests), Inu-Manga joins Search Mix
