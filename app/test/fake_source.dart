@@ -64,6 +64,8 @@ class FakeSource implements Source {
   @override
   String get referer => 'https://example.com/$id/';
   @override
+  String? get imageReferer => referer;
+  @override
   bool get supportsNovels => false;
 
   @override

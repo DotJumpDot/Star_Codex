@@ -150,6 +150,11 @@ class SafeHttp {
 
   Future<({Uint8List bytes, Map<String, String> headers})> _loopFull(Uri uri,
       {String? referer, String method = 'GET', Object? data, String? contentType}) async {
+    // An EMPTY referer string never reaches the wire as a bare
+    // `Referer:` header: 1668manga's page CDN (img.168toon.com) 403s
+    // "error code: 1011" on any request whose headers include a Referer,
+    // and an empty-valued header still counts as present (2026-11-04).
+    if (referer != null && referer.isEmpty) referer = null;
     var current = uri;
     for (var hop = 0; hop <= 8; hop++) {
       final response = await _run(current,
@@ -190,14 +195,13 @@ class SafeHttp {
     try {
       // WAF ladder: gate-less instances (tests) always take the direct
       // Dio lane. GETs on a lane the gate learned for this host go
-      // straight there; POSTs ride a learned CRONET lane directly (the
-      // engine carries method+body) but can never ride the webview tier,
-      // which only fetches documents via GET.
+      // straight there; so do POSTs on a learned CRONET lane (the engine
+      // carries method+body) or WEBVIEW lane (relay-carry below — a
+      // direct/dio POST against a host that already needed the webview
+      // tier is guaranteed to be challenged, niceoppai search
+      // 2026-11-04).
       final lane = _gate?.laneFor(uri.host) ?? WafLane.direct;
-      if (method == 'GET' && lane != WafLane.direct) {
-        return await _laneFetch(uri, referer: referer);
-      }
-      if (method != 'GET' && lane == WafLane.cronet) {
+      if (lane != WafLane.direct) {
         return await _laneFetch(uri,
             referer: referer,
             method: method,
@@ -210,10 +214,11 @@ class SafeHttp {
       } on _CloudflareBlock catch (e) {
         final next = _gate?.laneFor(uri.host) ?? WafLane.direct;
         // A POST challenged on the direct lane retries on cronet (Chrome
-        // TLS passes fingerprint checks curl/Dart fail); the webview tier
-        // has no POST path, so that combination surfaces the 403.
-        if (next == WafLane.direct ||
-            (method != 'GET' && next == WafLane.webview)) {
+        // TLS passes fingerprint checks curl/Dart fail) and, if cronet is
+        // challenged too, as a real WebView form post — Cloudflare now
+        // challenges POSTs from every non-browser client on niceoppai
+        // (2026-11-04).
+        if (next == WafLane.direct) {
           throw NetException('HTTP ${e.statusCode}',
               uri: uri, statusCode: e.statusCode);
         }
@@ -231,8 +236,11 @@ class SafeHttp {
   /// Fetch through a learned WAF lane (cronet or webview). 3xx responses
   /// are returned unwrapped so `_loop` follows + re-validates every hop
   /// exactly as on the direct lane. A Cloudflare-shaped failure promotes
-  /// the host one tier; exhausting the ladder throws. POSTs can only ride
-  /// the cronet engine — the webview tier fetches documents via GET.
+  /// the host one tier; exhausting the ladder throws. POSTs ride cronet
+  /// on the cronet tier; on the webview tier they ride the relayed cronet
+  /// fetch and, when that is challenged, a real WebView form post (the
+  /// only client shape some zones trust for POSTs — niceoppai search,
+  /// 2026-11-04).
   Future<Response<List<int>>> _laneFetch(Uri uri,
       {String? referer,
       String method = 'GET',
@@ -251,10 +259,6 @@ class SafeHttp {
         lane = next;
         continue;
       }
-      if (lane == WafLane.webview && method != 'GET') {
-        throw NetException('webview lane cannot carry a $method',
-            uri: uri, statusCode: 403);
-      }
       final extra = <String, String>{
         'referer': ?referer,
         'content-type': ?contentType,
@@ -269,17 +273,25 @@ class SafeHttp {
         // WebView tier: byte traffic rides cronet at native speed with
         // the relayed clearance cookie + WebView UA; a Cloudflare-shaped
         // answer falls back to fetching the document inside the WebView
-        // (which also re-solves an expired challenge).
+        // (which also re-solves an expired challenge). POSTs fall back
+        // to a real WebView form post the same way.
         final relay = await gate.webview!.relayHeadersFor(uri);
         final cronet = gate.cronet;
         if (cronet != null) {
-          r = await cronet.fetch(uri, extraHeaders: {...relay, ...extra});
+          r = await cronet.fetch(uri,
+              extraHeaders: {...relay, ...extra},
+              method: method,
+              body: body is String ? body : null);
+        } else if (method != 'GET') {
+          r = await gate.webview!.postForm(uri, body is String ? body : '');
         } else {
           r = await gate.webview!.fetchHtml(uri);
         }
         if (WafGate.cloudflareSignature(r.status, r.body, r.headers)) {
           try {
-            r = await gate.webview!.fetchHtml(uri);
+            r = method == 'GET'
+                ? await gate.webview!.fetchHtml(uri)
+                : await gate.webview!.postForm(uri, body is String ? body : '');
           } on NetException {
             // Top tier failed (challenge unsolved): stamp the host so
             // the next refresh fails fast instead of waiting 15 s again.

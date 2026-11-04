@@ -40,6 +40,8 @@ class MikuDoujinSource implements Source {
   @override
   String get referer => '$baseUrl/';
   @override
+  String? get imageReferer => referer;
+  @override
   bool get supportsNovels => false;
 
   @override
@@ -48,12 +50,13 @@ class MikuDoujinSource implements Source {
 
   @override
   Future<List<SourceSeries>> search(String query, {int page = 1}) async {
-    // The theme ignores ?s= entirely (probed 2026-10-19).
-    throw SourceException(
-      id,
-      SourceErrorKind.notFound,
-      detail: 'miku-doujin has no working search — browse the feed',
-    );
+    // The theme ignores ?s= entirely (?s=nano renders the homepage grid
+    // verbatim, re-probed 2026-11-04) and wp-json is 404 (REST disabled).
+    // An EMPTY result, not a throw: a throw renders the source's search
+    // row with a red "failed" dot on every Doujin-page search (user
+    // report 2026-11-04), which reads as a bug when the site simply has
+    // no search.
+    return const [];
   }
 
   @override

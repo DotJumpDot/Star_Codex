@@ -245,6 +245,16 @@ entries — no dedicated adapter.
   `ts_reader.run(… "images":[…])`); `pages()` decodes every base64
   blob on the page and scans the decoded text too. Images live on
   `img.168toon.com`.
+- **`img.168toon.com` hotlink-bans its own origin** (2026-11-04,
+  user report: every page of Murim's Debt King chapters 1-3 showed
+  "can't load this page" while ch25 worked): the CDN answers 403
+  "error code: 1011" to ANY request whose headers include a Referer on
+  the legacy `/Manga/…/N.jpg` paths (older chapters); the dated
+  `2026/MM/DD/<hash>.webp` paths tolerate one. No-Referer fetches work
+  for both, so the 1668manga config sets `noImageReferer` —
+  `MadaraSource.imageReferer` returns null and page images are fetched
+  referer-less. The cover CDN (`cdn.1668manga.com`) accepts a Referer,
+  so covers are unaffected.
 - 1668's homepage grid renders `.epxdate` stamps (family B); madoo's
   grid carries no time labels → archive-order feed for it.
 
@@ -262,9 +272,13 @@ only matches after detail data lands).
 - search: POST `/manga_list/search/` with
   `cmd_wpm_wgt_mng_sch_sbm=Search` + `txt_wpm_wgt_mng_sch_nme=<q>` —
   the theme reads `$_POST` only (GET variants render "Search result of
-  ''"). Cloudflare challenges non-browser POSTs, so this rides
-  `SafeHttp.postForm` → the cronet lane (Chrome TLS) when the direct
-  lane is blocked. Single page.
+  ''"). Cloudflare now challenges POSTs from EVERY non-browser client —
+  curl, Dart, and even a real Chrome `fetch()`/form navigation get
+  "Just a moment…" (re-probed 2026-11-04 after the user reported the
+  search dead) — so the POST rides the full ladder: direct → cronet
+  (Chrome TLS) → the WebView tier, where a challenged relay POST falls
+  back to a real WebView form post (`WebviewGate.postForm`, the only
+  client shape the zone trusts). Single page.
 - detail `/<Title-Slug>/`: `h1`, itemprop cover img, `.chip--genre`
   genres (exact Manhwa/Manhua/Manga chip = type), `p.series__syn`,
   `.series__facts .fact` rows (สถานะ/ตอนทั้งหมด), `.chrow` chapter rows
@@ -310,7 +324,10 @@ A forum-style community site, not WordPress:
   a different family from the landing grid. The `/prev-<id>` /
   `/next-<id>` links are per-thread JS navigation that 404 on direct
   GET, not pagination.
-- search: not supported (the site uses a Google CSE form).
+- search: not supported (the site uses a Google CSE form) — `search()`
+  returns an EMPTY result, never a throw (2026-11-04: a throw rendered
+  the source's search row with a red "failed" dot on every Doujin-page
+  search, which read as a bug).
 - the thread page IS detail + reader in one: every page image is inline
   (`img[src*="hentaithai.net/"]` on the s1 CDN). One-shot → one chapter.
 - tag browse (`/tag-<id>`) shares the col-6 card family but exposes no
@@ -326,7 +343,11 @@ WordPress with a fully custom "inz" theme:
   theme's own "older" link is `?page=2`; the old `?paged=N` still
   answers 200 but renders a COPY of page 1, which stalled the feed
   after the first screen (dedup ate the duplicates).
-- search: not supported — `?s=` is ignored and renders the homepage.
+- search: not supported — `?s=` is ignored and renders the homepage
+  verbatim (re-probed 2026-11-04), and `wp-json/wp/v2/search` is 404
+  (REST disabled). `search()` returns an EMPTY result, never a throw
+  (2026-11-04: a throw rendered the source's search row with a red
+  "failed" dot on every Doujin-page search).
 - genres: `/genre/<term>/` paged the same `?page=N` way (2026-10-28 —
   was `/category/`; old paths answer 200 EMPTY). Genre terms in
   `pathSegments` arrive already percent-decoded — a second

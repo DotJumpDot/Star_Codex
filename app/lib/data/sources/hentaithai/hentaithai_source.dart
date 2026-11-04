@@ -48,6 +48,8 @@ class HentaiThaiSource implements Source {
   @override
   String get referer => '$baseUrl/';
   @override
+  String? get imageReferer => referer;
+  @override
   bool get supportsNovels => false;
 
   @override
@@ -56,11 +58,12 @@ class HentaiThaiSource implements Source {
 
   @override
   Future<List<SourceSeries>> search(String query, {int page = 1}) async {
-    throw SourceException(
-      id,
-      SourceErrorKind.notFound,
-      detail: 'hentaithai search is a Google CSE form — browse the feed',
-    );
+    // No server-side search (the site's form posts to google.com) — an
+    // EMPTY result, not a throw: a throw renders the source's search row
+    // with a red "failed" dot on every Doujin-page search (user report
+    // 2026-11-04), which reads as a bug when the site simply has no
+    // search.
+    return const [];
   }
 
   @override

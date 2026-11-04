@@ -179,6 +179,22 @@ void main() {
       expect(body, contains('q=lazy+prince'));
       expect(body, contains('cmd=Search'));
     });
+
+    test('empty referer never reaches the wire (1668manga CDN 403s any '
+        'request whose headers include a Referer)', () async {
+      Options? opts;
+      final http = httpWith((uri, options) async {
+        opts = options;
+        return Response<List<int>>(
+          requestOptions: RequestOptions(path: uri.toString()),
+          statusCode: 200,
+          data: const Utf8Encoder().convert('ok'),
+        );
+      });
+      await http.getBytes(Uri.parse('https://www.example.com/img'),
+          referer: '');
+      expect(opts!.headers?.containsKey('Referer') ?? false, isFalse);
+    });
   });
 
   group('SafeHttp URL validation (Plan/04 §2)', () {

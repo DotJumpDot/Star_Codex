@@ -170,17 +170,66 @@ class WebviewGate {
         throw NetException('cloudflare challenge not solved',
             uri: uri, statusCode: 403);
       }
-      final html = await _controller!.evaluateJavascript(
-          source: 'document.documentElement.outerHTML');
-      if (html is! String || html.isEmpty) {
-        throw NetException('webview returned no document', uri: uri);
-      }
-      return LaneResponse(
-        status: 200,
-        body: utf8.encode(html),
-        headers: {'content-type': 'text/html; charset=utf-8'},
-      );
+      return _readDocument(uri);
     });
+  }
+
+  /// POST a form body through the WebView as a real document navigation
+  /// (`postUrl`), solving the challenge first when one is up. Some zones
+  /// challenge POSTs from EVERY non-browser client — curl, Dart and even
+  /// a real Chrome fetch() get "Just a moment..." on niceoppai's search
+  /// (probed 2026-11-04) — so a WebView navigation is the last client
+  /// shape that carries a form. Throws [NetException] like [fetchHtml].
+  Future<LaneResponse> postForm(Uri uri, String body) async {
+    try {
+      await _boot();
+    } catch (e) {
+      throw NetException('webview boot failed: $e', uri: uri);
+    }
+    return _serial(() async {
+      final controller = _controller!;
+      _userAgent ??= await _readUserAgent(controller);
+      _navDone = Completer<void>();
+      try {
+        await controller.postUrl(
+          url: WebUri(uri.toString()),
+          postData: Uint8List.fromList(utf8.encode(body)),
+        );
+      } catch (e) {
+        // postUrl itself failing (dead webview) must not leave the queue
+        // awaiting a stop that will never come.
+        _navDone = null;
+        throw NetException('webview post failed: $e', uri: uri);
+      }
+      try {
+        await _navDone!.future.timeout(const Duration(seconds: 20));
+      } on TimeoutException {
+        // fall through to polling — same race as GET navigations
+      }
+      final cleared = await _waitCleared(const Duration(seconds: 15));
+      if (!cleared) {
+        _markNeedsUnlock(uri.host);
+        throw NetException('cloudflare challenge not solved',
+            uri: uri, statusCode: 403);
+      }
+      clearNeedsUnlock(uri.host);
+      return _readDocument(uri);
+    });
+  }
+
+  /// The settled page's HTML as a 200 [LaneResponse]. Callers own the
+  /// cleared-wait; this only reads the document.
+  Future<LaneResponse> _readDocument(Uri uri) async {
+    final html = await _controller!.evaluateJavascript(
+        source: 'document.documentElement.outerHTML');
+    if (html is! String || html.isEmpty) {
+      throw NetException('webview returned no document', uri: uri);
+    }
+    return LaneResponse(
+      status: 200,
+      body: utf8.encode(html),
+      headers: {'content-type': 'text/html; charset=utf-8'},
+    );
   }
 
   Future<bool> _loadUntilCleared(Uri uri,

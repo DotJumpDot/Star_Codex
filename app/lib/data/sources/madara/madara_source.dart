@@ -32,6 +32,11 @@ class MadaraSource implements Source {
   @override
   String get referer => '$baseUrl/';
   @override
+  // 1668manga's page CDN (img.168toon.com) 403s "error code: 1011" on
+  // legacy-path requests that carry ANY Referer (probed 2026-11-04);
+  // no-Referer fetches succeed for every chapter there.
+  String? get imageReferer => config.noImageReferer ? null : referer;
+  @override
   bool get supportsNovels => false; // §7.6: novels are nekopost-only
 
   @override

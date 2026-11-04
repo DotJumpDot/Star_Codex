@@ -6,6 +6,14 @@ abstract class Source {
   String get name;
   String get baseUrl;
   String get referer;
+
+  /// Referer sent with READER-page image requests (reader + downloads).
+  /// Null sends no Referer at all. Defaults to [referer]; a source whose
+  /// page CDN hotlink-bans the origin overrides it (1668manga:
+  /// img.168toon.com 403s "error code: 1011" on legacy-path requests that
+  /// carry any Referer — probed 2026-11-04; its cover CDN is unaffected).
+  String? get imageReferer => referer;
+
   bool get supportsNovels; // only nekopost: true
 
   /// Search this source. Free-text, Thai or English.

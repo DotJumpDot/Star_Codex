@@ -298,7 +298,7 @@ class DownloadsRepo {
           await readerRepo.fetchPage(
             chapterId,
             ReaderPageRef(idx: page.idx, url: page.url),
-            source.referer,
+            source.imageReferer ?? '',
           );
           await refreshSnapshot(); // live "12/23 หน้า" progress
         }

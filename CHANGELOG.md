@@ -958,3 +958,14 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   madoo-manga + 1668manga → normal Search; db v13, 19 sources) and the
   Library scope cycle gained the Search Mix step. 356 tests green,
   analyze clean.
+- 2026-11-04 — Post-v1.6.0 user reports. 1668manga old chapters read
+  again: its page CDN (img.168toon.com) 403s any Referer-bearing request
+  on the legacy /Manga/ paths, so 1668 page images now fetch
+  referer-less (new Source.imageReferer + Madara noImageReferer config;
+  empty referer strings never reach the wire). Searchless Doujin sites
+  (HentaiThai, Miku-Doujin) return empty results instead of throwing —
+  no more red "failed" dot on every Search 18+ query. Niceoppai search
+  rides the full POST ladder: when Cloudflare challenges direct + cronet
+  POSTs (it now challenges even a real Chrome fetch), the webview tier
+  carries the form as a real WebView postUrl navigation
+  (WebviewGate.postForm). 364 tests green, analyze clean.

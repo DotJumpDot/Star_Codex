@@ -141,7 +141,7 @@ class ReaderRepo {
         return LoadedChapter(
           chapter: candidate,
           pages: pages,
-          referer: source?.referer ?? '',
+          referer: source?.imageReferer ?? '',
         );
       } catch (e) {
         if (kDebugMode) {

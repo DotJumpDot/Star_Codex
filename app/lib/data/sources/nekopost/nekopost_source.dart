@@ -35,6 +35,8 @@ class NekopostSource implements Source {
   /// Image hosts require the site as Referer (Plan/06 §3).
   @override
   String get referer => '$_base/';
+  @override
+  String? get imageReferer => referer;
 
   @override
   bool get supportsNovels => true;

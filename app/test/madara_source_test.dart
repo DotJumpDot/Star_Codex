@@ -403,5 +403,21 @@ Future<void> main() async {
         expect(pages.imageUrls.first, startsWith('https://img.168toon.com/'));
       },
     );
+
+    test(
+      '1668 page images ride WITHOUT a Referer — img.168toon.com 403s '
+      '"error code: 1011" on referer-bearing requests (user report: old '
+      'chapters of Murim\'s Debt King all failed, 2026-11-04)',
+      () async {
+        final s = serving('<html/>', configId: '1668manga');
+        expect(s.imageReferer, isNull);
+      },
+    );
+
+    test('other madara sites keep their origin referer on page images',
+        () async {
+      final s = serving('<html/>', configId: 'madoo-manga');
+      expect(s.imageReferer, 'https://www.madoo-manga.com/');
+    });
   });
 }

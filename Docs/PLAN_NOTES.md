@@ -1745,3 +1745,48 @@ madoo-manga + 1668manga (normal Search). 19 seeded sources total
   — never normalize case on URLs from tiles.
 - **niceoppai cover paths contain literal spaces** — adapters must
   encode them (%20) before handing URLs to the image pipeline.
+
+## 2026-11-04 — Post-v1.6.0 reports: 1668 page-CDN referer ban + POST on the webview tier + quiet searchless sources
+
+Three user reports from on-device testing of v1.6.0, all reproduced
+against the live sites on 2026-11-04:
+
+- **1668manga old chapters were unreadable** ("can't load this page" on
+  every page of Murim's Debt King ch1-3; ch25 fine). The page CDN
+  `img.168toon.com` answers 403 "error code: 1011" to ANY request whose
+  headers include a Referer on the legacy `/Manga/…/N.jpg` paths (older
+  chapters); the dated `2026/MM/DD/<hash>.webp` paths tolerate one.
+  No-Referer fetches work for both. Fix = **`Source.imageReferer`**
+  (nullable, defaults to `referer`; every `implements Source` adapter
+  spells out the default), `MadaraSiteConfig.noImageReferer` (true only
+  for 1668manga), and `reader_repo`/`downloads_repo` now pass
+  `source.imageReferer` to the pipeline. Covers keep `source.referer`
+  (`cdn.1668manga.com` accepts a Referer — probed). CONTRACTS:
+  - `SafeHttp._loopFull` normalizes an EMPTY referer string to null — a
+    bare `Referer:` header must never reach the wire (header presence is
+    what such CDNs check, value notwithstanding).
+  - Any future source whose page CDN bans the origin: set
+    `noImageReferer` (madara) or override `imageReferer => null` (custom
+    adapters) — never strip the referer globally.
+- **Cloudflare now challenges POSTs from every non-browser client** on
+  niceoppai (curl, Dart/dio, cronet TLS, and even a real Chrome
+  `fetch()` AND a real Chrome form-post navigation get "Just a
+  moment…" — probed in a live browser 2026-11-04). The only trusted
+  client shape left is a WebView document navigation, so the ladder's
+  webview tier now carries POSTs: relayed-cronet POST first, then a
+  real `WebviewGate.postForm` (`InAppWebView.postUrl` + the shared
+  cleared-wait/document-read tail). `_run` routes POSTs straight to
+  `_laneFetch` when the host's learned lane is cronet OR webview (a dio
+  POST against a webview-tier host is guaranteed dead), and the
+  `_CloudflareBlock` catch no longer rethrows for webview-tier POSTs.
+  The manual-unlock path (visible challenge dialog) intentionally does
+  NOT hook into background search POSTs — if the headless WebView
+  cannot solve the challenge the search surfaces an error rather than
+  popping a dialog mid-query.
+- **Searchless sources return empty results, never a throw**
+  (hentaithai: form posts to google.com; miku-doujin: `?s=` ignored
+  verbatim + wp-json 404 REST-disabled). A `SourceException` from
+  `search()` rendered the source's row with a red "failed" dot on every
+  Search 18+ query — indistinguishable from a network failure. Empty
+  list = "no results here", throw = "the source errored"; unsupported
+  search is the former. 364 tests green, analyze clean.

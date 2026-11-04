@@ -28,6 +28,8 @@ class OremangaSource implements Source {
   @override
   String get referer => '$baseUrl/';
   @override
+  String? get imageReferer => referer;
+  @override
   bool get supportsNovels => false;
   @override
   bool get pageUrlsExpire => false;

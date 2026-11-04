@@ -10,6 +10,7 @@ class MadaraSiteConfig {
     this.searchSupported = true,
     this.classicLayout = false,
     this.archivePath = 'manga',
+    this.noImageReferer = false,
   });
 
   final String id;
@@ -34,6 +35,11 @@ class MadaraSiteConfig {
   /// Archive/listing path segment — ts sites list under `/manga/`,
   /// doujin-lc registers its custom post type under `/doujin/`.
   final String archivePath;
+
+  /// Reader-page CDN hotlink-bans the origin: requests carrying ANY
+  /// Referer 403 (1668manga's img.168toon.com, Cloudflare error 1011 —
+  /// probed 2026-11-04). Sets [MadaraSource.imageReferer] to null.
+  final bool noImageReferer;
 }
 
 const madaraConfigs = [
@@ -105,6 +111,11 @@ const madaraConfigs = [
     name: '1668Manga',
     baseUrl: 'https://1668manga.com',
     seriesUnderMangaPrefix: true, // /manga/<slug>/ (probed 2026-11-03)
+    // img.168toon.com serves legacy chapters (/Manga/…/N.jpg) ONLY to
+    // requests without a Referer; the dated 2026 paths tolerate both,
+    // so images are fetched referer-less across the board (user report:
+    // chapters 1-3 failed with "can't load this page" — referer ban).
+    noImageReferer: true,
   ),
   // --- adult (18+), scoped to the Doujin page only ---
   MadaraSiteConfig(

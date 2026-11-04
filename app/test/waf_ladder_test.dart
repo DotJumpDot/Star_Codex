@@ -40,6 +40,8 @@ class FakeCronet extends CronetLane {
   final Future<LaneResponse> Function(Uri uri, Map<String, String>? extra)
       handler;
   int calls = 0;
+  final methods = <String>[];
+  final bodies = <String?>[];
 
   @override
   bool get available => true;
@@ -48,8 +50,11 @@ class FakeCronet extends CronetLane {
   Future<LaneResponse> fetch(Uri uri,
           {Map<String, String>? extraHeaders,
           String method = 'GET',
-          String? body}) =>
-      handler(uri, extraHeaders).whenComplete(() => calls++);
+          String? body}) {
+    methods.add(method);
+    bodies.add(body);
+    return handler(uri, extraHeaders).whenComplete(() => calls++);
+  }
 }
 
 class FakeWebview extends WebviewGate {
@@ -57,6 +62,9 @@ class FakeWebview extends WebviewGate {
   Object? htmlError;
   LaneResponse html = LaneResponse(
       status: 200, body: utf8.encode('<html>via-webview</html>'));
+
+  final postCalls = <Uri>[];
+  final postBodies = <String>[];
 
   @override
   Future<Map<String, String>> relayHeadersFor(Uri uri) async => const {};
@@ -66,6 +74,14 @@ class FakeWebview extends WebviewGate {
     fetchCalls.add(uri);
     if (htmlError != null) throw htmlError!;
     return Future.value(html);
+  }
+
+  @override
+  Future<LaneResponse> postForm(Uri uri, String body) {
+    postCalls.add(uri);
+    postBodies.add(body);
+    return Future.value(LaneResponse(
+        status: 200, body: utf8.encode('<html>via-webview-post</html>')));
   }
 }
 
@@ -239,6 +255,74 @@ void main() {
         ),
       );
       expect(gate.laneFor(uri.host), WafLane.direct);
+    });
+
+    test('POST CF-blocked on the direct lane → cronet carries method+body',
+        () async {
+      final cronet = FakeCronet((u, extra) async => LaneResponse(
+          status: 200,
+          body: utf8.encode('cronet-post-ok'),
+          headers: {'server': 'cloudflare'}));
+      final http = httpWith(
+        fetcher: (u, options) async => throw _cfBlock(u),
+        cronet: cronet,
+        webview: FakeWebview(),
+      );
+
+      final bytes = await http.postForm(uri, {'q': 'lazy prince'});
+      expect(utf8.decode(bytes), 'cronet-post-ok');
+      expect(cronet.methods, ['POST']);
+      expect(cronet.bodies, ['q=lazy+prince']);
+    });
+
+    test('POST on a webview-learned host skips the doomed dio attempt',
+        () async {
+      final gate = WafGate(
+          cronet: FakeCronet((u, extra) async => LaneResponse(
+              status: 200,
+              body: utf8.encode('relay-post'),
+              headers: {'server': 'cloudflare'})),
+          webview: FakeWebview());
+      gate.escalate(uri.host); // → cronet
+      gate.escalate(uri.host); // → webview
+      var directCalls = 0;
+      final http = SafeHttp(
+        rateLimiter: RateLimiter(seed: 1),
+        fetcher: (u, options) async {
+          directCalls++;
+          throw _cfBlock(u);
+        },
+        delay: (_) async {},
+        gate: gate,
+      );
+
+      final bytes = await http.postForm(uri, {'q': 'x'});
+      expect(utf8.decode(bytes), 'relay-post');
+      expect(directCalls, 0);
+    });
+
+    test('challenged relay POST falls back to the real WebView form post',
+        () async {
+      final webview = FakeWebview();
+      final cronet = FakeCronet((u, extra) async => LaneResponse(
+          status: 403,
+          body: utf8.encode('Just a moment...'),
+          headers: {'server': 'cloudflare'}));
+      final http = SafeHttp(
+        rateLimiter: RateLimiter(seed: 1),
+        fetcher: (u, options) async => throw _cfBlock(u),
+        delay: (_) async {},
+        gate: WafGate(cronet: cronet, webview: webview),
+      );
+
+      final bytes = await http.postForm(uri, {'q': 'x'});
+      expect(utf8.decode(bytes), '<html>via-webview-post</html>');
+      // dio challenged → cronet POST challenged → webview-tier relayed
+      // cronet POST challenged → WebView postUrl.
+      expect(cronet.calls, 2);
+      expect(webview.postCalls, [uri]);
+      expect(webview.postBodies, ['q=x']);
+      expect(webview.fetchCalls, isEmpty);
     });
   });
 }
