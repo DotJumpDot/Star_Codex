@@ -977,3 +977,9 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   feed; HentaiThai search confirmed not implementable (Google CSE
   engine indexes nothing even in a real browser; the .com search page
   serves an invalid TLS certificate). 368 tests green, analyze clean.
+- 2026-11-04 — Release: v1.7.0 — version 1.7.0+27. 1668manga old
+  chapters read again (page CDN bans Referer-bearing requests),
+  searchless Doujin sources go quiet instead of erroring, the search
+  POST ladder gained a real WebView form-post tier, Inu-Manga joined
+  Search Mix (db v14, 20 sources), and Miku-Doujin search works via
+  the theme's ajax POST. 368 tests green, analyze clean.
