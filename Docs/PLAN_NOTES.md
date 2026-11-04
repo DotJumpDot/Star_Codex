@@ -1784,12 +1784,14 @@ against the live sites on 2026-11-04:
   cannot solve the challenge the search surfaces an error rather than
   popping a dialog mid-query.
 - **Searchless sources return empty results, never a throw**
-  (hentaithai: form posts to google.com; miku-doujin: `?s=` ignored
-  verbatim + wp-json 404 REST-disabled). A `SourceException` from
-  `search()` rendered the source's row with a red "failed" dot on every
-  Search 18+ query — indistinguishable from a network failure. Empty
-  list = "no results here", throw = "the source errored"; unsupported
-  search is the former. 364 tests green, analyze clean.
+  (hentaithai: its form is a Google Programmable Search engine that
+  returns ZERO results even in a real desktop Chrome, and the /search/
+  page lives on hentaithai.com whose TLS certificate is INVALID — the
+  app can never accept it). A `SourceException` from `search()`
+  rendered the source's row with a red "failed" dot on every Search 18+
+  query — indistinguishable from a network failure. Empty list = "no
+  results here", throw = "the source errored"; unsupported search is
+  the former. 364 tests green, analyze clean.
 
 ## 2026-11-04 — inu-manga joins Search Mix (db v14, 20 sources)
 

@@ -58,11 +58,15 @@ class HentaiThaiSource implements Source {
 
   @override
   Future<List<SourceSeries>> search(String query, {int page = 1}) async {
-    // No server-side search (the site's form posts to google.com) — an
-    // EMPTY result, not a throw: a throw renders the source's search row
-    // with a red "failed" dot on every Doujin-page search (user report
-    // 2026-11-04), which reads as a bug when the site simply has no
-    // search.
+    // No server-side search: the site's form is a Google Programmable
+    // Search widget (cx=bc72584f2ccd6c0fd) whose engine returned ZERO
+    // results even in a real desktop Chrome for every query probed
+    // (test/a/นรก, 2026-11-04), and the /search/?q= page the widget
+    // ships on lives on hentaithai.com — a host serving an INVALID TLS
+    // certificate the app can never accept. An EMPTY result, not a
+    // throw: a throw renders the source's search row with a red
+    // "failed" dot on every Doujin-page search (user report
+    // 2026-11-04), which reads as a bug when there is nothing to scrape.
     return const [];
   }
 

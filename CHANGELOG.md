@@ -971,5 +971,9 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   (WebviewGate.postForm). 364 tests green, analyze clean.
 - 2026-11-04 — Inu-Manga joins Search Mix (db v14, 20 sources): a
   standard Madara-ts site (Thai labels, plain inline ts_reader pages) —
-  plain config + MIX scope, type pills manhwa/manga/manhua. 368 tests
-  green, analyze clean.
+  plain config + MIX scope, type pills manhwa/manga/manhua. Miku-Doujin
+  search implemented via the theme's ajax POST
+  (/controller/search/general/, keysearch=) — same card parser as the
+  feed; HentaiThai search confirmed not implementable (Google CSE
+  engine indexes nothing even in a real browser; the .com search page
+  serves an invalid TLS certificate). 368 tests green, analyze clean.

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:html/dom.dart' as html_dom;
 import 'package:html/parser.dart' as html_parser;
@@ -14,7 +16,10 @@ import '../source_api.dart';
 ///   COPY of page 1, which stalled the infinite feed). Cards are
 ///   `a.inz-a` with the title in `.inz-title`/`.inz-title-sm` and the
 ///   cover in `img.inz-img-thumbnail` (lazy data-src).
-/// - search: NOT supported — `?s=` is ignored and renders the homepage.
+/// - search: POST `/controller/search/general/` with `keysearch=<q>`
+///   (2026-11-04 — the endpoint the theme's own header search injects;
+///   the WP `?s=` route renders the homepage verbatim and wp-json is
+///   404). Returns the feed's `.inz-a` card fragment, single page.
 /// - genres: `/genre/<term>/` (2026-10-28 — was `/category/`; the old
 ///   paths still answer 200 but render an EMPTY list).
 /// - series page = the READER (one-shot doujin): all pages are
@@ -22,10 +27,9 @@ import '../source_api.dart';
 ///   exactly one chapter whose URL IS the series URL; tags come from
 ///   `a[href*="/genre/"]`.
 ///
-/// CLOUDFLARE BLOCKED (2026-10-19 live probe): Cloudflare's WAF
-/// fingerprint-blocks Dart's TLS stack ("Attention Required!" 403 while
-/// every browser/curl request passes) — the adapter is correct but the
-/// site is unreachable from the app, so the source seeds disabled.
+/// Cloudflare fingerprint-blocked Dart's TLS stack (2026-10-19 probe);
+/// the WAF ladder's cronet tier (2026-10-23) unlocks it and the source
+/// ships enabled since db v9.
 class MikuDoujinSource implements Source {
   MikuDoujinSource(this.http);
 
@@ -50,13 +54,19 @@ class MikuDoujinSource implements Source {
 
   @override
   Future<List<SourceSeries>> search(String query, {int page = 1}) async {
-    // The theme ignores ?s= entirely (?s=nano renders the homepage grid
-    // verbatim, re-probed 2026-11-04) and wp-json is 404 (REST disabled).
-    // An EMPTY result, not a throw: a throw renders the source's search
-    // row with a red "failed" dot on every Doujin-page search (user
-    // report 2026-11-04), which reads as a bug when the site simply has
-    // no search.
-    return const [];
+    if (page > 1) return const []; // ajax results are a single page
+    // The theme's header search box POSTs /controller/search/general/
+    // with `keysearch` and injects the returned .inz-a card fragment
+    // (found in the page's own inline search(), 2026-11-04 — the WP
+    // `?s=` route renders the homepage verbatim and wp-json is 404).
+    // The fragment reuses the feed's card markup, so parseMikuListing
+    // reads it unchanged.
+    final body = await _postForm(
+      Uri.parse('$baseUrl/controller/search/general/'),
+      {'keysearch': query},
+    );
+    if (_looksLikeCloudflare(body)) throw SourceException.cloudflare(id);
+    return parseMikuListing(body, baseUrl);
   }
 
   @override
@@ -128,22 +138,37 @@ class MikuDoujinSource implements Source {
     try {
       return await http.getHtml(uri, referer: referer);
     } on NetException catch (e) {
-      if (e.statusCode == 403) {
-        throw SourceException(
-          id,
-          SourceErrorKind.cloudflare,
-          detail: 'HTTP 403 at $uri',
-        );
-      }
-      if (e.statusCode == 404) {
-        throw SourceException(
-          id,
-          SourceErrorKind.notFound,
-          detail: 'HTTP 404 at $uri',
-        );
-      }
-      throw SourceException(id, SourceErrorKind.network, detail: e.toString());
+      throw _netError(e, uri);
     }
+  }
+
+  /// POST a small urlencoded form (the search endpoint) and decode the
+  /// fragment — same exception mapping as [_fetch].
+  Future<String> _postForm(Uri uri, Map<String, String> fields) async {
+    try {
+      final bytes = await http.postForm(uri, fields, referer: referer);
+      return utf8.decode(bytes, allowMalformed: true);
+    } on NetException catch (e) {
+      throw _netError(e, uri);
+    }
+  }
+
+  SourceException _netError(NetException e, Uri uri) {
+    if (e.statusCode == 403) {
+      return SourceException(
+        id,
+        SourceErrorKind.cloudflare,
+        detail: 'HTTP 403 at $uri',
+      );
+    }
+    if (e.statusCode == 404) {
+      return SourceException(
+        id,
+        SourceErrorKind.notFound,
+        detail: 'HTTP 404 at $uri',
+      );
+    }
+    return SourceException(id, SourceErrorKind.network, detail: e.toString());
   }
 
   bool _looksLikeCloudflare(String body) => looksLikeCloudflarePage(body);

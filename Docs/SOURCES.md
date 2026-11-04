@@ -338,10 +338,15 @@ A forum-style community site, not WordPress:
   a different family from the landing grid. The `/prev-<id>` /
   `/next-<id>` links are per-thread JS navigation that 404 on direct
   GET, not pagination.
-- search: not supported (the site uses a Google CSE form) — `search()`
-  returns an EMPTY result, never a throw (2026-11-04: a throw rendered
-  the source's search row with a red "failed" dot on every Doujin-page
-  search, which read as a bug).
+- search: NOT implementable (2026-11-04 deep probe) — the site's form
+  is a Google Programmable Search widget (`cx=bc72584f2ccd6c0fd`) whose
+  engine returned ZERO results even in a real desktop Chrome for every
+  query tried (test/a/นรก); the widget's results XHR carries a session
+  `cse_tok`, and the `/search/?q=` page the widget ships on lives on
+  hentaithai.com — a host serving an INVALID TLS certificate the app
+  can never accept. `search()` returns an EMPTY result, never a throw
+  (a throw rendered the source's search row with a red "failed" dot on
+  every Doujin-page search, which read as a bug).
 - the thread page IS detail + reader in one: every page image is inline
   (`img[src*="hentaithai.net/"]` on the s1 CDN). One-shot → one chapter.
 - tag browse (`/tag-<id>`) shares the col-6 card family but exposes no
@@ -357,11 +362,14 @@ WordPress with a fully custom "inz" theme:
   theme's own "older" link is `?page=2`; the old `?paged=N` still
   answers 200 but renders a COPY of page 1, which stalled the feed
   after the first screen (dedup ate the duplicates).
-- search: not supported — `?s=` is ignored and renders the homepage
-  verbatim (re-probed 2026-11-04), and `wp-json/wp/v2/search` is 404
-  (REST disabled). `search()` returns an EMPTY result, never a throw
-  (2026-11-04: a throw rendered the source's search row with a red
-  "failed" dot on every Doujin-page search).
+- search: POST `/controller/search/general/` with `keysearch=<q>` —
+  the endpoint the theme's own header search box injects via its
+  inline `search()` (found in the page's inline JS, 2026-11-04). The
+  WP `?s=` route renders the homepage verbatim and `wp-json` is 404
+  (REST disabled). The response is a FRAGMENT of the feed's `.inz-a`
+  cards — `parseMikuListing` reads it unchanged, single page.
+  (Earlier note: before 2026-11-04 search() returned empty because
+  only the dead routes were known.)
 - genres: `/genre/<term>/` paged the same `?page=N` way (2026-10-28 —
   was `/category/`; old paths answer 200 EMPTY). Genre terms in
   `pathSegments` arrive already percent-decoded — a second
