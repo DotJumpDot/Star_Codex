@@ -985,6 +985,10 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   fallback chain is now ts_reader → .reading-content → #readerarea
   (fixture from the live failing chapter pins 17 pages). 369 tests
   green, analyze clean.
+- 2026-11-05 — Release: v1.7.1 — version 1.7.1+28. One fix over v1.7.0:
+  Inu-Manga's pre-migration chapters (#readerarea layout) read from Inu
+  instead of silently falling back to another site's copy. 369 tests
+  green, analyze clean.
 - 2026-11-04 — Release: v1.7.0 — version 1.7.0+27. 1668manga old
   chapters read again (page CDN bans Referer-bearing requests),
   searchless Doujin sources go quiet instead of erroring, the search
