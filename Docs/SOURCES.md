@@ -5,9 +5,9 @@ looks like, and what breaks on it. Everything here was probed against the
 live sites; when a site changes, update this file **and**
 [PLAN_NOTES.md](./PLAN_NOTES.md) in the same batch.
 
-19 sources are seeded and since db v9 (2026-10-23) **all 19 ship
+20 sources are seeded and since db v9 (2026-10-23) **all 20 ship
 enabled** — the WAF ladder made the last two Cloudflare-blocked ones
-reachable. The Doujin (18+) page holds 5 of them, the Search Mix tab 3,
+reachable. The Doujin (18+) page holds 5 of them, the Search Mix tab 4,
 and the main feed the other 11. Adult/mix sources never appear in the
 main feed and vice versa (`adultSourceIds` / `mixSourceIds` in
 `app/lib/data/sources/source_registry.dart`).
@@ -30,6 +30,7 @@ main feed and vice versa (`adultSourceIds` / `mixSourceIds` in
 | mangary.com | MIX | Toonary (Next.js) | ❌ | ✅ | ✅ | normal+18+ mixed; yaoi filtered by default |
 | whytoon.com | MIX | Toonary (Next.js) | ❌ | ❌ (no genre pages) | ✅ | BL-heavy; same adapter as mangary |
 | niceoppai.net | MIX | custom WP | ✅ | ✅ (unix-sec data-ago) | ✅ POST-only | added 2026-11-03; Adult category in catalog → Mix scope |
+| inu-manga.net | MIX | Madara (ts) | ✅ | ✅ family B | ✅ | added 2026-11-04; plain ts config — manga+manhwa+manhua mix |
 | ntr-manga.net | Doujin | Madara (ts) | ✅ | ❌ custom grid | ✅ | its own grid markup — not parsed |
 | hentaithai.net | Doujin | custom one-shot | ✅ | n/a | ❌ | one-shot; thread page = reader |
 | doujin-lc.net | Doujin | Madara (classic) | ✅ | n/a | ✅ | cronet lane unlocks it (2026-10-23); enabled since db v9 |
@@ -257,6 +258,19 @@ entries — no dedicated adapter.
   so covers are unaffected.
 - 1668's homepage grid renders `.epxdate` stamps (family B); madoo's
   grid carries no time labels → archive-order feed for it.
+
+### inu-manga.net — Madara config (Search Mix)
+
+Same ts family as madoo/1668 end to end (added 2026-11-04, probed live):
+`/manga/` `.listupd .bsx` archive + `/page/N/`, `?s=` search
+(`.bsx` results), `h1.entry-title` / `.tsinfo .imptdt` (THAI labels —
+สถานะ/ประเภท, already supported) / `.eph-num .chapternum|.chapterdate`
+detail, plain inline `ts_reader.run(… "images":[…])` pages on
+`img.inu-manga.net`. Plain `madaraConfigs` entry — no dedicated adapter.
+Carries a manga+manhwa+manhua mix (homepage tile badges: 42 Manhwa /
+38 Manga / 7 Manhua → pills `manhwa, manga, manhua`); no `/genre/`
+links on the archive, so the genre picker is empty for it (detail tags
+still parse where `.mgen` renders). MIX scope per user request.
 
 ### niceoppai.net — `app/lib/data/sources/niceoppai/` (MIX scope)
 

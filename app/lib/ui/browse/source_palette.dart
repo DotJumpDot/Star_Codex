@@ -72,6 +72,9 @@ const sourceContentTypes = <String, List<String>>{
   'oremanga': ['manga'],
   'madoo-manga': ['manhwa'],
   '1668manga': ['manhua', 'manhwa'],
+  // v14 (2026-11-04): inu-manga (Mix) — grounded in its own tile badges
+  // on the live homepage: 42 Manhwa / 38 Manga / 7 Manhua.
+  'inu-manga': ['manhwa', 'manga', 'manhua'],
 };
 
 /// The little colored identity dot used on browse badges, detail source

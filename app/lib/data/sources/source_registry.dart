@@ -28,11 +28,13 @@ const adultSourceIds = <String>{
 /// MIX sources (2026-10-28): sites whose catalogs mix normal AND 18+
 /// content (plus a heavy yaoi share — the Mix tab filters yaoi by
 /// default). Own tab; never in the main feed or the Doujin page.
-/// niceoppai joined 2026-11-03 (its category cloud includes Adult/yaoi).
+/// niceoppai joined 2026-11-03 (its category cloud includes Adult/yaoi);
+/// inu-manga joined 2026-11-04 (mixed manga/manhwa/manhua catalog).
 const mixSourceIds = <String>{
   'mangary',
   'whytoon',
   'niceoppai',
+  'inu-manga',
 };
 
 /// Feed universes: main = everything except adult + mix; mix = mix only;

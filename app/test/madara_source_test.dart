@@ -420,4 +420,50 @@ Future<void> main() async {
       expect(s.imageReferer, 'https://www.madoo-manga.com/');
     });
   });
+
+  group('inu-manga (v14 — MIX scope, probed 2026-11-04)', () {
+    final dir = '${Directory.current.path}\\test\\fixtures';
+
+    MadaraSource serving(String fixtureBody) => MadaraSource(
+          madaraConfigs.firstWhere((c) => c.id == 'inu-manga'),
+          SafeHttp(
+            rateLimiter: RateLimiter(seed: 1),
+            fetcher: (uri, options) async => Response<List<int>>(
+              requestOptions: RequestOptions(path: uri.toString()),
+              statusCode: 200,
+              data: Uint8List.fromList(const Utf8Encoder().convert(fixtureBody)),
+            ),
+            delay: (_) async {},
+          ),
+        );
+
+    test('detail: Thai-label tsinfo, eph-num chapters parse', () async {
+      final body =
+          File('$dir\\inu_series.html').readAsStringSync(encoding: utf8);
+      final d = await serving(body)
+          .detail('https://www.inu-manga.net/manga/first-class-family/');
+      expect(d.title, 'First Class Family');
+      expect(d.status, 'ongoing'); // "สถานะ <i>Ongoing</i>"
+      expect(d.type, 'manhua'); // "ประเภท <a>Manhua</a>"
+      expect(d.chapters, isNotEmpty);
+      // Ascending order; the series ships a ตอนที่ 0 prologue row.
+      expect(d.chapters.first.number, 0);
+      expect(d.chapters.last.number, 65);
+      expect(d.chapters.last.uploadedAt, isNotNull); // "มีนาคม 8, 2022"
+    });
+
+    test('chapter: plain inline ts_reader images parse', () async {
+      final body =
+          File('$dir\\inu_chapter.html').readAsStringSync(encoding: utf8);
+      final pages = await serving(body)
+          .pages('https://www.inu-manga.net/shangri-la-frontier-285/');
+      expect(pages.imageUrls, isNotEmpty);
+      expect(pages.imageUrls.first, startsWith('https://img.inu-manga.net/'));
+    });
+
+    test('page images keep the origin referer (no CDN ban here)', () async {
+      final s = serving('<html/>');
+      expect(s.imageReferer, 'https://www.inu-manga.net/');
+    });
+  });
 }

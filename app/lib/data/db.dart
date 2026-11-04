@@ -5,7 +5,7 @@ import 'package:sqflite/sqflite.dart';
 /// Single SQLite database (Plan/02). All timestamps are milliseconds since
 /// epoch (int). Migrations append only: bump [dbVersion], add a `case` in
 /// [onUpgrade] — never edit v1 statements after shipping.
-const dbVersion = 13;
+const dbVersion = 14;
 const dbFileName = 'manga_reader.db';
 
 class DbException implements Exception {
@@ -239,6 +239,23 @@ Future<Database> openDb({
                 'sort': i,
               }, conflictAlgorithm: ConflictAlgorithm.ignore);
             }
+            continue next12; // chain to v14
+          // v14 (2026-11-04): inu-manga joins Search Mix (madara ts,
+          // MIX scope). Seeds ENABLED — the live probe passed plain GETs.
+          next12:
+          case 13:
+            for (var i = 0; i < _seededSources.length; i++) {
+              final s = _seededSources[i];
+              if (i < 19) continue; // rows 0-18 predate v14
+              await db.insert('sources', {
+                'id': s.$1,
+                'name': s.$2,
+                'base_url': s.$3,
+                'adapter': s.$4,
+                'enabled': 1,
+                'sort': i,
+              }, conflictAlgorithm: ConflictAlgorithm.ignore);
+            }
           // Future migrations append cases here: `case 1: ...; continue next;`
           default:
             break;
@@ -448,6 +465,9 @@ const _seededSources = [
   ('oremanga', 'Oremanga', 'https://www.oremanga.net', 'oremanga'),
   ('madoo-manga', 'Madoo-Manga', 'https://www.madoo-manga.com', 'madara'),
   ('1668manga', '1668Manga', 'https://1668manga.com', 'madara'),
+  // v14 (2026-11-04): inu-manga joins Search Mix (MIX scope — ts family,
+  // normal + 18+ mixed catalog with a manhwa/manga/manhua share).
+  ('inu-manga', 'Inu-Manga', 'https://www.inu-manga.net', 'madara'),
 ];
 
 const _defaultSettings = {

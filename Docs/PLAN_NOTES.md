@@ -1790,3 +1790,21 @@ against the live sites on 2026-11-04:
   Search 18+ query — indistinguishable from a network failure. Empty
   list = "no results here", throw = "the source errored"; unsupported
   search is the former. 364 tests green, analyze clean.
+
+## 2026-11-04 — inu-manga joins Search Mix (db v14, 20 sources)
+
+User request, probed live 2026-11-04: inu-manga.net is the SAME ts
+family as madoo/1668 (Thai imptdt labels, `.eph-num` chapters, plain
+inline `ts_reader.run` pages on `img.inu-manga.net`) — a plain
+`MadaraSiteConfig` entry, no dedicated adapter. MIX scope
+(`mixSourceIds`). Notes:
+
+- homepage tile badges ground the pills: 42 Manhwa / 38 Manga /
+  7 Manhua → `['manhwa', 'manga', 'manhua']`.
+- no `/genre/` links on its archive → `genres()` returns empty for it;
+  the genre picker stays empty (never invent terms).
+- chapter lists ship a `ตอนที่ 0` prologue row — chapter 0 sorts first;
+  nothing special-cased.
+- migration case 13 seeds from index 19 and chains off case 12 via
+  `continue next12;` (the Dart-switch chaining rule from 2026-11-03).
+- 368 tests green, analyze clean.

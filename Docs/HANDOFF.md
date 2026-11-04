@@ -1,7 +1,8 @@
 # HANDOFF — read this first in a new conversation
 
-> Last updated 2026-11-03 (v1.6.0 release). Written originally 2026-10-17
-> when the folder was renamed `C:\Code\Manga_Reader` → `C:\Code\StarCodex`.
+> Last updated 2026-11-04 (post-v1.6.0 fixes + inu-manga). Written
+> originally 2026-10-17 when the folder was renamed
+> `C:\Code\Manga_Reader` → `C:\Code\StarCodex`.
 
 ## Where things stand
 
@@ -20,6 +21,18 @@
   green, analyze clean. Invariants: PLAN_NOTES 2026-10-23 (four
   sections: WAF ladder, hentaithai /page-N, tooling note, grid-label
   generation-time anchor).
+- **Post-v1.6.0 (451c033 + inu batch)**: 1668manga old chapters read
+  again — its page CDN (img.168toon.com) 403s (CF 1011) any
+  Referer-bearing request on the legacy `/Manga/` paths; page images now
+  fetch referer-less via `Source.imageReferer` (+ `MadaraSiteConfig
+  .noImageReferer`; empty referer strings never reach the wire).
+  Searchless Doujin sources (hentaithai, miku-doujin) return empty
+  search results instead of throwing — no red dot. Niceoppai search
+  rides POST all the way to a real WebView form post (`WebviewGate
+  .postForm`) — Cloudflare challenges POSTs from every non-browser
+  client there. **inu-manga.net joins Search Mix (db v14, 20 sources)**
+  — plain Madara-ts config. 368 tests green. See PLAN_NOTES 2026-11-04
+  (two sections).
 - **v1.6.0 (8b41195, rel 651ebeb)**: five new sources across the three
   universes (manghaha → Search 18+, niceoppai → Search Mix, oremanga +
   madoo-manga + 1668manga → normal Search; db v13, 19 sources total) +

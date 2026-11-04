@@ -117,6 +117,17 @@ const madaraConfigs = [
     // chapters 1-3 failed with "can't load this page" — referer ban).
     noImageReferer: true,
   ),
+  // v14 (2026-11-04): user-added MIX-scope site (probed live 2026-11-04)
+  // — the same ts family end to end: /manga/ .listupd .bsx archive +
+  // /page/N/, ?s= search (.bsx results), entry-title/tsinfo(THAI
+  // labels)/mgen/eph-num detail, plain inline ts_reader.run pages on
+  // img.inu-manga.net. Carries manga + manhwa + manhua (42/38/7 tiles).
+  MadaraSiteConfig(
+    id: 'inu-manga',
+    name: 'Inu-Manga',
+    baseUrl: 'https://www.inu-manga.net',
+    seriesUnderMangaPrefix: true, // /manga/<slug>/ (probed 2026-11-04)
+  ),
   // --- adult (18+), scoped to the Doujin page only ---
   MadaraSiteConfig(
     id: 'ntr-manga',

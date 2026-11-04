@@ -52,7 +52,7 @@ One app instead of seven websites — read like a site, cache like an app.
   the feed between ล่าสุด and ยอดนิยม (server-side popularity on the
   sites that support it); the same title on several sites merges into a
   single card (Thai title kept, original as subtitle). The Search Mix
-  tab adds 3 mixed-catalog sites and the Doujin page 5 more of its own
+  tab adds 4 mixed-catalog sites and the Doujin page 5 more of its own
 - **Works offline** — airplane mode shows your visited series from the
   on-device catalog instead of a blank page, downloaded chapters read
   anywhere, and covers/last-update dates persist to disk
@@ -207,7 +207,9 @@ Star_Codex/
 Madoo-Manga and 1668Manga in the main search, Niceoppai on Search Mix,
 Manghaha on Search 18+ — all with type pills and working scoped search.
 The Library's filter button now cycles through all four views
-(All / Normal / Mix / 18+).
+(All / Normal / Mix / 18+). Post-release fixes (2026-11-04, unreleased):
+1668Manga's older chapters read again (its page CDN bans Referer
+headers), and Inu-Manga joins Search Mix (20 sources total).
 
 **v1.5.2 (2026-11-01)** — search works on every tab: the overlay assumed
 the pre-Mix tab order, so Search Mix did nothing visible and Search 18+

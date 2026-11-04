@@ -53,9 +53,9 @@ void main() {
     expect(expected.difference(names), isEmpty, reason: 'missing tables');
   });
 
-  test('seeds all nineteen sources', () async {
+  test('seeds all twenty sources', () async {
     final rows = await db.query('sources', orderBy: 'sort');
-    expect(rows.length, 19);
+    expect(rows.length, 20);
     final byId = {for (final r in rows) r['id'] as String: r};
     expect(byId['slow-manga']!['base_url'], 'https://www.slow-manga.net');
     expect(byId['go-manga']!['adapter'], 'madara');
@@ -80,6 +80,10 @@ void main() {
     expect(byId['oremanga']!['adapter'], 'oremanga');
     expect(byId['madoo-manga']!['adapter'], 'madara');
     expect(byId['1668manga']!['adapter'], 'madara');
+    // db v14 (2026-11-04): inu-manga joins Search Mix (madara ts).
+    expect(byId['inu-manga']!['adapter'], 'madara');
+    expect(byId['inu-manga']!['base_url'], 'https://www.inu-manga.net');
+    expect(byId['inu-manga']!['enabled'], 1);
     expect(byId['manghaha']!['enabled'], 1);
     expect(byId['niceoppai']!['enabled'], 1);
     // db v9 (2026-10-23): every source seeds ON — the WAF ladder made
@@ -184,6 +188,42 @@ void main() {
     },
   );
 
+  test(
+    'v13→v14: inu-manga appears on old installs (and chains from v12)',
+    () async {
+      await openTestDb(); // init sqflite ffi for direct file opens
+      for (final fromVersion in [12, 13]) {
+        final dbPath = p.join(
+          Directory.systemTemp.createTempSync('sc_mig14').path,
+          'mig.db',
+        );
+        final old = await openDb(
+          path: dbPath,
+          factory: databaseFactoryFfi,
+          singleInstance: false,
+        );
+        await old.setVersion(fromVersion);
+        await old.close();
+
+        final db = await openDb(
+          path: dbPath,
+          factory: databaseFactoryFfi,
+          singleInstance: false,
+        );
+        final rows = await db.query('sources');
+        final ids = {for (final r in rows) r['id'] as String};
+        expect(ids, contains('inu-manga'),
+            reason: 'v$fromVersion install must gain the v14 source');
+        // Chained migrations must not drop the older seeds.
+        expect(ids, contains('1668manga'),
+            reason: 'v13 sources survive the v14 chain');
+        expect(rows, hasLength(20),
+            reason: 'v$fromVersion install ends with all 20 seeds');
+        await db.close();
+      }
+    },
+  );
+
   test('v1→v5 migration adds the new sources + quota + last_seen_at', () async {
     await openTestDb(); // init sqflite ffi for direct file opens
     final dbPath = p.join(
@@ -235,7 +275,7 @@ void main() {
     final rows = await db.query('sources');
     expect(
       rows.length,
-      19,
+      20,
       reason: 'migration must (re)insert every post-v1 source row',
     );
     // The v1→v9 chain inserts the adult rows (v5), v6 disables the two

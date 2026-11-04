@@ -969,3 +969,7 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   POSTs (it now challenges even a real Chrome fetch), the webview tier
   carries the form as a real WebView postUrl navigation
   (WebviewGate.postForm). 364 tests green, analyze clean.
+- 2026-11-04 — Inu-Manga joins Search Mix (db v14, 20 sources): a
+  standard Madara-ts site (Thai labels, plain inline ts_reader pages) —
+  plain config + MIX scope, type pills manhwa/manga/manhua. 368 tests
+  green, analyze clean.
