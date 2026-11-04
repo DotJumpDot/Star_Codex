@@ -571,10 +571,18 @@ class MadaraSource implements Source {
     }
     // Fallback: content <img> tags (05 §5). Classic Madara lazy-loads with
     // a base64 svg placeholder in `src` — prefer the lazy attributes and
-    // drop data: URIs either way.
+    // drop data: URIs either way. Two containers, in order:
+    //   1. `.reading-content` — classic Madara chapters.
+    //   2. `#readerarea` — the ts theme's ORIGINAL reader container.
+    //      inu-manga's pre-migration uploads (probed 2026-11-05: "Aru Hi,
+    //      Damin…" ch9, May-2025 upload) ship NO ts_reader payload at all,
+    //      just plain <img src> tags there — the reader silently fell back
+    //      to a sibling source's copy for those chapters (user report:
+    //      "already changed the site selection… still loads from
+    //      niceoppai").
     final doc = html_parser.parse(body);
-    final imgs = doc
-        .querySelectorAll('.reading-content img')
+    List<String> imgUrlsOf(String selector) => doc
+        .querySelectorAll(selector)
         .map((img) {
           final raw =
               img.attributes['data-src'] ??
@@ -585,13 +593,15 @@ class MadaraSource implements Source {
         .where((u) => u != null && u.isNotEmpty && !u.startsWith('data:'))
         .cast<String>()
         .toList();
+    var imgs = imgUrlsOf('.reading-content img');
+    if (imgs.isEmpty) imgs = imgUrlsOf('#readerarea img');
     if (imgs.isEmpty) {
       throw SourceException(
         id,
         SourceErrorKind.parse,
         detail:
-            'no ts_reader images and no .reading-content img '
-            'on $chapterUrl',
+            'no ts_reader images, no .reading-content img and no '
+            '#readerarea img on $chapterUrl',
       );
     }
     return ChapterPages(imageUrls: imgs);

@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="th">
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><script>if(navigator.userAgent.match(/MSIE|Internet Explorer/i)||navigator.userAgent.match(/Trident\/7\..*?rv:11/i)){var href=document.location.href;if(!href.match(/[?&]nowprocket/)){if(href.indexOf("?")==-1){if(href.indexOf("#")==-1){document.location.href=href+"?nowprocket=1"}else{document.location.href=href.replace("#","?nowprocket=1#")}}else{if(href.indexOf("#")==-1){document.location.href=href+"&nowprocket=1"}else{document.location.href=href.replace("#","&nowprocket=1#")}}}}</script><script>class RocketLazyLoadScripts{constructor(){this.triggerEvents=["keydown","mousedown","mousemove","touchmove","touchstart","touchend","wheel"],this.userEventHandler=this._triggerListener.bind(this),this.touchStartHandler=this._onTouchStart.bind(this),this.touchMoveHandler=this._onTouchMove.bind(this),this.touchEndHandler=this._onTouchEnd.bind(this),this.clickHandler=this._onClick.bind(this),this.interceptedClicks=[],window.addEventListener("pageshow",(e=>{this.persisted=e.persisted})),window.addEventListener("DOMContentLoaded",(()=>{this._preconnect3rdParties()})),this.delayedScripts={normal:[],async:[],defer:[]},this.allJQueries=[]}_addUserInteractionListener(e){document.hidden?e._triggerListener():(this.triggerEvents.forEach((t=>window.addEventListener(t,e.userEventHandler,{passive:!0}))),window.addEventListener("touchstart",e.touchStartHandler,{passive:!0}),window.addEventListener("mousedown",e.touchStartHandler),document.addEventListener("visibilitychange",e.userEventHandler))}_removeUserInteractionListener(){this.triggerEvents.forEach((e=>window.removeEventListener(e,this.userEventHandler,{passive:!0}))),document.removeEventListener("visibilitychange",this.userEventHandler)}_onTouchStart(e){"HTML"!==e.target.tagName&&(window.addEventListener("touchend",this.touchEndHandler),window.addEventListener("mouseup",this.touchEndHandler),window.addEventListener("touchmove",this.touchMoveHandler,{passive:!0}),window.addEventListener("mousemove",this.touchMoveHandler),e.target.addEventListener("click",this.clickHandler),this._renameDOMAttribute(e.target,"onclick","rocket-onclick"))}_onTouchMove(e){window.removeEventListener("touchend",this.touchEndHandler),window.removeEventListener("mouseup",this.touchEndHandler),window.removeEventListener("touchmove",this.touchMoveHandler,{passive:!0}),window.removeEventListener("mousemove",this.touchMoveHandler),e.target.removeEventListener("click",this.clickHandler),this._renameDOMAttribute(e.target,"rocket-onclick","onclick")}_onTouchEnd(e){window.removeEventListener("touchend",this.touchEndHandler),window.removeEventListener("mouseup",this.touchEndHandler),window.removeEventListener("touchmove",this.touchMoveHandler,{passive:!0}),window.removeEventListener("mousemove",this.touchMoveHandler)}_onClick(e){e.target.removeEventListener("click",this.clickHandler),this._renameDOMAttribute(e.target,"rocket-onclick","onclick"),this.interceptedClicks.push(e),e.preventDefault(),e.stopPropagation(),e.stopImmediatePropagation()}_replayClicks(){window.removeEventListener("touchstart",this.touchStartHandler,{passive:!0}),window.removeEventListener("mousedown",this.touchStartHandler),this.interceptedClicks.forEach((e=>{e.target.dispatchEvent(new MouseEvent("click",{view:e.view,bubbles:!0,cancelable:!0}))}))}_renameDOMAttribute(e,t,n){e.hasAttribute&&e.hasAttribute(t)&&(event.target.setAttribute(n,event.target.getAttribute(t)),event.target.removeAttribute(t))}_triggerListener(){this._removeUserInteractionListener(this),"loading"===document.readyState?document.addEventListener("DOMContentLoaded",this._loadEverythingNow.bind(this)):this._loadEverythingNow()}_preconnect3rdParties(){let e=[];document.querySelectorAll("script[type=rocketlazyloadscript]").forEach((t=>{if(t.hasAttribute("src")){const n=new URL(t.src).origin;n!==location.origin&&e.push({src:n,crossOrigin:t.crossOrigin||"module"===t.getAttribute("data-rocket-type")})}})),e=[...new Map(e.map((e=>[JSON.stringify(e),e]))).values()],this._batchInjectResourceHints(e,"preconnect")}async _loadEverythingNow(){this.lastBreath=Date.now(),this._delayEventListeners(),this._delayJQueryReady(this),this._handleDocumentWrite(),this._registerAllDelayedScripts(),this._preloadAllScripts(),await this._loadScriptsFromList(this.delayedScripts.normal),await this._loadScriptsFromList(this.delayedScripts.defer),await this._loadScriptsFromList(this.delayedScripts.async);try{await this._triggerDOMContentLoaded(),await this._triggerWindowLoad()}catch(e){}window.dispatchEvent(new Event("rocket-allScriptsLoaded")),this._replayClicks()}_registerAllDelayedScripts(){document.querySelectorAll("script[type=rocketlazyloadscript]").forEach((e=>{e.hasAttribute("src")?e.hasAttribute("async")&&!1!==e.async?this.delayedScripts.async.push(e):e.hasAttribute("defer")&&!1!==e.defer||"module"===e.getAttribute("data-rocket-type")?this.delayedScripts.defer.push(e):this.delayedScripts.normal.push(e):this.delayedScripts.normal.push(e)}))}async _transformScript(e){return await this._littleBreath(),new Promise((t=>{const n=document.createElement("script");[...e.attributes].forEach((e=>{let t=e.nodeName;"type"!==t&&("data-rocket-type"===t&&(t="type"),n.setAttribute(t,e.nodeValue))})),e.hasAttribute("src")?(n.addEventListener("load",t),n.addEventListener("error",t)):(n.text=e.text,t());try{e.parentNode.replaceChild(n,e)}catch(e){t()}}))}async _loadScriptsFromList(e){const t=e.shift();return t?(await this._transformScript(t),this._loadScriptsFromList(e)):Promise.resolve()}_preloadAllScripts(){this._batchInjectResourceHints([...this.delayedScripts.normal,...this.delayedScripts.defer,...this.delayedScripts.async],"preload")}_batchInjectResourceHints(e,t){var n=document.createDocumentFragment();e.forEach((e=>{if(e.src){const i=document.createElement("link");i.href=e.src,i.rel=t,"preconnect"!==t&&(i.as="script"),e.getAttribute&&"module"===e.getAttribute("data-rocket-type")&&(i.crossOrigin=!0),e.crossOrigin&&(i.crossOrigin=e.crossOrigin),n.appendChild(i)}})),document.head.appendChild(n)}_delayEventListeners(){let e={};function t(t,n){!function(t){function n(n){return e[t].eventsToRewrite.indexOf(n)>=0?"rocket-"+n:n}e[t]||(e[t]={originalFunctions:{add:t.addEventListener,remove:t.removeEventListener},eventsToRewrite:[]},t.addEventListener=function(){arguments[0]=n(arguments[0]),e[t].originalFunctions.add.apply(t,arguments)},t.removeEventListener=function(){arguments[0]=n(arguments[0]),e[t].originalFunctions.remove.apply(t,arguments)})}(t),e[t].eventsToRewrite.push(n)}function n(e,t){let n=e[t];Object.defineProperty(e,t,{get:()=>n||function(){},set(i){e["rocket"+t]=n=i}})}t(document,"DOMContentLoaded"),t(window,"DOMContentLoaded"),t(window,"load"),t(window,"pageshow"),t(document,"readystatechange"),n(document,"onreadystatechange"),n(window,"onload"),n(window,"onpageshow")}_delayJQueryReady(e){let t=window.jQuery;Object.defineProperty(window,"jQuery",{get:()=>t,set(n){if(n&&n.fn&&!e.allJQueries.includes(n)){n.fn.ready=n.fn.init.prototype.ready=function(t){e.domReadyFired?t.bind(document)(n):document.addEventListener("rocket-DOMContentLoaded",(()=>t.bind(document)(n)))};const t=n.fn.on;n.fn.on=n.fn.init.prototype.on=function(){if(this[0]===window){function e(e){return e.split(" ").map((e=>"load"===e||0===e.indexOf("load.")?"rocket-jquery-load":e)).join(" ")}"string"==typeof arguments[0]||arguments[0]instanceof String?arguments[0]=e(arguments[0]):"object"==typeof arguments[0]&&Object.keys(arguments[0]).forEach((t=>{delete Object.assign(arguments[0],{[e(t)]:arguments[0][t]})[t]}))}return t.apply(this,arguments),this},e.allJQueries.push(n)}t=n}})}async _triggerDOMContentLoaded(){this.domReadyFired=!0,await this._littleBreath(),document.dispatchEvent(new Event("rocket-DOMContentLoaded")),await this._littleBreath(),window.dispatchEvent(new Event("rocket-DOMContentLoaded")),await this._littleBreath(),document.dispatchEvent(new Event("rocket-readystatechange")),await this._littleBreath(),document.rocketonreadystatechange&&document.rocketonreadystatechange()}async _triggerWindowLoad(){await this._littleBreath(),window.dispatchEvent(new Event("rocket-load")),await this._littleBreath(),window.rocketonload&&window.rocketonload(),await this._littleBreath(),this.allJQueries.forEach((e=>e(window).trigger("rocket-jquery-load"))),await this._littleBreath();const e=new Event("rocket-pageshow");e.persisted=this.persisted,window.dispatchEvent(e),await this._littleBreath(),window.rocketonpageshow&&window.rocketonpageshow({persisted:this.persisted})}_handleDocumentWrite(){const e=new Map;document.write=document.writeln=function(t){const n=document.currentScript,i=document.createRange(),r=n.parentElement;let o=e.get(n);void 0===o&&(o=n.nextSibling,e.set(n,o));const s=document.createDocumentFragment();i.setStart(s,0),s.appendChild(i.createContextualFragment(t)),r.insertBefore(s,o)}}async _littleBreath(){Date.now()-this.lastBreath>45&&(await this._requestAnimFrame(),this.lastBreath=Date.now())}async _requestAnimFrame(){return document.hidden?new Promise((e=>setTimeout(e))):new Promise((e=>requestAnimationFrame(e)))}static run(){const e=new RocketLazyLoadScripts;e._addUserInteractionListener(e)}}RocketLazyLoadScripts.run();</script>
+	
+	<meta name="viewport" content="width=device-width" />
+		<meta name="theme-color" content="#ffe3b6">
+	<meta name="msapplication-navbutton-color" content="#ffe3b6">
+	<meta name="mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="#ffe3b6">
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	
+	<meta name='robots' content='index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1' />
+
+	<!-- This site is optimized with the Yoast SEO plugin v24.4 - https://yoast.com/wordpress/plugins/seo/ -->
+	<title>Aru Hi, Damin wo Musabotte Itara Ichizoku kara Tsuihousarete Mori ni Suteraremashita ตอนที่ 9 - Inu Manga อ่านมังงะ อ่านการ์ตูน</title><link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Kanit:wght@200;300;400;500;600;700&#038;family=Fira+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&#038;family=Poppins:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&#038;display=swap" /><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kanit:wght@200;300;400;500;600;700&#038;family=Fira+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&#038;family=Poppins:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&#038;display=swap" media="print" onload="this.media='all'" /><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kanit:wght@200;300;400;500;600;700&#038;family=Fira+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&#038;family=Poppins:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&#038;display=swap" /></noscript>
+	<link rel="canonical" href="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-9/" />
+	<meta property="og:locale" content="th_TH" />
+	<meta property="og:type" content="article" />
+	<meta property="og:title" content="Aru Hi, Damin wo Musabotte Itara Ichizoku kara Tsuihousarete Mori ni Suteraremashita ตอนที่ 9 - Inu Manga อ่านมังงะ อ่านการ์ตูน" />
+	<meta property="og:url" content="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-9/" />
+	<meta property="og:site_name" content="Inu Manga อ่านมังงะ อ่านการ์ตูน" />
+	<meta property="article:published_time" content="2025-05-16T04:34:01+00:00" />
+	<meta property="og:image" content="https://img.inu-manga.com/2025/05/d0/JORDG8AXM6-1747370172.jpg" />
+	<meta name="author" content="ezbbgifu" />
+	<meta name="twitter:card" content="summary_large_image" />
+	<meta name="twitter:label1" content="Written by" />
+	<meta name="twitter:data1" content="ezbbgifu" />
+	<script type="application/ld+json" class="yoast-schema-graph">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-9/","url":"https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-9/","name":"Aru Hi, Damin wo Musabotte Itara Ichizoku kara Tsuihousarete Mori ni Suteraremashita ตอนที่ 9 - Inu Manga อ่านมังงะ อ่านการ์ตูน","isPartOf":{"@id":"https://www.inu-manga.net/#website"},"primaryImageOfPage":{"@id":"https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-9/#primaryimage"},"image":{"@id":"https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-9/#primaryimage"},"thumbnailUrl":"https://img.inu-manga.com/2025/05/d0/JORDG8AXM6-1747370172.jpg","datePublished":"2025-05-16T04:34:01+00:00","author":{"@id":"https://www.inu-manga.net/#/schema/person/9a3bdc28d98b2dd984db58dece73ad00"},"breadcrumb":{"@id":"https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-9/#breadcrumb"},"inLanguage":"th","potentialAction":[{"@type":"ReadAction","target":["https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-9/"]}]},{"@type":"ImageObject","inLanguage":"th","@id":"https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-9/#primaryimage","url":"https://img.inu-manga.com/2025/05/d0/JORDG8AXM6-1747370172.jpg","contentUrl":"https://img.inu-manga.com/2025/05/d0/JORDG8AXM6-1747370172.jpg"},{"@type":"BreadcrumbList","@id":"https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-9/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.inu-manga.net/"},{"@type":"ListItem","position":2,"name":"Aru Hi, Damin wo Musabotte Itara Ichizoku kara Tsuihousarete Mori ni Suteraremashita ตอนที่ 9"}]},{"@type":"WebSite","@id":"https://www.inu-manga.net/#website","url":"https://www.inu-manga.net/","name":"Inu Manga อ่านมังงะ อ่านการ์ตูน","description":"อ่านการ์ตูน อ่านมังงะ การ์ตูน มังงะแปลไทย มังฮวา มันฮัว","potentialAction":[{"@type":"SearchAction","target":{"@type":"EntryPoint","urlTemplate":"https://www.inu-manga.net/?s={search_term_string}"},"query-input":{"@type":"PropertyValueSpecification","valueRequired":true,"valueName":"search_term_string"}}],"inLanguage":"th"},{"@type":"Person","@id":"https://www.inu-manga.net/#/schema/person/9a3bdc28d98b2dd984db58dece73ad00","name":"ezbbgifu","image":{"@type":"ImageObject","inLanguage":"th","@id":"https://www.inu-manga.net/#/schema/person/image/","url":"https://secure.gravatar.com/avatar/a27d9549189bf7a1fd09fa9ca2d8562110e15f8bbb02e5f4cf3666aa755459c8?s=96&d=mm&r=g","contentUrl":"https://secure.gravatar.com/avatar/a27d9549189bf7a1fd09fa9ca2d8562110e15f8bbb02e5f4cf3666aa755459c8?s=96&d=mm&r=g","caption":"ezbbgifu"},"sameAs":["http://kazetori-manga.com"],"url":"https://www.inu-manga.net/author/ezbbgifu/"}]}</script>
+	<!-- / Yoast SEO plugin. -->
+
+
+<link rel='dns-prefetch' href='//www.inu-manga.net' />
+<link href='https://fonts.gstatic.com' crossorigin rel='preconnect' />
+<link rel="alternate" title="oEmbed (JSON)" type="application/json+oembed" href="https://www.inu-manga.net/wp-json/oembed/1.0/embed?url=https%3A%2F%2Fwww.inu-manga.net%2Faru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-9%2F" />
+<link rel="alternate" title="oEmbed (XML)" type="text/xml+oembed" href="https://www.inu-manga.net/wp-json/oembed/1.0/embed?url=https%3A%2F%2Fwww.inu-manga.net%2Faru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-9%2F&#038;format=xml" />
+
+
+
+
+
+
+<link rel='stylesheet' id='parent-style-css' href='https://www.inu-manga.net/wp-content/themes/mangareader/style.css?ver=2.2.1' media='all' />
+<link rel='stylesheet' id='child-style-css' href='https://www.inu-manga.net/wp-content/themes/mangareader-child/style.css?ver=1.0.4' media='all' />
+<link rel='stylesheet' id='style-css' href='https://www.inu-manga.net/wp-content/themes/mangareader-child/style.css?ver=2.2.1' media='all' />
+<link rel='stylesheet' id='ts-lightstyle-css' href='https://www.inu-manga.net/wp-content/themes/mangareader/assets/css/lightmode.css?ver=2.2.1' media='all' />
+<script type="rocketlazyloadscript" id="jquery-js" src="https://www.inu-manga.net/wp-content/themes/mangareader/assets/js/jquery.min.js?ver=3.5.1"></script>
+<script type="rocketlazyloadscript" id="jquery-js-after">
+const ts_configs={params:{"lang":{"bookmarked_label":"บันทึกแล้ว","bookmark_label":"บันทึก","bookmark_max_reached":"คุณบันทึกรายการเต็มจำนวนแล้ว","bookmark_updates_widget_chapter_label":"ตอนที่ ","bookmark_updates_widget_new_chapter_title":"มี {{number}} ตอนใหม่หลังจากคุณเข้าชมครั้งล่าสุด","bookmark_updates_widget_no_item":"เริ่มบันทึกและอ่านเพื่อดูการอัพเดทรายการบันทึก","history_widget_chapter_label":"ตอนที่"},"general":{"site_url":"https://www.inu-manga.net","defaultTheme":"darkmode","ajaxUrl":"https://www.inu-manga.net/wp-admin/admin-ajax.php","homeUrl":"https://www.inu-manga.net/","isHome":false,"isSeriesPage":false,"isChapterPage":true,"lastUpdate":"2026-11-04 16:38:37"},"bookmark":{"max":50,"enabled":true,"isSeriesPage":false,"widget":{"bookmark_updates":{"enabled":true,"nonce":"f6f8bcbcf0e9442e","tpl":{"container":"<ul class=\"tbu-container\">\n    {{items_html}}\n</ul>","item":"<li class=\"tbu-bookmark-item\" data-percentage=\"{{percentage}}\" data-id=\"{{last_episode.chapter_id}}\"\n    data-series-id=\"{{item.series_id}}\" \n    data-wp-last-chapter=\"{{item.wp_last_chapter.chapter.chapter}}\"\n    data-last-chapter=\"{{item.last_chapter}}\"\n    data-last-read=\"{{last_visited_chapter.chapter_label}}\"\n    data-new-chapters=\"{{new_chapter}}\">\n    <a href=\"#!{{item.series_id}}\" onclick=\"return TsBookmarkUpdates.redirect(this, '{{item.series_id}}')\" title=\"{{item.title}}\" class=\"tbu-bookmark-link\">\n        <div class=\"tbu-series-title\">{{item.title}}</div>\n        <div class=\"tbu-series-meta\">\n            <span class=\"tbu-numbers\">{{chapter_lang}}{{last_visited_chapter.chapter_label}}/{{item.wp_last_chapter.chapter.chapter}}{{new_chapter_html}}</span>\n            \n        </div>\n        \n    </a>\n    {{progress_html}}\n</div>","progress_bar":"<div class=\"tbu-progress-bar\" data-percentage=\"{{percentage}}\" data-id=\"{{item.series_id}}\" {{style}}></div>","new_chapter":"<sup class=\"tbu-new-chapter\" title=\"{{title_attr}}\">{{number}}</sup>"}}}},"series_history":{"widget":{"tpl":"<li>\n    <a href=\"#/\" data-id=\"{{chapter_id}}\" class=\"ts-history-item\">{{series_name}} {{chapter_label}} <b>{{chapter_number}}</b> <span class=\"post-date\">{{time}}</span></a>\n</li>"},"config":{"maxEpisodeAgeInDays":30,"minEpisodesPerSeries":12},"item":{"mid":266006,"cid":274275,"c":"9","s":"Aru Hi, Damin wo Musabotte Itara Ichizoku kara Tsuihousarete Mori ni Suteraremashita","t":"https://www.inu-manga.net/wp-content/uploads/2025/03/3de226884799510ec0fa00d25d11a32e-1.jpg","l":"41","lid":317248}}},exists(p){if(!p||typeof p!=="string")return!1;const k=p.split(".");let o=this.params;for(let i of k){if(o==null||!Object.prototype.hasOwnProperty.call(o,i))return!1;o=o[i];}return!0;},get(p,f=void 0){if(!p||typeof p!=="string")return typeof f==="function"?f(p):f;try{const v=p.split(".").reduce((o,k)=>o[k],this.params);return v!==void 0?v:typeof f==="function"?f(p):f;}catch{return typeof f==="function"?f(p):f;}},set(p,v){if(!p||typeof p!=="string")return;const k=p.split(".");let o=this.params;while(k.length>1){const i=k.shift();if(!o[i]||typeof o[i]!=="object")o[i]={};o=o[i];}o[k[0]]=v;},delete(p){if(!this.exists(p))return!1;const k=p.split(".");let o=this.params;for(let i=0;i<k.length-1;i++)o=o[k[i]];return delete o[k[k.length-1]];}};
+//# sourceURL=jquery-js-after
+</script>
+<script type="rocketlazyloadscript" id="tsfn_scripts-js" src="https://www.inu-manga.net/wp-content/themes/mangareader/assets/js/function.js?ver=2.2.1"></script>
+<script type="rocketlazyloadscript" id="ts-reading-options-js" src="https://www.inu-manga.net/wp-content/themes/mangareader/assets/js/reading-options.js?ver=2.2.1"></script>
+<script type="rocketlazyloadscript" id="ts-nsfw_scripts-js" src="https://www.inu-manga.net/wp-content/themes/mangareader/assets/js/nsfw.js?ver=2.2.1"></script>
+<script type="rocketlazyloadscript" id="bookmarks_script-js" src="https://www.inu-manga.net/wp-content/themes/mangareader/assets/js/bookmark.js?ver=2.2.1"></script>
+<link rel="https://api.w.org/" href="https://www.inu-manga.net/wp-json/" /><link rel="alternate" title="JSON" type="application/json" href="https://www.inu-manga.net/wp-json/wp/v2/posts/274275" /><link rel="EditURI" type="application/rsd+xml" title="RSD" href="https://www.inu-manga.net/xmlrpc.php?rsd" />
+<meta name="generator" content="WordPress 7.1.4" />
+<link rel='shortlink' href='https://www.inu-manga.net/?p=274275' />
+
+		<!-- GA Google Analytics @ https://m0n.co/ga -->
+		<script type="rocketlazyloadscript" async src="https://www.googletagmanager.com/gtag/js?id=G-LXKMZ6XEFW"></script>
+		<script type="rocketlazyloadscript">
+			window.dataLayer = window.dataLayer || [];
+			function gtag(){dataLayer.push(arguments);}
+			gtag('js', new Date());
+			gtag('config', 'G-LXKMZ6XEFW');
+		</script>
+
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<script type="rocketlazyloadscript">
+	$(document).ready(function(){
+		$(".shme").click(function(){
+			$(".mm").toggleClass("shwx");
+		});
+		$(".srcmob").click(function(){
+			$(".minmb").toggleClass("minmbx");
+		});
+	});
+</script>
+<script type="rocketlazyloadscript" data-rocket-type="text/javascript">
+$(document).ready(function(){
+	
+	//Check to see if the window is top if not then display button
+	$(window).scroll(function(){
+		if ($(this).scrollTop() > 100) {
+			$('.scrollToTop').fadeIn();
+		} else {
+			$('.scrollToTop').fadeOut();
+		}
+	});
+	
+	//Click event to scroll to top
+	$('.scrollToTop').click(function(){
+		$('html, body').animate({scrollTop : 0},800);
+		return false;
+	});
+	
+});
+</script>
+
+        <script type="rocketlazyloadscript" data-rocket-type="text/javascript">
+                var sf_templates = "<a href=\"{search_url_escaped}\">View All Results<\/a>";
+                var sf_position = '0';
+                var sf_input = '.search-live';
+                jQuery(document).ready(function(){
+                    jQuery(sf_input).ajaxyLiveSearch({"expand":false,"searchUrl":"https:\/\/www.inu-manga.net\/?s=%s","text":"\u0e04\u0e49\u0e19\u0e2b\u0e32","delay":500,"iwidth":180,"width":350,"ajaxUrl":"https:\/\/www.inu-manga.net\/wp-admin\/admin-ajax.php","rtl":0});
+                    jQuery(".live-search_ajaxy-selective-input").keyup(function() {
+                        var width = jQuery(this).val().length * 8;
+                        if(width < 50) {
+                            width = 50;
+                        }
+                        jQuery(this).width(width);
+                    });
+                    jQuery(".live-search_ajaxy-selective-search").click(function() {
+                        jQuery(this).find(".live-search_ajaxy-selective-input").focus();
+                    });
+                    jQuery(".live-search_ajaxy-selective-close").click(function() {
+                        jQuery(this).parent().remove();
+                    });
+                });
+        </script>
+        	
+	<meta name="og:image" content="https://www.inu-manga.net/wp-content/uploads/2025/03/3de226884799510ec0fa00d25d11a32e-1.jpg"><link rel='stylesheet' id='ts-fontawesome-css' href='https://www.inu-manga.net/wp-content/themes/mangareader/assets/css/font-awesome.min.css?ver=5.13.0' media='all' />
+
+</head>
+<body data-rsssl=1 class="darkmode black" itemscope="itemscope" itemtype="http://schema.org/WebPage">	<script type="rocketlazyloadscript">ts_darkmode.init();</script>
+	<div id="fb-root"></div>
+	<script type="rocketlazyloadscript" async defer crossorigin="anonymous" src="https://connect.facebook.net/th_TH/sdk.js#xfbml=1&version=v11.0&appId=2976301599351474&autoLogAppEvents=1" nonce="kakRwVQ2"></script>
+
+
+<div class="mainholder">
+<div class="th">
+	<div class="centernav bound">
+		
+	<div class="shme"><i class="fa fa-bars" aria-hidden="true"></i></div>
+		
+	<header role="banner" itemscope itemtype="http://schema.org/WPHeader">
+	<div class="site-branding logox">
+				<span class="logos">
+				<a title="Inu Manga อ่านมังงะ อ่านการ์ตูน - อ่านการ์ตูน อ่านมังงะ การ์ตูน มังงะแปลไทย มังฮวา มันฮัว" itemprop="url" href="https://www.inu-manga.net/"><img src="https://www.inu-manga.com/wp-content/uploads/2022/03/logo.png" width="195" height="50" alt="Inu Manga อ่านมังงะ อ่านการ์ตูน - อ่านการ์ตูน อ่านมังงะ การ์ตูน มังงะแปลไทย มังฮวา มันฮัว"><span class="hdl">Inu Manga อ่านมังงะ อ่านการ์ตูน</span></a>
+			</span>
+						<meta itemprop="name" content="Inu Manga อ่านมังงะ อ่านการ์ตูน" />
+		</div>
+	</header>
+		
+	<nav id="main-menu" class="mm">
+		<span itemscope="itemscope" itemtype="http://schema.org/SiteNavigationElement" role="navigation">
+		<ul id="menu-main-manu" class="menu"><li id="menu-item-110315" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-110315"><a href="https://www.inu-manga.com/" itemprop="url"><span itemprop="name">Home</span></a></li>
+<li id="menu-item-9506" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-9506"><a href="https://www.inu-manga.net/manga-list/" itemprop="url"><span itemprop="name">Manga List</span></a></li>
+<li id="menu-item-117189" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-117189"><a href="https://www.inu-manga.net/bookmark/" itemprop="url"><span itemprop="name">Bookmark</span></a></li>
+<li id="menu-item-214615" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-214615"><a href="https://www.inu-manga.net/%e0%b9%82%e0%b8%a3%e0%b9%81%e0%b8%9f%e0%b8%99%e0%b8%88%e0%b8%9a%e0%b9%81%e0%b8%a5%e0%b9%89%e0%b8%a7/" itemprop="url"><span itemprop="name">โรแฟนจบแล้ว</span></a></li>
+</ul>		</span>
+		<div class="clear"></div>
+	</nav>
+		<div class="searchx minmb">
+  <input
+    type="text"
+    id="manga-search"
+    placeholder="Search manga..."
+    autocomplete="off" />
+  <div id="live-search_results2" style="display:none;width:350px"></div>
+  
+  <!--  		<form action="https://www.inu-manga.net/" id="form" method="get" itemprop="potentialAction" itemscope itemtype="http://schema.org/SearchAction">
+			<meta itemprop="target" content="https://www.inu-manga.net/?s={query}"/>
+  			<input id="s" itemprop="query-input" class="search-live" type="text" placeholder="ค้นหา" name="s"/>
+			<button type="submit" id="submit" aria-label="search"><i class="fas fa-search" aria-hidden="true"></i></button>
+			<div class="srcmob srccls"><i class="fas fa-times-circle"></i></div>
+ 		</form> -->
+</div>
+	
+	<div class="srcmob"><i class="fas fa-search" aria-hidden="true"></i></div>
+			
+	</div>
+	<div class="clear"></div>
+	</div>				
+			<div class="header-ads-section">
+				<a href="https://huaylike7.com" target="_blank">
+						<img alt="huaylike หวยไลค์" src="https://www.inu-manga.com/wp-content/uploads/2024/11/HL-728x200px.gif" />
+					</a>
+			</div>
+			
+
+<div id="content" class="readercontent">
+	
+	
+<div class="wrapper">
+
+<div class="chapterbody">
+	<div class="postarea">
+		<article id="post-274275" class="post-274275 hentry" itemscope="itemscope" itemtype="http://schema.org/CreativeWork">
+						<div class="headpost">
+				<h1 class="entry-title" itemprop="name">Aru Hi, Damin wo Musabotte Itara Ichizoku kara Tsuihousarete Mori ni Suteraremashita ตอนที่ 9</h1>
+				<div class="allc">All chapters are in <a href="https://www.inu-manga.net/manga/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita/">Aru Hi, Damin wo Musabotte Itara Ichizoku kara Tsuihousarete Mori ni Suteraremashita</a></div>
+			</div>
+							<div class="ts-breadcrumb bixbox">
+		<div itemscope="" itemtype="http://schema.org/BreadcrumbList">
+			<span itemprop="itemListElement" itemscope="" itemtype="http://schema.org/ListItem">
+				<a itemprop="item" href="https://www.inu-manga.net/"><span itemprop="name">Inu Manga อ่านมังงะ อ่านการ์ตูน</span></a>
+				<meta itemprop="position" content="1">
+			</span>
+			 › 
+						<span itemprop="itemListElement" itemscope="" itemtype="http://schema.org/ListItem">
+				 <a itemprop="item" href="https://www.inu-manga.net/manga/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita/"><span itemprop="name">Aru Hi, Damin wo Musabotte Itara Ichizoku kara Tsuihousarete Mori ni Suteraremashita</span></a>
+				<meta itemprop="position" content="2">
+			</span>
+			 › 
+			<span itemprop="itemListElement" itemscope="" itemtype="http://schema.org/ListItem">
+				 <a itemprop="item" href="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-9/"><span itemprop="name">Aru Hi, Damin wo Musabotte Itara Ichizoku kara Tsuihousarete Mori ni Suteraremashita ตอนที่ 9</span></a>
+				<meta itemprop="position" content="3">
+			</span>
+					</div>
+	</div>	
+			
+			<div class="entry-content entry-content-single maincontent" itemprop="description">
+				<div class="chdesc">
+					<p>
+					Read the latest manga <b> Aru Hi, Damin wo Musabotte Itara Ichizoku kara Tsuihousarete Mori ni Suteraremashita ตอนที่ 9 </b> at <b> Inu Manga อ่านมังงะ อ่านการ์ตูน </b>. Manga <b> Aru Hi, Damin wo Musabotte Itara Ichizoku kara Tsuihousarete Mori ni Suteraremashita </b> is always updated at <b> Inu Manga อ่านมังงะ อ่านการ์ตูน </b>. Dont forget to read the other manga updates. A list of manga collections <b> Inu Manga อ่านมังงะ อ่านการ์ตูน </b> is in the Manga List menu.					</p>
+				</div>
+								<div class="chnav ctop nomirror">
+					<span class="selector slc l">
+						<select name="chapter" id="chapter" onchange="this.options[this.selectedIndex].value && window.open(this.options[this.selectedIndex].value,'_self')">
+							<option value="" disabled="disabled">Select Chapter</option>
+														<option data-id="317248" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-41/" >
+								Chapter 41							</option>
+														<option data-id="315587" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-40/" >
+								Chapter 40							</option>
+														<option data-id="314747" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-39/" >
+								Chapter 39							</option>
+														<option data-id="314743" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-38/" >
+								Chapter 38							</option>
+														<option data-id="311394" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-36/" >
+								Chapter 36							</option>
+														<option data-id="310399" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-35/" >
+								Chapter 35							</option>
+														<option data-id="310398" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-34/" >
+								Chapter 34							</option>
+														<option data-id="307435" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-33/" >
+								Chapter 33							</option>
+														<option data-id="306313" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-32/" >
+								Chapter 32							</option>
+														<option data-id="306312" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-31/" >
+								Chapter 31							</option>
+														<option data-id="304608" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-30/" >
+								Chapter 30							</option>
+														<option data-id="304607" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-29/" >
+								Chapter 29							</option>
+														<option data-id="302191" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-28/" >
+								Chapter 28							</option>
+														<option data-id="301449" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-27/" >
+								Chapter 27							</option>
+														<option data-id="301448" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-26/" >
+								Chapter 26							</option>
+														<option data-id="299793" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-25/" >
+								Chapter 25							</option>
+														<option data-id="299792" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-24/" >
+								Chapter 24							</option>
+														<option data-id="297644" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-23/" >
+								Chapter 23							</option>
+														<option data-id="296822" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-22/" >
+								Chapter 22							</option>
+														<option data-id="295872" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-21/" >
+								Chapter 21							</option>
+														<option data-id="294564" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-20/" >
+								Chapter 20							</option>
+														<option data-id="292962" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-19/" >
+								Chapter 19							</option>
+														<option data-id="290977" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-18/" >
+								Chapter 18							</option>
+														<option data-id="290976" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-17/" >
+								Chapter 17							</option>
+														<option data-id="290975" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-16/" >
+								Chapter 16							</option>
+														<option data-id="290974" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-15/" >
+								Chapter 15							</option>
+														<option data-id="290973" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-14/" >
+								Chapter 14							</option>
+														<option data-id="277342" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-13/" >
+								Chapter 13							</option>
+														<option data-id="276860" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-12/" >
+								Chapter 12							</option>
+														<option data-id="276859" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-11/" >
+								Chapter 11							</option>
+														<option data-id="276858" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-10/" >
+								Chapter 10							</option>
+														<option data-id="274275" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-9/" selected="selected">
+								Chapter 9							</option>
+														<option data-id="274195" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-8/" >
+								Chapter 8							</option>
+														<option data-id="273056" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-7/" >
+								Chapter 7							</option>
+														<option data-id="272058" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-6/" >
+								Chapter 6							</option>
+														<option data-id="271149" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-5/" >
+								Chapter 5							</option>
+														<option data-id="270460" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-4/" >
+								Chapter 4							</option>
+														<option data-id="270083" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-3/" >
+								Chapter 3							</option>
+														<option data-id="268617" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-2-2/" >
+								Chapter 2.2							</option>
+														<option data-id="268616" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-2-1/" >
+								Chapter 2.1							</option>
+														<option data-id="268615" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-1-2/" >
+								Chapter 1.2							</option>
+														<option data-id="266007" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-1-1/" >
+								Chapter 1.1							</option>
+													</select>
+					</span>
+					<span class="navrig">
+																								<span class="selector readingmode l">
+								<select name="readingmode" id="readingmode" aria-label="reading mode">
+									<option value="full" selected="selected">เต็มหน้า</option>
+									<option value="single">หน้าเดี่ยว</option>
+								</select>
+							</span>
+											</span>
+										<span class="navlef">
+						<span class="npv r">	<div class="nextprev">
+		<a class="ch-prev-btn" href="#/prev/" rel="prev">
+			<i class="fas fa-angle-left"></i> ก่อนหน้า		</a>
+		<a class="ch-next-btn" href="#/next/" rel="next">
+			ถัดไป <i class="fas fa-angle-right"></i>
+		</a>
+	</div>
+</span>
+
+						<span class="amob nodlx">
+															<span class="selector pagedsel r">
+									<select name="select-paged" class="ts-select-paged" id="select-paged" aria-label="select page">
+										<option value="1">?/?</option>
+									</select>
+								</span>
+													</span>
+											</span>
+				</div>
+				
+								
+				<div id="readerarea">
+										<img src="https://img.inu-manga.com/2025/05/d0/JORDG8AXM6-1747370172.jpg"/><div class="displayImage" ori-width="1000" ori-height="1423" style="-ms-transform-origin: top left; -webkit-transform-origin: top left; transform-origin: top left;position:relative; display: block; margin: 0 auto; width:1000px; height:1423px" id="imagePUACX2"></div>
+<script type="rocketlazyloadscript">eval(function(p,a,c,k,e,d){e=function(c){return(c<a?'':e(parseInt(c/a)))+((c=c%a)>35?String.fromCharCode(c+29):c.toString(36))};if(!''.replace(/^/,String)){while(c--){d[e(c)]=k[c]||e(c)}k=[function(e){return d[e]}];e=function(){return'\\w+'};c=1};while(c--){if(k[c]){p=p.replace(new RegExp('\\b'+e(c)+'\\b','g'),k[c])}}return p}('f d=M.L("K");d.h+="<e J=\'v://e.u-t.s/r/q/p/o-N-n-m.l\'/>";f 7=[["5.4","b.4","0.4","0.4"],["0.4","b.4","0.4","c.4"],["5.4","a.4","0.4","b.4"],["0.4","a.4","0.4","a.4"],["5.4","c.4","0.4","9.4"],["0.4","0.4","5.4","0.4"],["5.4","0.4","5.4","c.4"],["0.4","c.4","5.4","b.4"],["0.4","9.4","5.4","a.4"],["5.4","9.4","5.4","9.4"]];I(f i=0;i<7.H;i++){G 6="j:F;";6+="E:"+7[i][1]+"8; D:"+7[i][0]+"8;";6+="C:B; A:z;";6+="k-y: x(v://e.u-t.s/r/q/p/o-N-n-m.l);";6+="k-j: -"+7[i][2]+"8 -"+7[i][3]+"8;";d.h+="<g w=\'"+6+"\'></g>"}',50,50,'||||00|500|cssClass|sovleImage|px|1136|852|568|284|PUACXrenderImage|img|var|div|innerHTML||position|background|jpg|1747370174|ZEIyTGZHTnpOQlQzVW96VXQwR1drN2FPM0lVN25lT3paQzBBYW5SdU5lZz0|E8U9R|b9|05|2025|com|manga|inu|https|style|url|image|284px|height|500px|width|left|top|absolute|let|length|for|src|imagePUACX2|getElementById|document|'.split('|'),0,{}))
+</script>
+<img src="https://img.inu-manga.com/2025/05/78/7AVYOIGPW4-1747370175.jpg"/><img src="https://img.inu-manga.com/2025/05/e4/DI8MZETS4R-1747370176.jpg"/><img src="https://img.inu-manga.com/2025/05/03/ZOJ2Y3N57L-1747370178.jpg"/><img src="https://img.inu-manga.com/2025/05/05/JFIP7-N-UEdVR0dLVkQyUFliQ3NsWDRXYkY0R0h6OGJyTmJpN29ZODh3QWdQTG1jND0-1747370179.jpg"/><img src="https://img.inu-manga.com/2025/05/8b/ED4ABUMNC6-1747370180.jpg"/><div class="displayImage" ori-width="1000" ori-height="1423" style="-ms-transform-origin: top left; -webkit-transform-origin: top left; transform-origin: top left;position:relative; display: block; margin: 0 auto; width:1000px; height:1423px" id="imageJRXPD8"></div>
+<script type="rocketlazyloadscript">eval(function(p,a,c,k,e,d){e=function(c){return(c<a?'':e(parseInt(c/a)))+((c=c%a)>35?String.fromCharCode(c+29):c.toString(36))};if(!''.replace(/^/,String)){while(c--){d[e(c)]=k[c]||e(c)}k=[function(e){return d[e]}];e=function(){return'\\w+'};c=1};while(c--){if(k[c]){p=p.replace(new RegExp('\\b'+e(c)+'\\b','g'),k[c])}}return p}('f d=M.L("K");d.h+="<e J=\'v://e.u-t.s/r/q/p/o-N-n-m.l\'/>";f 7=[["5.4","0.4","0.4","0.4"],["0.4","0.4","0.4","a.4"],["0.4","b.4","0.4","c.4"],["5.4","b.4","0.4","b.4"],["5.4","a.4","0.4","9.4"],["0.4","c.4","5.4","0.4"],["5.4","9.4","5.4","a.4"],["5.4","c.4","5.4","c.4"],["0.4","9.4","5.4","b.4"],["0.4","a.4","5.4","9.4"]];I(f i=0;i<7.H;i++){G 6="j:F;";6+="E:"+7[i][1]+"8; D:"+7[i][0]+"8;";6+="C:B; A:z;";6+="k-y: x(v://e.u-t.s/r/q/p/o-N-n-m.l);";6+="k-j: -"+7[i][2]+"8 -"+7[i][3]+"8;";d.h+="<g w=\'"+6+"\'></g>"}',50,50,'||||00|500|cssClass|sovleImage|px|1136|284|852|568|JRXPDrenderImage|img|var|div|innerHTML||position|background|jpg|1747370181|QXRQWkpxdzBDREQ0K2k3aGZPRzV3cnBGTnJ4bWRtL2ZlbUxYYWRMNXowTT0|VZ4DR|e7|05|2025|com|manga|inu|https|style|url|image|284px|height|500px|width|left|top|absolute|let|length|for|src|imageJRXPD8|getElementById|document|'.split('|'),0,{}))
+</script>
+<div class="displayImage" ori-width="1000" ori-height="1423" style="-ms-transform-origin: top left; -webkit-transform-origin: top left; transform-origin: top left;position:relative; display: block; margin: 0 auto; width:1000px; height:1423px" id="imageBOMEG9"></div>
+<script type="rocketlazyloadscript">eval(function(p,a,c,k,e,d){e=function(c){return(c<a?'':e(parseInt(c/a)))+((c=c%a)>35?String.fromCharCode(c+29):c.toString(36))};if(!''.replace(/^/,String)){while(c--){d[e(c)]=k[c]||e(c)}k=[function(e){return d[e]}];e=function(){return'\\w+'};c=1};while(c--){if(k[c]){p=p.replace(new RegExp('\\b'+e(c)+'\\b','g'),k[c])}}return p}('f d=M.L("K");d.h+="<e J=\'v://e.u-t.s/r/q/p/o-N-n-m.l\'/>";f 7=[["5.4","9.4","0.4","0.4"],["0.4","b.4","0.4","c.4"],["0.4","a.4","0.4","b.4"],["0.4","c.4","0.4","a.4"],["5.4","b.4","0.4","9.4"],["5.4","0.4","5.4","0.4"],["5.4","c.4","5.4","c.4"],["0.4","0.4","5.4","b.4"],["0.4","9.4","5.4","a.4"],["5.4","a.4","5.4","9.4"]];I(f i=0;i<7.H;i++){G 6="j:F;";6+="E:"+7[i][1]+"8; D:"+7[i][0]+"8;";6+="C:B; A:z;";6+="k-y: x(v://e.u-t.s/r/q/p/o-N-n-m.l);";6+="k-j: -"+7[i][2]+"8 -"+7[i][3]+"8;";d.h+="<g w=\'"+6+"\'></g>"}',50,50,'||||00|500|cssClass|sovleImage|px|1136|852|568|284|BOMEGrenderImage|img|var|div|innerHTML||position|background|jpg|1747370182|enNaaDZKWTJNUmV0ZGxuZDVuTktXa2MvOTN6QUt6RVIrNnVsaGNoWEZ0MD0|TQCXV|11|05|2025|com|manga|inu|https|style|url|image|284px|height|500px|width|left|top|absolute|let|length|for|src|imageBOMEG9|getElementById|document|'.split('|'),0,{}))
+</script>
+<img src="https://img.inu-manga.com/2025/05/ed/XYHL6CZMFR-1747370183.jpg"/><img src="https://img.inu-manga.com/2025/05/1e/AFWS8XERK4-1747370184.jpg"/><img src="https://img.inu-manga.com/2025/05/d2/VEIZ5OR8MP-1747370185.jpg"/><img src="https://img.inu-manga.com/2025/05/7f/9UQK2YCS3D-1747370186.jpg"/><div class="displayImage" ori-width="1000" ori-height="1423" style="-ms-transform-origin: top left; -webkit-transform-origin: top left; transform-origin: top left;position:relative; display: block; margin: 0 auto; width:1000px; height:1423px" id="imageGNFKD14"></div>
+<script type="rocketlazyloadscript">eval(function(p,a,c,k,e,d){e=function(c){return(c<a?'':e(parseInt(c/a)))+((c=c%a)>35?String.fromCharCode(c+29):c.toString(36))};if(!''.replace(/^/,String)){while(c--){d[e(c)]=k[c]||e(c)}k=[function(e){return d[e]}];e=function(){return'\\w+'};c=1};while(c--){if(k[c]){p=p.replace(new RegExp('\\b'+e(c)+'\\b','g'),k[c])}}return p}('f d=M.L("K");d.h+="<e J=\'v://e.u-t.s/r/q/p/o-N-n-m.l\'/>";f 7=[["0.4","c.4","0.4","0.4"],["5.4","b.4","0.4","a.4"],["5.4","c.4","0.4","c.4"],["5.4","9.4","0.4","b.4"],["0.4","b.4","0.4","9.4"],["0.4","0.4","5.4","0.4"],["0.4","9.4","5.4","a.4"],["5.4","a.4","5.4","c.4"],["5.4","0.4","5.4","b.4"],["0.4","a.4","5.4","9.4"]];I(f i=0;i<7.H;i++){G 6="j:F;";6+="E:"+7[i][1]+"8; D:"+7[i][0]+"8;";6+="C:B; A:z;";6+="k-y: x(v://e.u-t.s/r/q/p/o-N-n-m.l);";6+="k-j: -"+7[i][2]+"8 -"+7[i][3]+"8;";d.h+="<g w=\'"+6+"\'></g>"}',50,50,'||||00|500|cssClass|sovleImage|px|1136|284|852|568|GNFKDrenderImage|img|var|div|innerHTML||position|background|jpg|1747370187|ZCs5ejNSZ0VoS3pKVEhNNGtraVcyL216dUI1UGh3VEg3Z2dLNEllY3RhUT0|AM56H|4d|05|2025|com|manga|inu|https|style|url|image|284px|height|500px|width|left|top|absolute|let|length|for|src|imageGNFKD14|getElementById|document|'.split('|'),0,{}))
+</script>
+<div class="displayImage" ori-width="1000" ori-height="1423" style="-ms-transform-origin: top left; -webkit-transform-origin: top left; transform-origin: top left;position:relative; display: block; margin: 0 auto; width:1000px; height:1423px" id="imageEYNJP15"></div>
+<script type="rocketlazyloadscript">eval(function(p,a,c,k,e,d){e=function(c){return(c<a?'':e(parseInt(c/a)))+((c=c%a)>35?String.fromCharCode(c+29):c.toString(36))};if(!''.replace(/^/,String)){while(c--){d[e(c)]=k[c]||e(c)}k=[function(e){return d[e]}];e=function(){return'\\w+'};c=1};while(c--){if(k[c]){p=p.replace(new RegExp('\\b'+e(c)+'\\b','g'),k[c])}}return p}('f d=M.L("K");d.h+="<e J=\'v://e.u-t.s/r/q/p/o-N-n-m.l\'/>";f 7=[["5.4","a.4","0.4","0.4"],["0.4","b.4","0.4","c.4"],["0.4","c.4","0.4","b.4"],["0.4","0.4","0.4","a.4"],["5.4","9.4","0.4","9.4"],["0.4","9.4","5.4","0.4"],["5.4","b.4","5.4","c.4"],["5.4","c.4","5.4","b.4"],["0.4","a.4","5.4","a.4"],["5.4","0.4","5.4","9.4"]];I(f i=0;i<7.H;i++){G 6="j:F;";6+="E:"+7[i][1]+"8; D:"+7[i][0]+"8;";6+="C:B; A:z;";6+="k-y: x(v://e.u-t.s/r/q/p/o-N-n-m.l);";6+="k-j: -"+7[i][2]+"8 -"+7[i][3]+"8;";d.h+="<g w=\'"+6+"\'></g>"}',50,50,'||||00|500|cssClass|sovleImage|px|1136|852|568|284|EYNJPrenderImage|img|var|div|innerHTML||position|background|jpg|1747370189|SVZmU2FSSXlZK3BQODFKajdYVHpCM254WE5MMnEweC9ybFExbDFuZ2FIND0|YNCTD|c7|05|2025|com|manga|inu|https|style|url|image|284px|height|500px|width|left|top|absolute|let|length|for|src|imageEYNJP15|getElementById|document|'.split('|'),0,{}))
+</script>
+<img src="https://img.inu-manga.com/2025/05/db/SOE529WKHL-1747370190.jpg"/><img src="https://img.inu-manga.com/2025/05/6c/7ELB6WJ8N3-1747370192.jpg"/><img src="https://img.inu-manga.com/2025/05/1c/GWD463M7A8-1747370193.jpg"/><img src="https://img.inu-manga.com/2025/05/9a/29DA3B4JPI-1747370194.jpg"/><div class="displayImage" ori-width="1000" ori-height="1423" style="-ms-transform-origin: top left; -webkit-transform-origin: top left; transform-origin: top left;position:relative; display: block; margin: 0 auto; width:1000px; height:1423px" id="imageVCYZJ20"></div>
+<script type="rocketlazyloadscript">eval(function(p,a,c,k,e,d){e=function(c){return(c<a?'':e(parseInt(c/a)))+((c=c%a)>35?String.fromCharCode(c+29):c.toString(36))};if(!''.replace(/^/,String)){while(c--){d[e(c)]=k[c]||e(c)}k=[function(e){return d[e]}];e=function(){return'\\w+'};c=1};while(c--){if(k[c]){p=p.replace(new RegExp('\\b'+e(c)+'\\b','g'),k[c])}}return p}('f d=M.L("K");d.h+="<e J=\'v://e.u-t.s/r/q/p/o-N-n-m.l\'/>";f 7=[["0.4","0.4","0.4","0.4"],["0.4","c.4","0.4","c.4"],["0.4","9.4","0.4","b.4"],["5.4","b.4","0.4","a.4"],["5.4","0.4","0.4","9.4"],["5.4","9.4","5.4","0.4"],["5.4","c.4","5.4","c.4"],["5.4","a.4","5.4","b.4"],["0.4","b.4","5.4","a.4"],["0.4","a.4","5.4","9.4"]];I(f i=0;i<7.H;i++){G 6="j:F;";6+="E:"+7[i][1]+"8; D:"+7[i][0]+"8;";6+="C:B; A:z;";6+="k-y: x(v://e.u-t.s/r/q/p/o-N-n-m.l);";6+="k-j: -"+7[i][2]+"8 -"+7[i][3]+"8;";d.h+="<g w=\'"+6+"\'></g>"}',50,50,'||||00|500|cssClass|sovleImage|px|1136|852|568|284|VCYZJrenderImage|img|var|div|innerHTML||position|background|jpg|1747370195|eVhDQ2JhenlzcktLbmFPSFJ1Z1kwYW1JMWR6RFdnbTRaRGgrSXhpcU5SQT0|EMLX8|e3|05|2025|com|manga|inu|https|style|url|image|284px|height|500px|width|left|top|absolute|let|length|for|src|imageVCYZJ20|getElementById|document|'.split('|'),0,{}))
+</script>
+<img src="https://img.inu-manga.com/2025/05/e5/VINZ7EWLYA-1747370196.jpg"/><img src="https://img.inu-manga.com/2025/05/1c/A2FHP69EIV-1747370197.jpg"/><div class="displayImage" ori-width="1000" ori-height="1423" style="-ms-transform-origin: top left; -webkit-transform-origin: top left; transform-origin: top left;position:relative; display: block; margin: 0 auto; width:1000px; height:1423px" id="imageATYQD23"></div>
+<script type="rocketlazyloadscript">eval(function(p,a,c,k,e,d){e=function(c){return(c<a?'':e(parseInt(c/a)))+((c=c%a)>35?String.fromCharCode(c+29):c.toString(36))};if(!''.replace(/^/,String)){while(c--){d[e(c)]=k[c]||e(c)}k=[function(e){return d[e]}];e=function(){return'\\w+'};c=1};while(c--){if(k[c]){p=p.replace(new RegExp('\\b'+e(c)+'\\b','g'),k[c])}}return p}('f d=M.L("K");d.h+="<e J=\'v://e.u-t.s/r/q/p/o-N-n-m.l\'/>";f 7=[["5.4","b.4","0.4","0.4"],["5.4","c.4","0.4","c.4"],["0.4","b.4","0.4","a.4"],["5.4","a.4","0.4","b.4"],["0.4","9.4","0.4","9.4"],["0.4","0.4","5.4","0.4"],["5.4","9.4","5.4","c.4"],["5.4","0.4","5.4","a.4"],["0.4","c.4","5.4","b.4"],["0.4","a.4","5.4","9.4"]];I(f i=0;i<7.H;i++){G 6="j:F;";6+="E:"+7[i][1]+"8; D:"+7[i][0]+"8;";6+="C:B; A:z;";6+="k-y: x(v://e.u-t.s/r/q/p/o-N-n-m.l);";6+="k-j: -"+7[i][2]+"8 -"+7[i][3]+"8;";d.h+="<g w=\'"+6+"\'></g>"}',50,50,'||||00|500|cssClass|sovleImage|px|1136|568|852|284|ATYQDrenderImage|img|var|div|innerHTML||position|background|jpg|1747370198|RHhnMjh5SFd3VGRET3d1UlFtSjN0OHhUYnovWFg3bDhYcS9mcS8zU3loST0|RTEIY|65|05|2025|com|manga|inu|https|style|url|image|284px|height|500px|width|left|top|absolute|let|length|for|src|imageATYQD23|getElementById|document|'.split('|'),0,{}))
+</script>
+<img src="https://img.inu-manga.com/2025/05/5a/I58LJNVXTB-1747370200.jpg"/>					<script type="rocketlazyloadscript">
+						jQuery(document).ready(function(){
+							var pageWidth;
+							jQuery(window).resize(function () {
+								getPageSize();
+								scalePages();
+							});
+
+							getPageSize();
+							scalePages();
+
+							function getPageSize() {
+								pageWidth = jQuery('#readerarea').width();
+							}
+
+							function scalePages() {            
+								var scaleX = pageWidth / 1000;                      
+								if(scaleX > 1) { scaleX = 1; }
+								jQuery('.displayImage').each(function(){
+									let oriHeight = jQuery(this).attr('ori-height');
+									let oriWidth = jQuery(this).attr('ori-width');
+									jQuery(this).css({
+										'-webkit-transform' : 'scale(' + scaleX + ')',
+										'-moz-transform'    : 'scale(' + scaleX + ')',
+										'-ms-transform'     : 'scale(' + scaleX + ')',
+										'-o-transform'      : 'scale(' + scaleX + ')',
+										'transform'         : 'scale(' + scaleX + ')',
+										'width' : (scaleX * parseFloat(oriWidth)) + 'px',
+										'height' : (scaleX * parseFloat(oriHeight)) + 'px',
+									});
+								});
+							}
+						});
+					</script>
+									</div>
+												
+				<div class="chnav cbot">
+					<span class="selector slc l">
+						<select name="chapter" id="chapter2" onchange="this.options[this.selectedIndex].value && window.open(this.options[this.selectedIndex].value,'_self')">
+							<option value="" disabled="disabled">Select Chapter</option>
+														<option data-id="317248" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-41/" >
+								Chapter 41							</option>
+														<option data-id="315587" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-40/" >
+								Chapter 40							</option>
+														<option data-id="314747" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-39/" >
+								Chapter 39							</option>
+														<option data-id="314743" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-38/" >
+								Chapter 38							</option>
+														<option data-id="311394" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-36/" >
+								Chapter 36							</option>
+														<option data-id="310399" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-35/" >
+								Chapter 35							</option>
+														<option data-id="310398" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-34/" >
+								Chapter 34							</option>
+														<option data-id="307435" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-33/" >
+								Chapter 33							</option>
+														<option data-id="306313" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-32/" >
+								Chapter 32							</option>
+														<option data-id="306312" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-31/" >
+								Chapter 31							</option>
+														<option data-id="304608" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-30/" >
+								Chapter 30							</option>
+														<option data-id="304607" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-29/" >
+								Chapter 29							</option>
+														<option data-id="302191" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-28/" >
+								Chapter 28							</option>
+														<option data-id="301449" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-27/" >
+								Chapter 27							</option>
+														<option data-id="301448" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-26/" >
+								Chapter 26							</option>
+														<option data-id="299793" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-25/" >
+								Chapter 25							</option>
+														<option data-id="299792" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-24/" >
+								Chapter 24							</option>
+														<option data-id="297644" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-23/" >
+								Chapter 23							</option>
+														<option data-id="296822" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-22/" >
+								Chapter 22							</option>
+														<option data-id="295872" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-21/" >
+								Chapter 21							</option>
+														<option data-id="294564" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-20/" >
+								Chapter 20							</option>
+														<option data-id="292962" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-19/" >
+								Chapter 19							</option>
+														<option data-id="290977" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-18/" >
+								Chapter 18							</option>
+														<option data-id="290976" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-17/" >
+								Chapter 17							</option>
+														<option data-id="290975" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-16/" >
+								Chapter 16							</option>
+														<option data-id="290974" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-15/" >
+								Chapter 15							</option>
+														<option data-id="290973" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-14/" >
+								Chapter 14							</option>
+														<option data-id="277342" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-13/" >
+								Chapter 13							</option>
+														<option data-id="276860" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-12/" >
+								Chapter 12							</option>
+														<option data-id="276859" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-11/" >
+								Chapter 11							</option>
+														<option data-id="276858" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-10/" >
+								Chapter 10							</option>
+														<option data-id="274275" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-9/" selected="selected">
+								Chapter 9							</option>
+														<option data-id="274195" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-8/" >
+								Chapter 8							</option>
+														<option data-id="273056" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-7/" >
+								Chapter 7							</option>
+														<option data-id="272058" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-6/" >
+								Chapter 6							</option>
+														<option data-id="271149" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-5/" >
+								Chapter 5							</option>
+														<option data-id="270460" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-4/" >
+								Chapter 4							</option>
+														<option data-id="270083" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-3/" >
+								Chapter 3							</option>
+														<option data-id="268617" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-2-2/" >
+								Chapter 2.2							</option>
+														<option data-id="268616" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-2-1/" >
+								Chapter 2.1							</option>
+														<option data-id="268615" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-1-2/" >
+								Chapter 1.2							</option>
+														<option data-id="266007" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-1-1/" >
+								Chapter 1.1							</option>
+													</select>
+					</span>
+					<span class="amob">
+						<span class="npv r">	<div class="nextprev">
+		<a class="ch-prev-btn" href="#/prev/" rel="prev">
+			<i class="fas fa-angle-left"></i> ก่อนหน้า		</a>
+		<a class="ch-next-btn" href="#/next/" rel="next">
+			ถัดไป <i class="fas fa-angle-right"></i>
+		</a>
+	</div>
+</span>
+
+						<!-- muncul jika single mode -->
+													<span class="selector pagedsel r">
+								<select name="select-paged" class="ts-select-paged" id="select-paged" aria-label="select page">
+									<option value="">?/?</option>
+								</select>
+							</span>
+											</span>
+				</div>
+				
+						</div>	
+			
+			<div class="chaptertags">
+			<p>แท็ก: read manga Aru Hi, Damin wo Musabotte Itara Ichizoku kara Tsuihousarete Mori ni Suteraremashita ตอนที่ 9, comic Aru Hi, Damin wo Musabotte Itara Ichizoku kara Tsuihousarete Mori ni Suteraremashita ตอนที่ 9, read Aru Hi, Damin wo Musabotte Itara Ichizoku kara Tsuihousarete Mori ni Suteraremashita ตอนที่ 9 online, Aru Hi, Damin wo Musabotte Itara Ichizoku kara Tsuihousarete Mori ni Suteraremashita ตอนที่ 9 chapter, Aru Hi, Damin wo Musabotte Itara Ichizoku kara Tsuihousarete Mori ni Suteraremashita ตอนที่ 9 chapter, Aru Hi, Damin wo Musabotte Itara Ichizoku kara Tsuihousarete Mori ni Suteraremashita ตอนที่ 9 high quality, Aru Hi, Damin wo Musabotte Itara Ichizoku kara Tsuihousarete Mori ni Suteraremashita ตอนที่ 9 manga scan, <time class="entry-date" datetime="2025-05-16GMT+000004:34:01+0000" itemprop="datePublished" pubdate>พฤษภาคม 16, 2025</time>, <span itemprop="author">ezbbgifu</span></p>
+		</div>
+		</article>	
+		
+						<div class="bixbox">
+					<div class="releases"><h2><span>มังงะที่เกี่ยวข้อง</span></h2></div>
+					<div class="listupd">
+						<div class="bs">
+	<div class="bsx">
+		
+		<a href="https://www.inu-manga.net/manga/shi-ni-modori-subete-o-sukuu-tame-ni-saikyou-%e0%b8%ab%e0%b8%a5%e0%b8%b1%e0%b8%87%e0%b8%88%e0%b8%b2%e0%b8%81%e0%b8%97%e0%b8%b5%e0%b9%88%e0%b8%81%e0%b8%a5%e0%b8%b1%e0%b8%9a%e0%b8%a1%e0%b8%b2%e0%b8%88/" title="Shi ni Modori, Subete o Sukuu Tame ni Saikyou หลังจากที่กลับมาจากความตาย จะต้องแข็งแกร่งขึ้น เพื่อช่วยทุกคนให้จงได้">
+		<div class="limit">
+			<div class="ply"></div>
+											<span class="type Manga"></span>
+																<img src="https://www.inu-manga.net/wp-content/uploads/2021/11/ee02b69c3823ea9319f5ea033f976425_Shi-ni-Modori-Subete-wo-Sukuu-Tame-ni-Saikyou-He-to-Itaru-1.jpg" class="ts-post-image wp-post-image attachment-full size-full" loading="lazy" title="Shi ni Modori, Subete o Sukuu Tame ni Saikyou หลังจากที่กลับมาจากความตาย จะต้องแข็งแกร่งขึ้น เพื่อช่วยทุกคนให้จงได้" alt="Shi ni Modori, Subete o Sukuu Tame ni Saikyou หลังจากที่กลับมาจากความตาย จะต้องแข็งแกร่งขึ้น เพื่อช่วยทุกคนให้จงได้" width="706" height="1000"/>		</div>
+		<div class="bigor">
+			<div class="tt">
+				Shi ni Modori, Subete o Sukuu Tame ni Saikyou หลังจากที่กลับมาจากความตาย จะต้องแข็งแกร่งขึ้น เพื่อช่วยทุกคนให้จงได้			</div>
+			<div class="adds">
+				<div class="epxs">ตอนที่ 58</div>								<div class="rt">
+						<div class="rating">
+							<div class="rating-prc">
+								<div class="rtp">
+									<div class="rtb"><span style="width:100%"></span></div>
+								</div>
+							</div>
+							<div class="numscore">10</div>
+						</div>
+				</div>
+							</div>
+		</div>
+		</a>
+	</div>
+</div><div class="bs">
+	<div class="bsx">
+		
+		<a href="https://www.inu-manga.net/manga/kyuutei-mahou-shi-kubi-ni-nattandeinaka-ni-kaette-mahou-ka-no-sensei-ni-narimasu/" title="Kyuutei Mahou-shi Kubi ni Nattande,Inaka ni Kaette Mahou-ka no Sensei ni Narimasu">
+		<div class="limit">
+			<div class="ply"></div>
+											<span class="type Manga"></span>
+																<img src="https://www.inu-manga.net/wp-content/uploads/2021/11/88154918ba67fb108c6891772495be2d_Kyuutei-Mahou-shi-Kubi-ni-NattandeInaka-ni-Kaette-Mahou-ka-no-Sensei-ni-Narimasu-1.jpg" class="ts-post-image wp-post-image attachment-full size-full" loading="lazy" title="Kyuutei Mahou-shi Kubi ni Nattande,Inaka ni Kaette Mahou-ka no Sensei ni Narimasu" alt="Kyuutei Mahou-shi Kubi ni Nattande,Inaka ni Kaette Mahou-ka no Sensei ni Narimasu" width="1200" height="1706"/>		</div>
+		<div class="bigor">
+			<div class="tt">
+				Kyuutei Mahou-shi Kubi ni Nattande,Inaka ni Kaette Mahou-ka no Sensei ni Narimasu			</div>
+			<div class="adds">
+				<div class="epxs">ตอนที่                    1</div>								<div class="rt">
+						<div class="rating">
+							<div class="rating-prc">
+								<div class="rtp">
+									<div class="rtb"><span style="width:100%"></span></div>
+								</div>
+							</div>
+							<div class="numscore">10</div>
+						</div>
+				</div>
+							</div>
+		</div>
+		</a>
+	</div>
+</div><div class="bs">
+	<div class="bsx">
+		
+		<a href="https://www.inu-manga.net/manga/shuumatsu-no-laughter/" title="Shuumatsu no Laughter">
+		<div class="limit">
+			<div class="ply"></div>
+											<span class="type Manga"></span>
+																<img src="https://www.inu-manga.net/wp-content/themes/mangareader/assets/images/noimg165px.png" class="ts-post-image wp-post-image attachment-full size-full" loading="lazy" title="Shuumatsu no Laughter" alt="Shuumatsu no Laughter" width="165" height="230"/>		</div>
+		<div class="bigor">
+			<div class="tt">
+				Shuumatsu no Laughter			</div>
+			<div class="adds">
+				<div class="epxs">ตอนที่                    1</div>								<div class="rt">
+						<div class="rating">
+							<div class="rating-prc">
+								<div class="rtp">
+									<div class="rtb"><span style="width:100%"></span></div>
+								</div>
+							</div>
+							<div class="numscore">10</div>
+						</div>
+				</div>
+							</div>
+		</div>
+		</a>
+	</div>
+</div><div class="bs">
+	<div class="bsx">
+		
+		<a href="https://www.inu-manga.net/manga/level-gacha-hazure-status-un-ga-kekkyoku-ichiban-juuyou-datta-ken-comic/" title="Level Gacha: Hazure Status &#8220;Un&#8221; ga Kekkyoku Ichiban Juuyou datta Ken @COMIC">
+		<div class="limit">
+			<div class="ply"></div>
+											<span class="type Manga"></span>
+																<img src="https://www.inu-manga.net/wp-content/uploads/2026/07/Level-Gacha-Hazure-Status-Un-ga-Kekkyoku-Ichiban-Juuyou-datta-Ken-@COMIC.jpg" class="ts-post-image wp-post-image attachment-full size-full" loading="lazy" title="Level Gacha: Hazure Status &#8220;Un&#8221; ga Kekkyoku Ichiban Juuyou datta Ken @COMIC" alt="Level Gacha: Hazure Status &#8220;Un&#8221; ga Kekkyoku Ichiban Juuyou datta Ken @COMIC" width="300" height="427"/>		</div>
+		<div class="bigor">
+			<div class="tt">
+				Level Gacha: Hazure Status &#8220;Un&#8221; ga Kekkyoku Ichiban Juuyou datta Ken @COMIC			</div>
+			<div class="adds">
+				<div class="epxs">ตอนที่ 5</div>								<div class="rt">
+						<div class="rating">
+							<div class="rating-prc">
+								<div class="rtp">
+									<div class="rtb"><span style="width:100%"></span></div>
+								</div>
+							</div>
+							<div class="numscore">10</div>
+						</div>
+				</div>
+							</div>
+		</div>
+		</a>
+	</div>
+</div><div class="bs">
+	<div class="bsx">
+		
+		<a href="https://www.inu-manga.net/manga/seijo-sama-wo-amayakashitai-tadashi-yuusha-omae-wa-dame-da/" title="Seijo-sama wo Amayakashitai! Tadashi Yuusha, Omae wa Dame da">
+		<div class="limit">
+			<div class="ply"></div>
+											<span class="type Manga"></span>
+																<img src="https://www.inu-manga.net/wp-content/uploads/2022/01/5f7cf7fff44f55b2dfb2837ef18e191d_Seijo-sama-wo-Amayakashitai-Tadashi-Yuusha-Omae-wa-Dame-da-1.jpg" class="ts-post-image wp-post-image attachment-full size-full" loading="lazy" title="Seijo-sama wo Amayakashitai! Tadashi Yuusha, Omae wa Dame da" alt="Seijo-sama wo Amayakashitai! Tadashi Yuusha, Omae wa Dame da" width="400" height="566"/>		</div>
+		<div class="bigor">
+			<div class="tt">
+				Seijo-sama wo Amayakashitai! Tadashi Yuusha, Omae wa Dame da			</div>
+			<div class="adds">
+				<div class="epxs">ตอนที่ 5</div>								<div class="rt">
+						<div class="rating">
+							<div class="rating-prc">
+								<div class="rtp">
+									<div class="rtb"><span style="width:100%"></span></div>
+								</div>
+							</div>
+							<div class="numscore">10</div>
+						</div>
+				</div>
+							</div>
+		</div>
+		</a>
+	</div>
+</div><div class="bs">
+	<div class="bsx">
+		
+		<a href="https://www.inu-manga.net/manga/isekai-meikyuu-no-saishinbu-o-mezasou-%e0%b8%97%e0%b8%b0%e0%b8%a5%e0%b8%b8%e0%b8%a1%e0%b8%b4%e0%b8%95%e0%b8%b4%e0%b8%9e%e0%b8%b4%e0%b8%8a%e0%b8%b4%e0%b8%95%e0%b8%94%e0%b8%b1%e0%b8%99%e0%b9%80%e0%b8%88/" title="Isekai Meikyuu no Saishinbu o Mezasou ทะลุมิติพิชิตดันเจี้ยนนรก">
+		<div class="limit">
+			<div class="ply"></div>
+											<span class="type Manga"></span>
+																<img src="https://www.inu-manga.net/wp-content/uploads/2021/11/2231d1dc5dedbd30b8b5387f7e5ddfa2_isekai-meikyuu-no-saishinbu-o-mezasou-1.jpg" class="ts-post-image wp-post-image attachment-full size-full" loading="lazy" title="Isekai Meikyuu no Saishinbu o Mezasou ทะลุมิติพิชิตดันเจี้ยนนรก" alt="Isekai Meikyuu no Saishinbu o Mezasou ทะลุมิติพิชิตดันเจี้ยนนรก" width="160" height="218"/>		</div>
+		<div class="bigor">
+			<div class="tt">
+				Isekai Meikyuu no Saishinbu o Mezasou ทะลุมิติพิชิตดันเจี้ยนนรก			</div>
+			<div class="adds">
+				<div class="epxs">ตอนที่                    9</div>								<div class="rt">
+						<div class="rating">
+							<div class="rating-prc">
+								<div class="rtp">
+									<div class="rtb"><span style="width:100%"></span></div>
+								</div>
+							</div>
+							<div class="numscore">10</div>
+						</div>
+				</div>
+							</div>
+		</div>
+		</a>
+	</div>
+</div><div class="bs">
+	<div class="bsx">
+		
+		<a href="https://www.inu-manga.net/manga/dungeon-nursery/" title="Dungeon Nursery">
+		<div class="limit">
+			<div class="ply"></div>
+											<span class="type Manga"></span>
+																<img src="https://www.inu-manga.net/wp-content/uploads/2021/11/3d8d09be4e85f5a24d944fe6ef996a5c_dungeon-nursery-1.jpg" class="ts-post-image wp-post-image attachment-full size-full" loading="lazy" title="Dungeon Nursery" alt="Dungeon Nursery" width="160" height="218"/>		</div>
+		<div class="bigor">
+			<div class="tt">
+				Dungeon Nursery			</div>
+			<div class="adds">
+				<div class="epxs">ตอนที่                    24</div>								<div class="rt">
+						<div class="rating">
+							<div class="rating-prc">
+								<div class="rtp">
+									<div class="rtb"><span style="width:100%"></span></div>
+								</div>
+							</div>
+							<div class="numscore">10</div>
+						</div>
+				</div>
+							</div>
+		</div>
+		</a>
+	</div>
+</div>					</div>
+				</div>
+									</div>
+</div>
+
+<div class="readingnav rnavtop">
+	<div class="readingnavtop">
+		<div class="daw backseries"><a href="https://www.inu-manga.net/manga/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita/"><i class="fas fa-angle-double-left"></i></a></div>
+		<div class="daw chpnw">ตอนที่ 9 </div>
+			</div>
+	<div class="rdnmx rdtop"></div>
+</div>
+<div class="readingnav rnavbot">
+	<div class="rdnmx rdbot"></div>
+	<div class="readingnavbot">
+		<div class="readingbar"><div class="readingprogress"></div></div>
+		<div class="readingoption">
+			<span class="selectorx slc l">
+				<select name="chapter" id="chapter3" onchange="this.options[this.selectedIndex].value && window.open(this.options[this.selectedIndex].value,'_self')">
+					<option value="" disabled="disabled">Select Chapter</option>
+										<option data-id="317248" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-41/" >
+						Chapter 41					</option>
+										<option data-id="315587" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-40/" >
+						Chapter 40					</option>
+										<option data-id="314747" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-39/" >
+						Chapter 39					</option>
+										<option data-id="314743" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-38/" >
+						Chapter 38					</option>
+										<option data-id="311394" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-36/" >
+						Chapter 36					</option>
+										<option data-id="310399" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-35/" >
+						Chapter 35					</option>
+										<option data-id="310398" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-34/" >
+						Chapter 34					</option>
+										<option data-id="307435" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-33/" >
+						Chapter 33					</option>
+										<option data-id="306313" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-32/" >
+						Chapter 32					</option>
+										<option data-id="306312" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-31/" >
+						Chapter 31					</option>
+										<option data-id="304608" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-30/" >
+						Chapter 30					</option>
+										<option data-id="304607" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-29/" >
+						Chapter 29					</option>
+										<option data-id="302191" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-28/" >
+						Chapter 28					</option>
+										<option data-id="301449" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-27/" >
+						Chapter 27					</option>
+										<option data-id="301448" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-26/" >
+						Chapter 26					</option>
+										<option data-id="299793" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-25/" >
+						Chapter 25					</option>
+										<option data-id="299792" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-24/" >
+						Chapter 24					</option>
+										<option data-id="297644" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-23/" >
+						Chapter 23					</option>
+										<option data-id="296822" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-22/" >
+						Chapter 22					</option>
+										<option data-id="295872" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-21/" >
+						Chapter 21					</option>
+										<option data-id="294564" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-20/" >
+						Chapter 20					</option>
+										<option data-id="292962" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-19/" >
+						Chapter 19					</option>
+										<option data-id="290977" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-18/" >
+						Chapter 18					</option>
+										<option data-id="290976" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-17/" >
+						Chapter 17					</option>
+										<option data-id="290975" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-16/" >
+						Chapter 16					</option>
+										<option data-id="290974" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-15/" >
+						Chapter 15					</option>
+										<option data-id="290973" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-14/" >
+						Chapter 14					</option>
+										<option data-id="277342" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-13/" >
+						Chapter 13					</option>
+										<option data-id="276860" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-12/" >
+						Chapter 12					</option>
+										<option data-id="276859" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-11/" >
+						Chapter 11					</option>
+										<option data-id="276858" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-10/" >
+						Chapter 10					</option>
+										<option data-id="274275" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-9/" selected="selected">
+						Chapter 9					</option>
+										<option data-id="274195" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-8/" >
+						Chapter 8					</option>
+										<option data-id="273056" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-7/" >
+						Chapter 7					</option>
+										<option data-id="272058" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-6/" >
+						Chapter 6					</option>
+										<option data-id="271149" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-5/" >
+						Chapter 5					</option>
+										<option data-id="270460" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-4/" >
+						Chapter 4					</option>
+										<option data-id="270083" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-3/" >
+						Chapter 3					</option>
+										<option data-id="268617" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-2-2/" >
+						Chapter 2.2					</option>
+										<option data-id="268616" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-2-1/" >
+						Chapter 2.1					</option>
+										<option data-id="268615" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-1-2/" >
+						Chapter 1.2					</option>
+										<option data-id="266007" value="https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-1-1/" >
+						Chapter 1.1					</option>
+									</select>
+			</span>
+						<div class="btm-np nextprev">
+
+				<a class="ch-prev-btn" href="#/prev/" rel="prev">
+					<i class="fas fa-arrow-left"></i>
+				</a>
+		
+				<span class="selectorx pagedsel r">
+					<select name="select-paged" class="ts-select-paged" id="select-paged">
+						<option value="">?/?</option>
+					</select>
+				</span>
+				
+				<a class="ch-next-btn" href="#/next/" rel="next">
+					<i class="fas fa-arrow-right"></i>
+				</a>
+
+			</div>
+		</div>
+	</div>
+</div>
+<script type="rocketlazyloadscript">
+Hooks.add_filter('trc.createImageTag.additionalAttributes', function(v, o){
+	var title = "Aru Hi, Damin wo Musabotte Itara Ichizoku kara Tsuihousarete Mori ni Suteraremashita ตอนที่ 9";
+	v = v + " " + `alt="${title} page ${o.index}" `;
+	return v;
+}, 1);
+</script>
+<script type="rocketlazyloadscript">
+		jQuery('.ch-prev-btn').attr("href", "https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-8/" == "" ? "#/prev/" : "https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-8/");
+	jQuery('.ch-next-btn').attr("href", "https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-10/" == "" ? "#/next/" : "https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-10/");
+	jQuery('.readingmode').hide();
+	jQuery('.pagedsel').hide();
+</script>
+<script type="rocketlazyloadscript">
+	var post_id = 266006;
+	var chapter_id = 274275;
+
+	//loadChList();
+	
+</script>
+</div>
+</div>
+<div id="footer">
+	<footer id="colophon" class="site-footer" itemscope="itemscope" itemtype="http://schema.org/WPFooter" role="contentinfo">
+		<div class="footercopyright">
+		<div class="sosmedmrgn"></div>				<div class="copyright">
+			<div class="txt">
+				<p>All the comics on this website are only previews of the original comics, there may be many language errors, character names, and story lines. For the original version, please buy the comic if it's available in your city.</p>
+			</div>
+		</div>
+	</div>
+	</footer>
+</div>
+</div>
+<script type="speculationrules">
+{"prefetch":[{"source":"document","where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":["/wp-*.php","/wp-admin/*","/wp-content/uploads/*","/wp-content/*","/wp-content/plugins/*","/wp-content/themes/mangareader-child/*","/wp-content/themes/mangareader/*","/*\\?(.+)"]}},{"not":{"selector_matches":"a[rel~=\"nofollow\"]"}},{"not":{"selector_matches":".no-prefetch, .no-prefetch a"}}]},"eagerness":"conservative"}]}
+</script>
+<span class="scrollToTop"><span class="fas fa-angle-up"></span></span>
+
+
+    
+    <script type="rocketlazyloadscript">ts_darkmode.listen();</script>
+
+<script type="rocketlazyloadscript">
+jQuery.event.special.touchstart = {
+    setup: function( _, ns, handle ) {
+        this.addEventListener("touchstart", handle, { passive: !ns.includes("noPreventDefault") });
+    }
+};
+jQuery.event.special.touchmove = {
+    setup: function( _, ns, handle ) {
+        this.addEventListener("touchmove", handle, { passive: !ns.includes("noPreventDefault") });
+    }
+};
+jQuery.event.special.wheel = {
+    setup: function( _, ns, handle ){
+        this.addEventListener("wheel", handle, { passive: true });
+    }
+};
+jQuery.event.special.mousewheel = {
+    setup: function( _, ns, handle ){
+        this.addEventListener("mousewheel", handle, { passive: true });
+    }
+};
+</script>
+<script type="rocketlazyloadscript" id="flexsearch-js" src="https://www.inu-manga.net/wp-content/plugins/manga-search-index/assets/js/flexsearch.bundle.min.js?ver=0.7.31"></script>
+<script id="manga-search-js-extra">
+var MANGA_SEARCH = {"indexUrl":"https://www.inu-manga.net/wp-content/uploads/search/manga-index.json","searchUrl":"https://www.inu-manga.net/"};
+//# sourceURL=manga-search-js-extra
+</script>
+<script type="rocketlazyloadscript" id="manga-search-js" src="https://www.inu-manga.net/wp-content/plugins/manga-search-index/assets/js/manga-search.js?ver=1.0.0"></script>
+<script type="rocketlazyloadscript" id="rocket-browser-checker-js-after">
+"use strict";var _createClass=function(){function defineProperties(target,props){for(var i=0;i<props.length;i++){var descriptor=props[i];descriptor.enumerable=descriptor.enumerable||!1,descriptor.configurable=!0,"value"in descriptor&&(descriptor.writable=!0),Object.defineProperty(target,descriptor.key,descriptor)}}return function(Constructor,protoProps,staticProps){return protoProps&&defineProperties(Constructor.prototype,protoProps),staticProps&&defineProperties(Constructor,staticProps),Constructor}}();function _classCallCheck(instance,Constructor){if(!(instance instanceof Constructor))throw new TypeError("Cannot call a class as a function")}var RocketBrowserCompatibilityChecker=function(){function RocketBrowserCompatibilityChecker(options){_classCallCheck(this,RocketBrowserCompatibilityChecker),this.passiveSupported=!1,this._checkPassiveOption(this),this.options=!!this.passiveSupported&&options}return _createClass(RocketBrowserCompatibilityChecker,[{key:"_checkPassiveOption",value:function(self){try{var options={get passive(){return!(self.passiveSupported=!0)}};window.addEventListener("test",null,options),window.removeEventListener("test",null,options)}catch(err){self.passiveSupported=!1}}},{key:"initRequestIdleCallback",value:function(){!1 in window&&(window.requestIdleCallback=function(cb){var start=Date.now();return setTimeout(function(){cb({didTimeout:!1,timeRemaining:function(){return Math.max(0,50-(Date.now()-start))}})},1)}),!1 in window&&(window.cancelIdleCallback=function(id){return clearTimeout(id)})}},{key:"isDataSaverModeOn",value:function(){return"connection"in navigator&&!0===navigator.connection.saveData}},{key:"supportsLinkPrefetch",value:function(){var elem=document.createElement("link");return elem.relList&&elem.relList.supports&&elem.relList.supports("prefetch")&&window.IntersectionObserver&&"isIntersecting"in IntersectionObserverEntry.prototype}},{key:"isSlowConnection",value:function(){return"connection"in navigator&&"effectiveType"in navigator.connection&&("2g"===navigator.connection.effectiveType||"slow-2g"===navigator.connection.effectiveType)}}]),RocketBrowserCompatibilityChecker}();
+//# sourceURL=rocket-browser-checker-js-after
+</script>
+<script id="rocket-preload-links-js-extra">
+var RocketPreloadLinksConfig = {"excludeUris":"/(?:.+/)?feed(?:/(?:.+/?)?)?$|/(?:.+/)?embed/|/(index\\.php/)?wp\\-json(/.*|$)|/wp-admin/|/logout/|/wp-login.php|/refer/|/go/|/recommend/|/recommends/","usesTrailingSlash":"1","imageExt":"jpg|jpeg|gif|png|tiff|bmp|webp|avif","fileExt":"jpg|jpeg|gif|png|tiff|bmp|webp|avif|php|pdf|html|htm","siteUrl":"https://www.inu-manga.net","onHoverDelay":"100","rateThrottle":"3"};
+//# sourceURL=rocket-preload-links-js-extra
+</script>
+<script type="rocketlazyloadscript" id="rocket-preload-links-js-after">
+(function() {
+"use strict";var r="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e},e=function(){function i(e,t){for(var n=0;n<t.length;n++){var i=t[n];i.enumerable=i.enumerable||!1,i.configurable=!0,"value"in i&&(i.writable=!0),Object.defineProperty(e,i.key,i)}}return function(e,t,n){return t&&i(e.prototype,t),n&&i(e,n),e}}();function i(e,t){if(!(e instanceof t))throw new TypeError("Cannot call a class as a function")}var t=function(){function n(e,t){i(this,n),this.browser=e,this.config=t,this.options=this.browser.options,this.prefetched=new Set,this.eventTime=null,this.threshold=1111,this.numOnHover=0}return e(n,[{key:"init",value:function(){!this.browser.supportsLinkPrefetch()||this.browser.isDataSaverModeOn()||this.browser.isSlowConnection()||(this.regex={excludeUris:RegExp(this.config.excludeUris,"i"),images:RegExp(".("+this.config.imageExt+")$","i"),fileExt:RegExp(".("+this.config.fileExt+")$","i")},this._initListeners(this))}},{key:"_initListeners",value:function(e){-1<this.config.onHoverDelay&&document.addEventListener("mouseover",e.listener.bind(e),e.listenerOptions),document.addEventListener("mousedown",e.listener.bind(e),e.listenerOptions),document.addEventListener("touchstart",e.listener.bind(e),e.listenerOptions)}},{key:"listener",value:function(e){var t=e.target.closest("a"),n=this._prepareUrl(t);if(null!==n)switch(e.type){case"mousedown":case"touchstart":this._addPrefetchLink(n);break;case"mouseover":this._earlyPrefetch(t,n,"mouseout")}}},{key:"_earlyPrefetch",value:function(t,e,n){var i=this,r=setTimeout(function(){if(r=null,0===i.numOnHover)setTimeout(function(){return i.numOnHover=0},1e3);else if(i.numOnHover>i.config.rateThrottle)return;i.numOnHover++,i._addPrefetchLink(e)},this.config.onHoverDelay);t.addEventListener(n,function e(){t.removeEventListener(n,e,{passive:!0}),null!==r&&(clearTimeout(r),r=null)},{passive:!0})}},{key:"_addPrefetchLink",value:function(i){return this.prefetched.add(i.href),new Promise(function(e,t){var n=document.createElement("link");n.rel="prefetch",n.href=i.href,n.onload=e,n.onerror=t,document.head.appendChild(n)}).catch(function(){})}},{key:"_prepareUrl",value:function(e){if(null===e||"object"!==(void 0===e?"undefined":r(e))||!1 in e||-1===["http:","https:"].indexOf(e.protocol))return null;var t=e.href.substring(0,this.config.siteUrl.length),n=this._getPathname(e.href,t),i={original:e.href,protocol:e.protocol,origin:t,pathname:n,href:t+n};return this._isLinkOk(i)?i:null}},{key:"_getPathname",value:function(e,t){var n=t?e.substring(this.config.siteUrl.length):e;return n.startsWith("/")||(n="/"+n),this._shouldAddTrailingSlash(n)?n+"/":n}},{key:"_shouldAddTrailingSlash",value:function(e){return this.config.usesTrailingSlash&&!e.endsWith("/")&&!this.regex.fileExt.test(e)}},{key:"_isLinkOk",value:function(e){return null!==e&&"object"===(void 0===e?"undefined":r(e))&&(!this.prefetched.has(e.href)&&e.origin===this.config.siteUrl&&-1===e.href.indexOf("?")&&-1===e.href.indexOf("#")&&!this.regex.excludeUris.test(e.href)&&!this.regex.images.test(e.href))}}],[{key:"run",value:function(){"undefined"!=typeof RocketPreloadLinksConfig&&new n(new RocketBrowserCompatibilityChecker({capture:!0,passive:!0}),RocketPreloadLinksConfig).init()}}]),n}();t.run();
+}());
+
+//# sourceURL=rocket-preload-links-js-after
+</script>
+<script type="rocketlazyloadscript" id="ts-timeago-js" src="https://www.inu-manga.net/wp-content/themes/mangareader/assets/js/timeago.min.js?ver=1.6.7"></script>
+<script type="rocketlazyloadscript" id="ts-timeago-js-after">
+jQuery.timeago.settings.strings = {"prefixAgo":"","prefixFromNow":"","suffixAgo":"\u0e17\u0e35\u0e48\u0e41\u0e25\u0e49\u0e27","suffixFromNow":"\u0e08\u0e32\u0e01\u0e19\u0e35\u0e49","seconds":"\u0e40\u0e21\u0e37\u0e48\u0e2d\u0e04\u0e23\u0e39\u0e48","minute":"1 \u0e19\u0e32\u0e17\u0e35","minutes":"%d \u0e19\u0e32\u0e17\u0e35","hour":"1 \u0e0a\u0e31\u0e48\u0e27\u0e42\u0e21\u0e07","hours":"%d \u0e0a\u0e31\u0e48\u0e27\u0e42\u0e21\u0e07","day":"1 \u0e27\u0e31\u0e19","days":"%d \u0e27\u0e31\u0e19","month":"1 \u0e40\u0e14\u0e37\u0e2d\u0e19","months":"%d \u0e40\u0e14\u0e37\u0e2d\u0e19","year":"1 \u0e1b\u0e35","years":"%d \u0e1b\u0e35"};
+//# sourceURL=ts-timeago-js-after
+</script>
+<script type="rocketlazyloadscript" id="ts-dexie-js" src="https://www.inu-manga.net/wp-content/themes/mangareader/assets/js/dexie.js?ver=4.0.11"></script>
+<script type="rocketlazyloadscript" id="ts-series-history-js" src="https://www.inu-manga.net/wp-content/themes/mangareader/assets/js/series-history.js?ver=2.2.1"></script>
+<script type="rocketlazyloadscript" id="ts-filter-js" src="https://www.inu-manga.net/wp-content/themes/mangareader/assets/js/filter.js?ver=2.2.1"></script>
+<script type="rocketlazyloadscript" id="ts-search-js" src="https://www.inu-manga.net/wp-content/themes/mangareader/assets/js/search-V2.js?ver=2.2.1"></script>
+</body>
+</html><!--
+Performance optimized by Redis Object Cache. Learn more: https://wprediscache.com
+
+Retrieved 2416 objects (400 KB) from Redis using PhpRedis (v6.3.0).
+-->
+
+<!-- This website is like a Rocket, isn't it? Performance optimized by WP Rocket. Learn more: https://wp-rocket.me - Debug: cached@1793823028 -->

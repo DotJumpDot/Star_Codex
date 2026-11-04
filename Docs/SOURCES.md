@@ -272,6 +272,16 @@ Carries a manga+manhwa+manhua mix (homepage tile badges: 42 Manhwa /
 links on the archive, so the genre picker is empty for it (detail tags
 still parse where `.mgen` renders). MIX scope per user request.
 
+- **TWO reader layouts live side by side** (2026-11-05, user report:
+  reading "Aru Hi, Damin…" ch9 from Inu opened the NICEOPPAI copy —
+  the reader had silently fallen back). Newer chapters ship the inline
+  `ts_reader.run` payload; uploads from before the theme's migration
+  (e.g. May-2025) ship NO ts_reader at all — plain `<img src>` tags
+  inside the ts theme's ORIGINAL `#readerarea` container, plus a packed
+  eval'd sprite-zoom script (display layer, not data — ignore it).
+  `pages()` fallback order: ts_reader images array → `.reading-content
+  img` (classic Madara) → `#readerarea img`.
+
 ### niceoppai.net — `app/lib/data/sources/niceoppai/` (MIX scope)
 
 NOPOrange theme (added 2026-11-03, probed live). Mix scope because the

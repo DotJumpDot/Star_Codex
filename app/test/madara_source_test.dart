@@ -461,6 +461,28 @@ Future<void> main() async {
       expect(pages.imageUrls.first, startsWith('https://img.inu-manga.net/'));
     });
 
+    test(
+      'OLD-layout chapter (pre-ts_reader #readerarea): plain img tags '
+      'parse — inu uploads before the ts_reader migration (user report '
+      '2026-11-05: reader silently fell back to niceoppai for these)',
+      () async {
+        final body =
+            File('$dir\\inu_ch_old.html').readAsStringSync(encoding: utf8);
+        final pages = await serving(body).pages(
+            'https://www.inu-manga.net/aru-hi-damin-wo-musabotte-itara-'
+            'ichizoku-kara-tsuihousarete-mori-ni-suteraremashita-9/');
+        expect(pages.imageUrls, hasLength(17));
+        expect(pages.imageUrls.first,
+            'https://img.inu-manga.com/2025/05/d0/JORDG8AXM6-1747370172.jpg');
+        // Site chrome (logo/ad gifs on www) must NOT leak in — only the
+        // #readerarea imgs count.
+        expect(
+          pages.imageUrls.every((u) => u.startsWith('https://img.')),
+          isTrue,
+        );
+      },
+    );
+
     test('page images keep the origin referer (no CDN ban here)', () async {
       final s = serving('<html/>');
       expect(s.imageReferer, 'https://www.inu-manga.net/');

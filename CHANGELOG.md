@@ -977,6 +977,14 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   feed; HentaiThai search confirmed not implementable (Google CSE
   engine indexes nothing even in a real browser; the .com search page
   serves an invalid TLS certificate). 368 tests green, analyze clean.
+- 2026-11-05 — Inu-Manga's pre-migration chapters read from Inu again:
+  uploads before the theme's ts_reader migration ship NO script
+  payload — plain img tags in the original #readerarea container — so
+  pages() threw and the reader silently opened a sibling source's copy
+  (user saw "จาก niceoppai" after switching the site to Inu). pages()
+  fallback chain is now ts_reader → .reading-content → #readerarea
+  (fixture from the live failing chapter pins 17 pages). 369 tests
+  green, analyze clean.
 - 2026-11-04 — Release: v1.7.0 — version 1.7.0+27. 1668manga old
   chapters read again (page CDN bans Referer-bearing requests),
   searchless Doujin sources go quiet instead of erroring, the search

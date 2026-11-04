@@ -1810,3 +1810,34 @@ inline `ts_reader.run` pages on `img.inu-manga.net`) — a plain
 - migration case 13 seeds from index 19 and chains off case 12 via
   `continue next12;` (the Dart-switch chaining rule from 2026-11-03).
 - 368 tests green, analyze clean.
+
+## 2026-11-05 — Inu-Manga dual reader layouts (silent sibling fallback)
+
+User report: on "Aru Hi, Damin wo Musabotte Itara…", switching the
+detail site to Inu-Manga and opening ch9 still loaded the NICEOPPAI
+copy ("จาก niceoppai" in the reader chrome). Diagnosis path that worked:
+pulled the device DB (run-as com.jamej.starcodex cat
+files/manga_reader.db — NOT databases/) → all three sources had clean
+chapter-9 rows (NOT a merge/cross-scope keying bug) → the tap chain
+passes the tapped row's own Chapter → so the reader's own-source load
+must have FAILED and the whole-chapter sibling fallback
+(`loadChapter`: [chapter, ...siblings]) silently served niceoppai.
+Probe of the live chapter page found the real cause: **inu-manga
+serves TWO reader layouts**. Newer chapters: inline `ts_reader.run`.
+Pre-migration uploads (May-2025 era): NO ts_reader payload at all —
+plain `<img src>` tags in the theme's ORIGINAL `#readerarea` div, plus
+a packed eval'd sprite-zoom script (display layer only — the real imgs
+are the plain tags; don't try to decode the sprites).
+
+Fix: `MadaraSource.pages()` fallback chain is now ts_reader images
+array → `.reading-content img` → `#readerarea img`. Invariants:
+
+- **A whole-chapter fallback is SILENT by design** (badge-only). When a
+  user reports "opened the wrong source", FIRST suspect an own-source
+  parse failure — check `LOADCH candidate FAIL` in debug logs or curl
+  the chapter URL — before suspecting the site-switch UI or merge
+  keying.
+- The `#readerarea` selector is scoped: site chrome (logo/ad gifs on
+  the www host) lives OUTSIDE the container — the fixture pins that no
+  www-host image leaks into the page list.
+- 369 tests green, analyze clean.
