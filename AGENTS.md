@@ -20,7 +20,7 @@ doujin-lc, miku-doujin, manghaha) — since db v11
 Cloudflare block. A Webtoons.com (webtoons.com/th) tab is FUTURE work,
 explicitly deferred by the user. Streaming
 reading, silent WebP q80 caching, content-hash dedup. Personal local use
-only — no server, no cloud, no login. **v1.7.1 released** (GitHub
+only — no server, no cloud, no login. **v1.7.2 released** (GitHub
 Releases, release-signed APK); the repo is public. The browse feed is
 built from each site's own recent-updates grid — the site's order and
 its live "x minutes ago" labels, anchored at the page's cache-generation

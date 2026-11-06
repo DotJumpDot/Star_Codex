@@ -8,7 +8,7 @@
 
 - **The app is built, QA'd, and released.** All 11 plan phases completed
   (2026-10-17), four user-driven UX rounds + the Doujin (18+) page
-  landed (2026-10-18/19), and **v1.0.0 → v1.7.1 are live on GitHub
+  landed (2026-10-18/19), and **v1.0.0 → v1.7.2 are live on GitHub
   Releases** (release-signed `StarCodex-<version>.apk`).
 - **ALL 11 sources are live and enabled by default** (db v9): main feed
   = go-manga, slow-manga, up-manga, dark-manga, fin-manga (Madara/ts),
@@ -21,6 +21,14 @@
   green, analyze clean. Invariants: PLAN_NOTES 2026-10-23 (four
   sections: WAF ladder, hentaithai /page-N, tooling note, grid-label
   generation-time anchor).
+- **v1.7.2 (33b47f5, rel a45622c)**: DoH fallback in the network door
+  — True ISP's resolver NXDOMAINs slow-manga.net (site fine via public
+  DNS); SafeHttp escalates system-resolver failures to DoH
+  (cloudflare-dns.com → dns.google, public-IPv4 only, cached,
+  single-flight) and a dio connectionFactory connects DoH hosts by IP
+  with `SecureSocket.secure(host:)` so SNI + certs stay hostname-pinned.
+  Proven live on the blocked network. Direct lane only (cronet/webview
+  still ride system DNS). See PLAN_NOTES 2026-11-07.
 - **v1.7.1 (05a8dc3, rel c69dc18)**: Inu-Manga serves TWO reader
   layouts — pre-migration uploads ship plain `<img>` tags in the
   original `#readerarea` div with NO ts_reader payload, so `pages()`
