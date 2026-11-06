@@ -999,6 +999,10 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   end-to-end on the blocked network: slow-manga loads through the
   app's own stack; normal hosts and truly-dead hosts behave as before.
   379 tests green, analyze clean.
+- 2026-11-07 — Release: v1.7.2 — version 1.7.2+29. One feature over
+  v1.7.1: the DoH DNS fallback — Thai ISP resolver-level blocks (the
+  slow-manga.net NXDOMAIN) no longer kill a source. 379 tests green,
+  analyze clean.
 - 2026-11-04 — Release: v1.7.0 — version 1.7.0+27. 1668manga old
   chapters read again (page CDN bans Referer-bearing requests),
   searchless Doujin sources go quiet instead of erroring, the search
