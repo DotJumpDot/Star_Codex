@@ -989,6 +989,16 @@ One line per completed build phase (Plan/15). Format: `YYYY-MM-DD — Phase N: w
   Inu-Manga's pre-migration chapters (#readerarea layout) read from Inu
   instead of silently falling back to another site's copy. 369 tests
   green, analyze clean.
+- 2026-11-07 — DoH fallback in the network door (user report: "can't
+  connect to slow manga"). The site is up — True Internet's resolver
+  answers NXDOMAIN for slow-manga.net while public DNS serves it fine,
+  which killed every transport at DNS. SafeHttp now falls back to
+  DoH (cloudflare-dns.com → dns.google, public-IPv4 A records only,
+  cached, single-flight) when the system resolver fails, and connects
+  by the DoH IP with TLS pinned to the real hostname. Verified
+  end-to-end on the blocked network: slow-manga loads through the
+  app's own stack; normal hosts and truly-dead hosts behave as before.
+  379 tests green, analyze clean.
 - 2026-11-04 — Release: v1.7.0 — version 1.7.0+27. 1668manga old
   chapters read again (page CDN bans Referer-bearing requests),
   searchless Doujin sources go quiet instead of erroring, the search

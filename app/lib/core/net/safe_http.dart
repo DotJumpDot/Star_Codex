@@ -3,7 +3,9 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 
+import 'dns_fallback.dart';
 import 'net_exception.dart';
 import 'rate_limiter.dart';
 import 'waf_gate.dart';
@@ -44,12 +46,17 @@ class SafeHttp {
       {RateLimiter? rateLimiter,
       SafeHttpFetcher? fetcher,
       SafeHttpDelay? delay,
-      WafGate? gate})
+      WafGate? gate,
+      DnsFallback? dns})
       : _rateLimiter = rateLimiter ?? RateLimiter(),
         // ignore: prefer_initializing_formals — private fields
         _fetcher = fetcher,
         // ignore: prefer_initializing_formals — private field
         _gate = gate,
+        // DoH fallback (2026-11-07): Thai ISPs NXDOMAIN-block manga
+        // hosts at the resolver — slow-manga.net — so the direct lane
+        // connects by DoH-resolved IP, TLS presenting the real hostname.
+        _dns = dns ?? DnsFallback(),
         _delay = delay ?? ((d) => Future<void>.delayed(d)) {
     _dio = Dio(BaseOptions(
       connectTimeout: const Duration(seconds: 15),
@@ -62,6 +69,17 @@ class SafeHttp {
       },
       validateStatus: (status) => status != null && status < 400,
     ));
+    // The factory replaces dart's own connect for EVERY request (only
+    // way to install one) — the no-DoH path replicates the default
+    // exactly: TLS connect with the hostname (no badCert/keyLog hooks
+    // exist anywhere in the app, so the replica is exact).
+    (_dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient =
+        () {
+      final client = HttpClient();
+      client.connectionFactory = (url, proxyHost, proxyPort) =>
+          _connectWithDoh(url, proxyHost, proxyPort, _dns);
+      return client;
+    };
     // Default transport: Dio with `options:` as a NAMED arg (a bare
     // `_dio.getUri` tear-off would misbind it positionally). POST bodies
     // ride in `options.extra['safe_http_body']` (Options has no data
@@ -94,6 +112,9 @@ class SafeHttp {
 
   /// WAF ladder (2026-10-23): null in tests → direct-lane-only behavior.
   final WafGate? _gate;
+
+  /// DoH fallback for resolver-blocked hosts (see [DnsFallback]).
+  final DnsFallback _dns;
 
   static const maxBodyBytes = 50 * 1024 * 1024;
 
@@ -391,7 +412,13 @@ class SafeHttp {
   /// checks, then DNS resolution of hostnames with every resolved address
   /// validated (a public-looking name resolving into private/loopback space
   /// is rejected before connecting). Throws [NetException] on violation.
-  static Future<void> _validate(Uri uri) async {
+  ///
+  /// A resolver-level block (ISP DNS answering NXDOMAIN for a live
+  /// host — Thai ISPs do this to manga sites, slow-manga.net
+  /// 2026-11-07) falls back to [DnsFallback] before failing: the DoH
+  /// answers go through the SAME public-address validation, and the
+  /// connection factory then connects by IP with hostname TLS.
+  Future<void> _validate(Uri uri) async {
     if (!uri.isScheme('http') && !uri.isScheme('https')) {
       throw NetException('scheme ${uri.scheme} not allowed', uri: uri);
     }
@@ -418,7 +445,15 @@ class SafeHttp {
             onTimeout: () => throw const SocketException('DNS timed out'),
           );
     } on SocketException catch (e) {
-      throw NetException('DNS lookup failed: ${e.message}', uri: uri);
+      // Resolver-level ISP block: ask DoH before surfacing the failure.
+      final ips = await _dns.resolve(host);
+      if (ips.isEmpty) {
+        throw NetException('DNS lookup failed: ${e.message}', uri: uri);
+      }
+      for (final ip in ips) {
+        _validateAddress(InternetAddress(ip), uri);
+      }
+      return;
     }
     if (resolved.isEmpty) {
       throw NetException('host did not resolve: $host', uri: uri);
@@ -454,6 +489,35 @@ class SafeHttp {
         throw NetException('non-public address $raw not allowed', uri: uri);
       }
     }
+  }
+
+  /// Connection factory body (2026-11-07). Hosts with a live DoH answer
+  /// — only ever produced after the SYSTEM resolver failed (ISP
+  /// NXDOMAIN block) — connect to the DoH IPv4 and upgrade to TLS with
+  /// the ORIGINAL hostname (`SecureSocket.secure(host:)` pins both SNI
+  /// and certificate validation to it). Everything else replicates
+  /// dart's default connect exactly.
+  static Future<ConnectionTask<Socket>> _connectWithDoh(
+    Uri url,
+    String? proxyHost,
+    int? proxyPort,
+    DnsFallback dns,
+  ) {
+    assert(proxyHost == null, 'no proxy support beside the DoH factory');
+    final ip = dns.ipFor(url.host);
+    if (ip == null) {
+      return url.scheme == 'https'
+          ? SecureSocket.startConnect(url.host, url.port)
+          : Socket.startConnect(url.host, url.port);
+    }
+    // Socket.startConnect itself yields a Future<ConnectionTask<…>>;
+    // re-wrap its socket with the hostname-pinned TLS upgrade.
+    return Socket.startConnect(InternetAddress(ip), url.port).then(
+      (task) => ConnectionTask.fromSocket(
+        task.socket.then((s) => SecureSocket.secure(s, host: url.host)),
+        task.cancel,
+      ),
+    );
   }
 }
 

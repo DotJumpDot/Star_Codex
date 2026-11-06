@@ -1841,3 +1841,51 @@ array → `.reading-content img` → `#readerarea img`. Invariants:
   the www host) lives OUTSIDE the container — the fixture pins that no
   www-host image leaks into the page list.
 - 369 tests green, analyze clean.
+
+## 2026-11-07 — ISP DNS blocks: DoH fallback in the network door
+
+User report: "can't connect to slow manga". Diagnosis: the SITE IS UP —
+True Internet's resolver answers **NXDOMAIN** for slow-manga.net (it
+resolves normally on 8.8.8.8/1.1.1.1 to Cloudflare IPs and serves 200
+when connected by IP with SNI). Every app lane resolves through the OS,
+so all of them died at `_validate` with "DNS lookup failed". This is a
+resolver-level block, not a site outage and not a bug in the ladder.
+
+Fix — `core/net/dns_fallback.dart` + SafeHttp wiring:
+
+- **`DnsFallback.resolve(host)`** runs ONLY after the system resolver
+  failed: GET `cloudflare-dns.com/dns-query?name&type=A`
+  (accept: application/dns-json), then `dns.google/resolve` as the
+  second endpoint; 5–6 s timeouts; session cache (10 min positive,
+  60 s negative) + single-flight per host. It speaks dart:io directly,
+  NOT SafeHttp — routing it through the door would recurse into DNS
+  validation. It is part of the Plan/04 door, not a second one.
+- **Only public IPv4 A records are accepted** (`isPublicIpv4` mirrors
+  `SafeHttp._validateAddress`: 127/8, 0.0.0.0, 10/8, 172.16/12,
+  192.168/16, 169.254/16 all dropped), and `_validate` re-validates
+  every DoH answer through `_validateAddress` anyway — a tricked DoH
+  endpoint cannot redirect the app into private space.
+- **The connect goes by IP with hostname TLS**: SafeHttp installs an
+  `HttpClient.connectionFactory` on its dio adapter
+  (`IOHttpClientAdapter.createHttpClient`). DoH-cached hosts connect
+  `Socket.startConnect(InternetAddress(ip))` and upgrade with
+  `SecureSocket.secure(socket, host: url.host)` — SNI AND certificate
+  validation stay pinned to the real hostname. All other hosts
+  replicate dart's default connect exactly (the app has NO
+  badCertificateCallback/keyLog anywhere, so the replica is exact).
+  `ConnectionTask.fromSocket` is the SDK-blessed wrapper for this.
+- **Scope**: direct lane only. cronet/webview still use system DNS —
+  a host that is BOTH resolver-blocked and TLS-fingerprint-blocked
+  would still fail (none known today; slow-manga serves dart TLS fine).
+- `dns_fallback.dart` must stay pure Dart (NO flutter/foundation
+  import — meta neither, `depend_on_referenced_packages`) so
+  `dart run tool/…` probes keep compiling on the desktop VM.
+- **End-to-end proof on the real blocked network** (host-side
+  `flutter test` one-off, since `tool/waf_probe.dart` can't compile on
+  the VM — safe_http → webview_gate → inappwebview → dart:ui):
+  slow-manga.net 132 KB real title through `SafeHttp()`, go-manga
+  unaffected, `.invalid` still throws NetException. 379 tests green.
+
+When a source dies with "DNS lookup failed" for everyone on Thai
+ISPs: check `nslookup <host> 8.8.8.8` vs the ISP resolver first —
+if public DNS answers, the DoH fallback should already handle it.

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:star_codex/core/net/dns_fallback.dart';
 import 'package:star_codex/core/net/net_exception.dart';
 import 'package:star_codex/core/net/safe_http.dart';
 import 'package:star_codex/core/net/rate_limiter.dart';
@@ -194,6 +195,83 @@ void main() {
       await http.getBytes(Uri.parse('https://www.example.com/img'),
           referer: '');
       expect(opts!.headers?.containsKey('Referer') ?? false, isFalse);
+    });
+  });
+
+  group('DoH fallback for resolver-blocked hosts (2026-11-07)', () {
+    // `.invalid` always answers NXDOMAIN without depending on which
+    // resolver the test machine has — the same shape as the ISP lying
+    // about slow-manga.net.
+    test('system-resolver failure escalates to DoH and the fetch runs',
+        () async {
+      Uri? fetched;
+      Uri? dohAsked;
+      final http = SafeHttp(
+        rateLimiter: RateLimiter(seed: 1),
+        fetcher: (uri, options) async {
+          fetched = uri;
+          return Response<List<int>>(
+            requestOptions: RequestOptions(path: uri.toString()),
+            statusCode: 200,
+            data: const Utf8Encoder().convert('via-doh'),
+          );
+        },
+        delay: (_) async {},
+        dns: DnsFallback(
+          fetchJson: (uri) async {
+            dohAsked = uri;
+            return jsonEncode({
+              'Status': 0,
+              'Answer': [
+                {'name': 'blocked.invalid.', 'type': 1, 'data': '104.21.64.125'},
+              ],
+            });
+          },
+        ),
+      );
+
+      final text =
+          await http.getHtml(Uri.parse('https://blocked.invalid/'));
+      expect(text, 'via-doh');
+      expect(fetched.toString(), 'https://blocked.invalid/');
+      expect(dohAsked!.host, 'cloudflare-dns.com');
+    });
+
+    test('DoH failure surfaces the DNS error (host stays unreachable)',
+        () async {
+      final http = SafeHttp(
+        rateLimiter: RateLimiter(seed: 1),
+        fetcher: (uri, options) => throw StateError('must not fetch'),
+        delay: (_) async {},
+        dns: DnsFallback(fetchJson: (uri) async => null),
+      );
+
+      await expectLater(
+        () => http.getHtml(Uri.parse('https://blocked.invalid/')),
+        throwsA(isA<NetException>()),
+      );
+    });
+
+    test('a DoH answer pointing at private space is still rejected',
+        () async {
+      final http = SafeHttp(
+        rateLimiter: RateLimiter(seed: 1),
+        fetcher: (uri, options) => throw StateError('must not fetch'),
+        delay: (_) async {},
+        dns: DnsFallback(
+          fetchJson: (uri) async => jsonEncode({
+            'Status': 0,
+            'Answer': [
+              {'name': 'blocked.invalid.', 'type': 1, 'data': '192.168.0.10'},
+            ],
+          }),
+        ),
+      );
+
+      await expectLater(
+        () => http.getHtml(Uri.parse('https://blocked.invalid/')),
+        throwsA(isA<NetException>()),
+      );
     });
   });
 

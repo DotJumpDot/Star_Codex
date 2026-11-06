@@ -17,7 +17,7 @@ main feed and vice versa (`adultSourceIds` / `mixSourceIds` in
 | Site | Scope | Adapter | Live | Grid feed | Search | Notes |
 |---|---|---|---|---|---|---|
 | go-manga.com | main | Madara (ts) | ✅ | ✅ family A | ✅ | |
-| slow-manga.net | main | Madara (ts) | ✅ | ✅ family B | ✅ | grid is chapter-linked |
+| slow-manga.net | main | Madara (ts) | ✅ | ✅ family B | ✅ | grid is chapter-linked; 2026-11-07: True ISP resolver NXDOMAINs the host — the app's DoH fallback (SafeHttp/DnsFallback) rides through it |
 | up-manga.com | main | Madara (ts) | ✅ | ✅ family A | ✅ | 2026-10-24: search rides the WAF ladder (was 403 pre-ladder) |
 | dark-manga.com | main | Madara (ts) | ✅ | ✅ family A | ✅ | 2026-10-23: whole site behind the challenge — the WAF ladder's webview tier auto-solves it; 2026-10-24: search re-enabled on the same clearance |
 | fin-manga.com | main | Madara (ts) | ✅ | ✅ family A | ✅ | archive order drifts A–Z; 2026-10-23: WPFC lazy covers (data-wpfc-original-src) |
